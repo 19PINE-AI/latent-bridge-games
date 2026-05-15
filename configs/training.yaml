@@ -1,0 +1,44 @@
+# Training configuration (per-stage)
+
+stage_a_behavioral:
+  optimizer: AdamW
+  lr: 2e-4
+  weight_decay: 0.01
+  batch_size: 8
+  grad_accum_steps: 2
+  total_steps: 50000
+  warmup_steps: 1000
+  max_grad_norm: 1.0
+  log_every: 100
+  eval_every: 2000
+  save_every: 5000
+
+stage_c_bridge:
+  optimizer: AdamW
+  lr: 1e-4
+  weight_decay: 0.01
+  batch_size: 2
+  grad_accum_steps: 8
+  total_steps: 20000
+  warmup_steps: 500
+  # COCONUT-style curriculum
+  curriculum:
+    c0_steps: 5000  # text bridge supervision
+    c1_steps: 7500  # half text, half latent
+    c2_steps: 7500  # all latent
+  # Loss weights
+  ce_weight: 1.0
+  mse_weight: 2.0  # latent reconstruction is load-bearing
+  log_every: 50
+
+stage_d_rl:
+  algorithm: PPO
+  lr: 5e-5
+  batch_size: 64
+  rollout_length: 128
+  ppo_epochs: 4
+  clip_eps: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  total_env_steps: 5000000
+  log_every: 100

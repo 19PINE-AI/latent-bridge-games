@@ -1,0 +1,21 @@
+# Qwen3-30B-A3B-Thinking slow model configuration
+hf_repo: Qwen/Qwen3-30B-A3B-Thinking-2507
+dtype: bfloat16
+device: cuda
+
+# LoRA on output projection layers
+lora:
+  rank: 16
+  alpha: 32
+  target_modules: [q_proj, v_proj]  # minimal — saves memory
+  dropout: 0.05
+
+# Thought projection head: residual stream → bridge dim
+projection:
+  source_layer_idx: 32   # which transformer block's residual stream
+  hidden_to_bridge: [5120, 512, 256]  # 2-hidden-layer MLP with LayerNorm + GELU
+
+# Emission
+emission_rate_hz: 1.0
+max_emission_tokens: 128
+thinking_budget_tokens: 256  # for Qwen3-Thinking <think> block

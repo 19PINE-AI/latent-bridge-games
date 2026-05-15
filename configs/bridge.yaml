@@ -1,0 +1,16 @@
+# Bridge configuration
+bridge_dim: 256
+thought_buffer:
+  capacity: 16          # K, number of recent slow-model emissions retained
+  dtype: bfloat16
+perception_buffer:
+  capacity: 8           # K, number of recent fast-model summaries retained
+  dtype: bfloat16
+
+# Emission rates
+slow_emission_hz: 1.0   # slow model emits thought vectors at this rate
+fast_tick_hz: 15.0      # fast model emits actions at this rate
+fast_summary_period_ticks: 7  # fast model writes one perception summary per N ticks
+
+# Age encoding for stale buffer entries
+age_encoding_n_freq: 8  # sinusoidal frequency basis size

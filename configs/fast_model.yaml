@@ -1,0 +1,20 @@
+# MiniCPM-o 4.5 fast model configuration
+hf_repo: openbmb/MiniCPM-o-4_5
+dtype: bfloat16
+device: cuda
+
+# LoRA on Qwen3-8B backbone attention
+lora:
+  rank: 16
+  alpha: 32
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+  dropout: 0.05
+
+# Cross-attention bridge layers (inserted at these layer indices in the backbone)
+bridge_xattn:
+  insert_at_layers: [12, 24]
+  n_heads: 8
+  zero_init_output: true   # so model behaves identically to base at start
+
+# Action head
+n_actions: 18  # ALE max action space size

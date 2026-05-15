@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Data and checkpoints (large)
+checkpoints/*
+!checkpoints/.gitkeep
+results/*
+!results/.gitkeep
+data/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Logs
+logs/
+*.log
+wandb/
+mlruns/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hugging Face cache
+.cache/
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb

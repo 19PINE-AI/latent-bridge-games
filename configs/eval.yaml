@@ -1,0 +1,29 @@
+# Evaluation configuration
+
+games:
+  tier_1_low:
+    - Pong
+    - Breakout
+    - BeamRider
+  tier_2_medium:
+    - MsPacman
+    - SpaceInvaders
+    - Qbert
+  tier_3_high:
+    - Frostbite
+    - Pitfall
+    - PrivateEye
+
+strategies: [F, T, L]   # add S, O for full ablation
+seeds: [0, 1, 2]
+episodes_per_cell: 30
+max_episode_steps: 27000  # ALE convention: 30 min real-time at 15Hz
+
+metrics:
+  - mean_score
+  - median_score
+  - mean_episode_length
+  - frac_on_clock      # fraction of ticks emitted within 67ms budget
+  - mean_action_latency_ms
+
+report_path: results/eval_main.json

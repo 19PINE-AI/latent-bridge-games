@@ -1,0 +1,34 @@
+[project]
+name = "latent-bridge-games"
+version = "0.1.0"
+description = "Latent bridges between frozen fast multimodal and slow reasoning models for real-time game playing"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.46",
+    "peft>=0.13",
+    "accelerate>=1.0",
+    "bitsandbytes>=0.44",
+    "datasets>=3.0",
+    "pyyaml",
+    "tqdm",
+    "rich",
+    "wandb",
+    "ale-py>=0.10",
+    "gymnasium[atari]>=1.0",
+    "opencv-python-headless",
+    "pillow",
+    "numpy",
+    "einops",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
