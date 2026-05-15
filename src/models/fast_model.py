@@ -219,11 +219,28 @@ class FastModel(nn.Module):
         """
         return self.model(*args, **kwargs)
 
+    def _build_action_prompt(self, slow_text_suffix: Optional[str] = None) -> str:
+        """Build the chat-templated prompt string for action prediction.
+
+        If `slow_text_suffix` is provided (T-condition), it is appended inside the
+        user turn as `[strategic-guidance]: <text>` so the fast model can attend to it.
+        """
+        user_content = ACTION_PROMPT
+        if slow_text_suffix:
+            user_content = (
+                f"{ACTION_PROMPT}\n[strategic-guidance]: {slow_text_suffix.strip()}"
+            )
+        return self.model.processor.tokenizer.apply_chat_template(
+            [{"role": "user", "content": user_content}],
+            tokenize=False, add_generation_prompt=True,
+        )
+
     def predict_action(self,
                        frame: np.ndarray,
                        thought_buffer: Optional[torch.Tensor] = None,
                        age_encoding: Optional[torch.Tensor] = None,
                        legal_action_mask: Optional[torch.Tensor] = None,
+                       slow_text_suffix: Optional[str] = None,
                        ) -> torch.Tensor:
         """Frame → 18-way action logits.
 
@@ -236,6 +253,7 @@ class FastModel(nn.Module):
             thought_buffer: [B=1, K, D_bridge] or None — slow-model thought-vector ring.
             age_encoding: [B=1, K, D_bridge] or None — sinusoidal age for each entry.
             legal_action_mask: [18] bool — illegal actions get logits → -inf.
+            slow_text_suffix: optional T-condition text from slow model.
 
         Returns: [1, 18] action logits.
         """
@@ -245,15 +263,19 @@ class FastModel(nn.Module):
             raise RuntimeError("PIL is required for frame preprocessing")
 
         pil = Image.fromarray(frame.astype(np.uint8))
+        prompt_str = (
+            self._build_action_prompt(slow_text_suffix)
+            if slow_text_suffix else self._action_prompt_str
+        )
         inputs = self.model.processor(
-            [self._action_prompt_str],
+            [prompt_str],
             [[pil]],
             [[]],
             [[]],
             max_slice_nums=2,
             use_image_id=None,
             return_tensors="pt",
-            max_length=512,
+            max_length=1024,
         )
 
         # Move tensors/lists-of-tensors to device.

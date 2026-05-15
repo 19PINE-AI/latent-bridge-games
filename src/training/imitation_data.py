@@ -60,6 +60,25 @@ GAME_ACTION_TO_GLOBAL: dict[str, tuple[int, ...]] = {
     for game, names in _GAME_ACTION_NAMES.items()
 }
 
+# Inverse mapping: global_idx -> local_idx for each game, with -1 for illegal globals.
+GLOBAL_ACTION_TO_GAME: dict[str, tuple[int, ...]] = {}
+for _game, _g2l in GAME_ACTION_TO_GLOBAL.items():
+    _inv = [-1] * N_GLOBAL_ACTIONS
+    for _local, _global in enumerate(_g2l):
+        _inv[_global] = _local
+    GLOBAL_ACTION_TO_GAME[_game] = tuple(_inv)
+
+
+def global_to_local_action(game: str, global_action: int) -> int:
+    """Map a 0-17 global ALE-canonical action index to the game's local action index.
+
+    Raises ValueError if the global action is illegal for this game.
+    """
+    local = GLOBAL_ACTION_TO_GAME[game][global_action]
+    if local < 0:
+        raise ValueError(f"global action {global_action} is illegal for {game!r}")
+    return local
+
 
 def legal_action_mask(game: str) -> torch.Tensor:
     """Return a [18] bool mask: True at global indices that are legal for `game`."""
