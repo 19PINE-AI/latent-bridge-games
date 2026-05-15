@@ -148,9 +148,13 @@ def main():
             "tick": t,
             "action": action,
             "reward": float(reward),
+            "obs": obs.copy(),  # save the frame so Stage C can rerun the fast model
             "text_state": vars(text_state) if text_state is not None else None,
             "slow_text": slow_emit_text,
-            "slow_vecs_shape": list(slow_emit_vecs.shape) if slow_emit_vecs is not None else None,
+            # Detach to CPU+float32 for portable serialization. Bridge dim is 256 so
+            # 200 tokens × 256 × 4 bytes = ~200KB per emission — fine for offline.
+            "slow_vecs": (slow_emit_vecs.detach().to("cpu", dtype=torch.float32)
+                          if slow_emit_vecs is not None else None),
         })
 
         if terminated or truncated:

@@ -61,6 +61,18 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **Stage C COCONUT-curriculum scaffold** (`src/training/stage_c_data.py`,
+  `src/training/stage_c_bridge.py`). Dataset reads T-condition trajectories and
+  flat-indexes per-tick samples with the most-recent active emission attached
+  (slow_text + slow_vecs + emission-age). Trainer runs *two* fast-model forwards
+  per step: teacher (full text, no bridge) and student (truncated text + latent
+  buffer); loss = KL(student || teacher) over the 18-way action distribution.
+  Curriculum: C0 (text only), C1 (drop second-half text, fill bridge with
+  second-half latents), C2 (drop all text, full latents). 7 new CPU tests cover
+  the dataset indexing, emission-walkback, curriculum text-truncation, and the
+  thought-buffer materialization (with padding for short emissions).
+  Bridge-only optimizer (xattn Q/K/V/O at layers 12, 24). Awaiting T-condition
+  trajectory data to run the actual KL training (T runtime is GPU-blocked).
 - [x] **Stage A behavioral cloning loop end-to-end** (`src/training/stage_a_behavioral.py`).
   Cross-entropy on (frame, action) with legal-action masking, AdamW on
   action_head + bridge xattn weights, train/val split, checkpoint serialization.
