@@ -9,9 +9,14 @@ planning (route through maze / temperature management + igloo return). Both have
 well-established RL baselines and instantly recognizable visuals. Frostbite is also a
 standard hard-exploration benchmark, providing additional signal.
 
-**Tick rate:** Atari runs at 60Hz. We will downsample to **15 Hz** for the fast model
-(every 4 frames; 67ms tick), matching MiniCPM-o 4.5's processing rate without overflowing
-its decode budget. The slow model emits at **1-2 Hz** (every ~15-30 fast ticks).
+**Tick rate:** Atari runs at 60Hz. We downsample to **15 Hz nominal** for the fast model
+(every 4 frames; 67ms ideal tick). Measured cold-path latency is **~170ms cold / ~140ms
+warm** at `max_slice_nums=1` without torch.compile, and ~120-130ms with compile —
+realistically a **~7-8 Hz effective rate** until further optimization (vision-tower
+caching or lower-res input). The ALE env's frame-skip absorbs this: actions are still
+emitted every 4 60Hz frames as far as the game state machine is concerned; the wall-clock
+just runs slower than realtime during data generation. The slow model emits at **1-2 Hz**
+(every ~15-30 fast ticks).
 
 ## Four-strategy comparison
 

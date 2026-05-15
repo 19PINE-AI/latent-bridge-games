@@ -116,6 +116,15 @@ class FastModel(nn.Module):
         self._current_thought_buffer: Optional[torch.Tensor] = None
         self._current_age_encoding: Optional[torch.Tensor] = None
         self._hook_handles: list = []
+        # Latency budget for real-time tick rate (paper claim: 67ms @ 15Hz, 100ms @ 10Hz).
+        # Current breakdown after max_slice_nums=1 (profiled): processor 14ms +
+        # to_device 42ms + vision/get_vllm_embedding 80ms + llm.model forward 52ms +
+        # action head <1ms = ~197ms. Optimization roadmap (future work):
+        #   - torch.compile on llm.model:                potentially 52ms → ~26ms
+        #   - Vision tower at lower input resolution:    80ms → ~30ms
+        #   - Pinned-memory + async H2D transfer:        42ms → ~5ms
+        #   - Optional vision-token caching every Nth tick (1-tick staleness tradeoff)
+        # Realistic floor with these wins: ~80ms (>= LLM forward + processor minimum).
 
     def load_pretrained(self):
         """Load MiniCPM-o 4.5 from HF, freeze, attach cross-attn hooks + processor."""
@@ -272,7 +281,10 @@ class FastModel(nn.Module):
             [[pil]],
             [[]],
             [[]],
-            max_slice_nums=2,
+            # max_slice_nums=1 cuts ~80ms from the per-tick latency (profiling: 279->197ms
+            # on MsPacman). For Atari frames (210x160) one slice is sufficient — the
+            # multi-slice path is intended for high-res photographs.
+            max_slice_nums=1,
             use_image_id=None,
             return_tensors="pt",
             max_length=1024,

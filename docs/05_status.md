@@ -61,6 +61,29 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **Stage A behavioral cloning loop end-to-end** (`src/training/stage_a_behavioral.py`).
+  Cross-entropy on (frame, action) with legal-action masking, AdamW on
+  action_head + bridge xattn weights, train/val split, checkpoint serialization.
+  Smoke run: 24 train steps + 6 val on a 30-sample random-policy trajectory loaded
+  cleanly through forward/backward/optimizer/eval/save. 71M trainable parameters
+  (bridge xattn dominates; action head is only 74K). Val accuracy 0% on random data
+  is the correct null result.
+- [x] **T-condition runtime** (`scripts/run_text_bridge_baseline.py`) code-complete.
+  F-condition validated end-to-end on GPU: 15 ticks MsPacman in 4.2s wall-clock.
+  Action-space inverse mapping `global_to_local_action()` added — global 18-way
+  argmax/sample passes through to ALE's per-game local indices at the env boundary.
+  Full T (slow + fast joint, ~35GB) blocked on GPU contention with other workloads.
+- [x] **Latency profile** of `FastModel.predict_action`:
+    - `max_slice_nums=2` (default): **279ms** end-to-end
+    - `max_slice_nums=1` (locked in): **197ms** (saves 82ms — fewer image slices for
+      the SigLIP+resampler to encode; Atari 210x160 doesn't need multi-slice anyway).
+    - Per-stage at slices=1: processor 14ms, host→device 42ms, vision tower 80ms,
+      LLM forward 52ms, action head <1ms.
+    - **torch.compile** on `llm.model`: extra **1.33× speedup**, mean 53→40ms
+      (min 30ms). Defer to opt-in flag — compile interacts unpredictably with
+      backward pass; safe to enable for inference (Stage D PPO rollouts, eval).
+  At 10Hz (100ms target) we're within reach with these two wins; sub-67ms (15Hz)
+  needs vision-tower work (lower input resolution, or per-tick caching).
 - [x] **`FastModel.predict_action` end-to-end pipeline working.** Atari frame (RGB
   210×160) → MiniCPM-o `processor` (4-list signature: prompt strings, images, audios,
   audio-parts) → `input_ids[1, 90]` + `pixel_values[1][1][3, 14, 14504]` + image_bound →
