@@ -3,7 +3,7 @@
 ## Thesis
 
 Real-time interactive AI systems face a structural dilemma: reasoning models (Claude 4.7,
-GPT-5, Qwen3-30B-A3B-Thinking) deliberate excellently but cannot operate at 100-200ms tick
+GPT-5, Qwen3-VL-Thinking) deliberate excellently but cannot operate at 100-200ms tick
 rates; small streaming models hit the tick rate but lack reasoning depth. Current
 production systems address this with either (a) monolithic streaming models with shallow
 thinking (Gemini Live, OpenAI Realtime), or (b) two-model splits communicating via text
@@ -47,9 +47,11 @@ Games are the cleanest empirical domain for this question:
 ## Hypotheses
 
 **H1 (capability).** On games requiring both reactive and strategic components, a
-MiniCPM-o 4.5 + Qwen3-30B-A3B-Thinking system coupled via a learned latent bridge achieves
+MiniCPM-o 4.5 + Qwen3-VL-8B-Thinking system coupled via a learned latent bridge achieves
 significantly higher scores than (a) MiniCPM-o 4.5 alone, (b) the same pair coupled via a
-text channel.
+text channel. We make this claim with both endpoints at the same ~8-9B scale to isolate
+the channel from the capability gap; a scaling ablation with Qwen3-30B-A3B-Thinking on
+the slow side tests whether the latent advantage grows with slow-model reasoning depth.
 
 **H2 (phase transition).** The latent-vs-text gap is small on games with low strategic
 load and grows with strategic complexity. There exists an identifiable complexity
@@ -73,7 +75,8 @@ slow model cannot be retrained.
 **In scope:**
 - Atari-class games (ALE / Gymnasium) at 10-60Hz tick rates
 - MiniCPM-o 4.5 as the frozen fast model
-- Qwen3-30B-A3B-Thinking as the frozen slow model
+- Qwen3-VL-8B-Thinking as the frozen slow model (with Qwen3-30B-A3B-Thinking as a single
+  scaling-ablation configuration on Frostbite)
 - LoRA adapters on both for bridge endpoints
 - Four-strategy comparison: fast-only, slow-only-offline, text-bridge, latent-bridge
 

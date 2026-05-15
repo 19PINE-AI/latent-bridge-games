@@ -1,9 +1,9 @@
-# Qwen3-30B-A3B-Thinking slow model configuration
-hf_repo: Qwen/Qwen3-30B-A3B-Thinking-2507
+# Slow model configuration (primary: Qwen3-VL-8B-Thinking)
+hf_repo: Qwen/Qwen3-VL-8B-Thinking
 dtype: bfloat16
 device: cuda
 
-# LoRA on output projection layers
+# LoRA on attention projection layers
 lora:
   rank: 16
   alpha: 32
@@ -12,10 +12,27 @@ lora:
 
 # Thought projection head: residual stream → bridge dim
 projection:
-  source_layer_idx: 32   # which transformer block's residual stream
-  hidden_to_bridge: [5120, 512, 256]  # 2-hidden-layer MLP with LayerNorm + GELU
+  source_layer_idx: 24   # which transformer block's residual stream
+  hidden_to_bridge: [4096, 512, 256]  # 2-hidden-layer MLP with LayerNorm + GELU
 
 # Emission
 emission_rate_hz: 1.0
 max_emission_tokens: 128
 thinking_budget_tokens: 256  # for Qwen3-Thinking <think> block
+
+# Vision input (slow model has native vision)
+vision:
+  enabled: true
+  frame_snapshot_hz: 1.0      # frame fed in alongside text/perception summary
+  resize_to: [448, 448]       # Qwen3-VL standard input size
+
+# ---- Scaling ablation: 30B-A3B MoE (one Tier-3 game only) ----
+# Selected via `--scaling-ablation` flag on the run script; not used in main sweep.
+scaling_ablation:
+  hf_repo: Qwen/Qwen3-30B-A3B-Thinking-2507
+  projection:
+    source_layer_idx: 32
+    hidden_to_bridge: [5120, 512, 256]
+  # 30B model has no native vision; for the ablation we use only text+perception channels
+  vision:
+    enabled: false

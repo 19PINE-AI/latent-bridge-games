@@ -5,7 +5,7 @@
 ```
 ┌─────────────────────┐         ┌──────────────────────┐
 │  Atari game state   │  60Hz   │   Slow Model         │
-│  (RGB frame +       │ ──────▶ │   Qwen3-30B-A3B      │
+│  (RGB frame +       │ ──────▶ │   Qwen3-VL-8B        │
 │   game-state text)  │         │   -Thinking          │
 └────────┬────────────┘         │   (frozen + LoRA     │
          │                      │    projection head)  │
@@ -59,19 +59,36 @@ Concatenating into the context would push the buffer into the same attention spa
 recent input tokens, contaminating the attention budget. Dedicated cross-attn layers
 keep the bridge readable without budget pressure on the main attention.
 
-## Slow model: Qwen3-30B-A3B-Thinking
+## Slow model: Qwen3-VL-8B-Thinking
 
-- 30B total params, 3B active per token (MoE)
+- ~8B params, dense
+- Native vision encoder (SigLIP-class) — accepts 1Hz frame snapshots directly
 - bf16, frozen base
 - Trainable adapters:
-  - LoRA on output projection layers (rank 16) — for adapting thought emission to
+  - LoRA on attention projection layers (rank 16) — for adapting thought emission to
     game-context patterns
-  - **Projection head**: linear from residual stream (5120-dim at layer 32) to thought
+  - **Projection head**: linear from residual stream (4096-dim at layer 24) to thought
     vector (256-dim)
-  - **Cross-attention LoRA** at layer 28: reads the perception buffer (Stage C3 only)
-- Input: rolling 4-second window of (a) compact text game state — entity positions,
-  inventory, score, level — and (b) perception summaries from fast model
-- Output: text reasoning tokens + projected thought vectors at ~1-2Hz
+  - **Cross-attention LoRA** at layer 20: reads the perception buffer (Stage C3 only)
+- Input: 1Hz frame snapshot + rolling 4-second window of (a) compact text game state
+  (RAM-derived entity positions, score, lives, level) and (b) perception summaries from
+  fast model
+- Output: text reasoning tokens (with `<think>` block) + projected thought vectors at ~1-2Hz
+
+**Why same-architecture-family on both sides:** MiniCPM-o 4.5's backbone is Qwen3-8B and
+Qwen3-VL-8B-Thinking is built on the same family. This means the hidden dims (4096) are
+identical on both ends of the bridge, so the projection head is a straightforward 4096→256
+rather than a cross-family adapter. It also makes the perception-buffer cross-attention
+on the slow side architecturally symmetric with the thought-buffer cross-attention on the
+fast side.
+
+### Scaling ablation (single configuration, not the main experiment)
+
+For one Tier-3 game (Frostbite), we additionally run T and L with Qwen3-30B-A3B-Thinking
+as the slow model. This 30B-A3B MoE has 3B active params per token and a 5120-dim residual
+stream. It uses a slightly different projection head (5120→256 with a 512-dim hidden
+layer). Purpose: test whether the latent-vs-text gap grows with slow-model capability,
+evidencing the bandwidth claim. See `docs/03_experiment_plan.md` for protocol.
 
 **Why projection rather than direct residual stream:** the residual stream is too
 high-dimensional and unstructured for the fast model to attend over efficiently. A
@@ -103,31 +120,41 @@ predictions).
 
 ## Memory budget (96GB target)
 
-### Inference
+### Inference (primary 8B+9B configuration)
+| Component | bf16 size |
+|---|---|
+| MiniCPM-o 4.5 weights | 18GB |
+| Qwen3-VL-8B-Thinking weights | 17GB |
+| KV cache (both models, 4K context each) | 4GB |
+| Bridge layer weights | 0.5GB |
+| Activations (peak) | 4GB |
+| **Total** | **~44GB** |
+
+### Training (Stage C / D, primary configuration)
+| Component | size |
+|---|---|
+| MiniCPM-o frozen + LoRA + cross-attn | 21GB |
+| Qwen3-VL-8B frozen + LoRA + projection | 19GB |
+| Optimizer state (LoRA + projection only) | 2GB |
+| Activations + gradients (peak, bs=4) | 8GB |
+| Bridge buffers | 1GB |
+| **Total** | **~51GB** |
+
+Comfortable headroom (~45GB). Lets us use bs=4-8 for stable PPO at Stage D and keep
+multiple LoRA checkpoints resident for fast switching during ablation runs.
+
+### Scaling-ablation budget (one Tier-3 game, 30B-A3B slow)
 | Component | bf16 size |
 |---|---|
 | MiniCPM-o 4.5 weights | 18GB |
 | Qwen3-30B-A3B weights | 60GB |
-| KV cache (both models, 4K context each) | 4GB |
-| Bridge layer weights | 0.5GB |
-| Activations (peak) | 4GB |
-| **Total** | **~87GB** |
+| KV cache + bridge + activations | 9GB |
+| **Total (inference)** | **~87GB** |
 
-### Training (Stage C / D)
-| Component | size |
-|---|---|
-| MiniCPM-o frozen + LoRA + cross-attn | 21GB |
-| Qwen3-30B-A3B frozen + LoRA + projection | 62GB |
-| Optimizer state (LoRA + projection only) | 3GB |
-| Activations + gradients (peak, bs=2) | 7GB |
-| Bridge buffers | 1GB |
-| **Total** | **~94GB** |
-
-Tight; ~2GB headroom. Mitigations if OOM:
-- Reduce batch size to 1, use grad accumulation
+Stage D training in this configuration is tight; mitigations:
+- Reduce bs to 1 with grad accumulation
 - Activation checkpointing on Qwen3-30B layers
-- Reduce Qwen3-30B context to 2K
-- Final fallback: AWQ-4bit on slow model (saves 30GB)
+- AWQ-4bit on slow model (saves ~30GB) if needed for joint training
 
 ## Training objectives
 

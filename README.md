@@ -2,8 +2,11 @@
 
 A research project investigating whether continuous-valued latent bridges between a frozen
 real-time multimodal model (MiniCPM-o 4.5, 9B) and a frozen reasoning model
-(Qwen3-30B-A3B-Thinking) can outperform text-channel splits for tasks requiring both
-sub-200ms reactive output and long-horizon deliberation.
+(Qwen3-VL-8B-Thinking) can outperform text-channel splits for tasks requiring both
+sub-200ms reactive output and long-horizon deliberation. Both endpoints are at the same
+~8-9B scale so the channel — not a capability gap — is the load-bearing experimental
+variable; a single Tier-3 ablation with Qwen3-30B-A3B-Thinking on the slow side tests
+how the latent advantage scales with slow-model reasoning depth.
 
 **Centerpiece scenario:** Atari-class video games requiring fast reflexes AND strategic
 planning (Ms. Pac-Man, Frostbite). Secondary: live video-stream narration.
@@ -19,9 +22,9 @@ at real-time tick rates.
 
 ## Hypotheses
 
-- **H1:** MiniCPM-o 4.5 + Qwen3-30B-A3B-Thinking via latent bridge produces game scores
+- **H1:** MiniCPM-o 4.5 + Qwen3-VL-8B-Thinking via latent bridge produces game scores
   that strictly dominate fast-only and text-bridge architectures on games requiring both
-  reactive and strategic components.
+  reactive and strategic components — at matched parameter scale on both sides.
 - **H2:** A phase-transition exists in game complexity — text bridges suffice for simple
   games but fail at higher strategic load; latent bridges hold up.
 - **H3:** COCONUT-style curriculum training with the slow model frozen closes most of the
@@ -63,4 +66,6 @@ latent-bridge-games/
 ## Hardware
 
 NVIDIA RTX Pro 6000, 96GB VRAM. Joint inference of MiniCPM-o 4.5 (bf16, 18GB) and
-Qwen3-30B-A3B-Thinking (bf16, 60GB) fits with ~18GB headroom for training overhead.
+Qwen3-VL-8B-Thinking (bf16, 17GB) leaves ~60GB headroom for training, larger PPO batches,
+and resident LoRA checkpoints. The 30B-A3B scaling ablation fits at inference (~87GB
+total) and needs activation checkpointing or AWQ-4bit for joint training.

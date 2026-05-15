@@ -18,9 +18,16 @@ its decode budget. The slow model emits at **1-2 Hz** (every ~15-30 fast ticks).
 | Strategy | Fast model | Slow model | Channel | Trainable |
 |---|---|---|---|---|
 | **F** (fast-only) | MiniCPM-o 4.5 | — | none | LoRA on action head |
-| **S** (slow-offline) | — | Qwen3-30B-A3B | — | none (zero-shot prompting) |
-| **T** (text bridge) | MiniCPM-o 4.5 | Qwen3-30B-A3B | text prompts | LoRA on fast |
-| **L** (latent bridge) | MiniCPM-o 4.5 | Qwen3-30B-A3B | continuous vectors | LoRA on both + bridge |
+| **S** (slow-offline) | — | Qwen3-VL-8B-Thinking | — | none (zero-shot prompting) |
+| **T** (text bridge) | MiniCPM-o 4.5 | Qwen3-VL-8B-Thinking | text prompts | LoRA on fast |
+| **L** (latent bridge) | MiniCPM-o 4.5 | Qwen3-VL-8B-Thinking | continuous vectors | LoRA on both + bridge |
+
+**Why same-size on both sides:** the thesis is about the *channel* (latent vs text), not a
+capability gap between the two endpoints. Using two ~8-9B models with the slow side just
+operating at a slower tick + with a CoT "thinking" budget isolates the bridge as the
+load-bearing architectural choice and avoids the confound "the big model was just better."
+Same-size also fits comfortably in 96GB with headroom for PPO at Stage D. Capability
+scaling is addressed separately as a single ablation (see below).
 
 **S is a control showing slow-only is too slow:** the slow model produces actions at its
 emission rate (1-2Hz), with the game advancing 15+ frames per action. Score will be low
@@ -35,6 +42,16 @@ both ends, COCONUT-style curriculum training.
 
 We also include **O (oracle)**: pre-computed slow-model analysis injected as fast-model
 context. Cheating, but bounds the upper limit of what *any* fast/slow coupling can buy.
+
+### Capability-scaling ablation (one configuration)
+
+In addition to the four-strategy main sweep, we run **one** scaling configuration on
+Frostbite (Tier 3) only, with Qwen3-30B-A3B-Thinking as the slow model under both T and L.
+This is *not* the main result. Its purpose is to show whether the latent-vs-text gap
+*grows* when the slow model has more reasoning depth to compress — directly evidencing
+the bandwidth claim in the framing doc. Run as `T-30B` and `L-30B` cells; 3 seeds × 30
+episodes per cell. Expected: the absolute scores go up under both, but the L–T delta is
+*at least as large* as in the 8B–8B configuration, and probably larger.
 
 ## Training stages
 
@@ -51,7 +68,7 @@ Stage C.
 ### Stage C: Bridge supervised training (Week 2)
 Run T to generate trajectory data: at each fast tick, record (fast-model context, slow-model
 text-thought-so-far, action-taken, reward). Add cross-attention LoRA layers to MiniCPM-o
-and a projection LoRA on Qwen3-30B-A3B-Thinking that emits continuous thought vectors
+and a projection LoRA on Qwen3-VL-8B-Thinking that emits continuous thought vectors
 from intermediate residual stream.
 
 COCONUT curriculum:
@@ -129,7 +146,9 @@ held-out trajectories.
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| MiniCPM-o + Qwen3-30B don't fit jointly | Low | Quantize slow to AWQ-4bit; saves ~30GB |
+| Joint 8B+9B inference doesn't fit | Very low | ~34GB weights; mitigation N/A |
+| Same-size slow model too weak to show L–T gap on Tier 3 | Medium | Run the 30B-A3B scaling ablation on Frostbite to disambiguate |
+| 30B-A3B scaling ablation doesn't fit alongside 9B fast | Low | MoE → 60GB weights; quantize to AWQ-4bit if needed (saves ~30GB) |
 | Fast-only saturates on chosen games | Medium | Pre-screen on Tier 1; if saturated, shift to Tier 3 only |
 | Slow model emission too slow | Medium | Reduce emission rate to 0.5Hz; rely on staleness-tolerant buffer |
 | Bridge collapses to constant | Medium | MI diagnostic; if collapsed, add reconstruction auxiliary loss |
@@ -140,5 +159,5 @@ held-out trajectories.
 
 - **Compute:** RTX Pro 6000 96GB. Continuous use for ~4 weeks.
 - **Storage:** ~500GB (model weights, trajectories, checkpoints)
-- **API calls:** ~$200 of Claude API for evaluation judge + scripted-data generation
+- **API calls:** ~$200 of Gemini API (API keys available in env; use Gemini 3 Flash model) for evaluation judge + scripted-data generation
 - **HF/wandb:** free tiers sufficient

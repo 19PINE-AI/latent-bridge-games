@@ -1,4 +1,9 @@
 # MiniCPM-o 4.5 fast model configuration
+# Architecture (confirmed from cached config.json):
+#   - LLM backbone: Qwen3-8B, 36 layers, hidden=4096, 32 attn heads
+#   - Vision encoder: SigLIP NaViT, 27 layers, hidden=1152, 16 attn heads
+#   - Whisper audio + CosyVoice TTS components present but unused for Atari
+# The LLM backbone is reachable at `model.llm.model.layers[i]` (Qwen3ForCausalLM).
 hf_repo: openbmb/MiniCPM-o-4_5
 dtype: bfloat16
 device: cuda
@@ -10,11 +15,14 @@ lora:
   target_modules: [q_proj, k_proj, v_proj, o_proj]
   dropout: 0.05
 
-# Cross-attention bridge layers (inserted at these layer indices in the backbone)
+# Cross-attention bridge layers (inserted at these layer indices in the backbone).
+# Layers 12 and 24 of the 36-layer Qwen3-8B = 1/3 and 2/3 of depth.
 bridge_xattn:
   insert_at_layers: [12, 24]
+  hidden_dim: 4096          # Qwen3-8B backbone hidden size
   n_heads: 8
   zero_init_output: true   # so model behaves identically to base at start
 
-# Action head
-n_actions: 18  # ALE max action space size
+# Action head: classification over the global 18-way ALE action space.
+# Reads the last hidden state at a fixed [ACTION] sentinel token position.
+n_actions: 18
