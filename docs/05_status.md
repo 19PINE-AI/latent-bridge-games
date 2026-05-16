@@ -20,6 +20,54 @@
 
 ## Completed (research execution, in order)
 
+- [x] **🔬 SpaceInvaders end-to-end — clean negative finding (2026-05-16).**
+  Third game in the F/T/L sweep. **F = 105, T = 0, L = 0** (12 episodes per cell).
+  Stage A val_acc 32.9 % (2.0 × random for the 6-action space, similar to MsPacman's
+  2.9 ×). Stage C KL converged to ~0.005 on the random-policy T-trajectories. Yet
+  both bridges collapse the policy to zero score.
+  - **MI diagnostic confirms the bridge is uninformative**: I(bridge; action) and
+    I(bridge; sign(reward)) are both *negative* vs the shuffled baseline (−0.004 and
+    −0.003 nats respectively). The bridge faithfully transmits the slow's guidance
+    rather than introducing noise, but the guidance is the wrong thing to imitate.
+  - **Root cause** — SpaceInvaders is reward-asymmetric: only FIRE actions can score,
+    and the random-policy T-trajectory action marginal has ~17 % FIRE rate. Stage C
+    KL training matches that marginal, so L learns to imitate a passive policy. The
+    slow model's textual guidance ("dodge bombs by lateral movement, clear easier
+    rows first") biases the prompt distribution; the fast model — which *can* fire
+    under F — defers to the suggestion and waits.
+  - **Methodology implication**: KL bridge training on random-policy T-trajectories
+    implicitly assumes the action-marginal ≈ reward-bearing-action-marginal. Holds
+    for symmetric-reward games (MsPacman: every direction collects dots; Seaquest:
+    movement collects divers, surfaces oxygen, etc.); fails for asymmetric-reward
+    games. **Follow-up running**: expert-T-trajectory retry to test the diagnosis
+    (`scripts/spaceinvaders_expert_t_retry.sh`).
+  - Pipeline orchestration: `scripts/spaceinvaders_pipeline.sh` (7 steps end-to-end).
+
+- [x] **True bandwidth ablation (2026-05-16)** — fresh T-collection at N=4 and N=16
+  matched with train+deploy at the same bandwidth.
+  - N=4 train+deploy: L = 296 ± 63 (median 260) — above F=256 but below T=408.
+  - **N=8 train+deploy: L = 628 ± 341** (sweet spot; unchanged from headline).
+  - N=16 train+deploy: L = 259 ± 71 (median 290) — *worse than F*! Over-bandwidth
+    dilutes attention.
+  - **Bandwidth is Goldilocks, not monotonic.** N=8 is empirically the sweet spot
+    for our slow-model emission length (~96 tokens). At N=16, the projection has to
+    learn more variation from the same training data, AND the fast LLM's attention
+    is split across more bridge tokens.
+
+- [x] **Seaquest end-to-end (2026-05-16)** — Tier-3 H2 test data point.
+  - SB3-DQN expert collection at epsilon 0.1: 10 episodes, ~5K frames, mean score
+    113. Stage A val_acc 24.2 % (4.3 × random for 18 actions).
+  - v2 Stage C: KL converged to ~0.006.
+  - **F = 42 ± 19, T = 63 ± 11, L = 80 ± 0** (12 episodes per cell). L > T by 26 %.
+    L is fully deterministic (std=0) — locked into a stable exploit-style policy
+    that kills exactly 8 enemies per episode for 80 points.
+  - **H2 (gap grows with tier) REFUTED**: L-T gap is *smaller* on Seaquest than
+    MsPacman (+26 % vs +54 %). Root cause: weaker Stage A teacher on Seaquest
+    (24 % vs 32 % val acc) bottlenecks both T and L on action-head capacity. The
+    bridge contribution still helps but saturates. Honest interpretation: L > T
+    transfers across symmetric-reward games, but the size of the bridge advantage
+    depends on Stage A teacher quality, not directly on game tier.
+
 - [x] Established random-policy floor: MsPacman 290 ± 134, Frostbite 78 ± 37, etc.
   (matches published Atari-random baselines). Stored at `results/random_baseline.json`.
 - [x] Researched authoritative ALE RAM layouts for MsPacman + Frostbite

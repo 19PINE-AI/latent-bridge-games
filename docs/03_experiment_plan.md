@@ -1,13 +1,22 @@
 # Experiment Plan
 
+> **Status update (2026-05-16):** The plan originally targeted Frostbite as the
+> Tier-3 game. After Frostbite Stage A failed (no SB3-zoo expert; RWR self-bootstrap on
+> random-policy trajectories produced val_acc ≈ uniform random), **Seaquest** was
+> substituted as the Tier-3 game (SB3 DQN expert available, 18-action ALE-canonical
+> space, oxygen+diver-collection planning load). SpaceInvaders was added as a second
+> Tier-2 data point. Frostbite remains future work (needs scratch-trained DQN or a
+> scripted heuristic). See `docs/06_results.md` for current headline numbers.
+
 ## Centerpiece task
 
-**Atari Ms. Pac-Man and Frostbite via the Arcade Learning Environment (ALE).**
+**Atari Ms. Pac-Man (Tier 2) and Seaquest (Tier 3) via the Arcade Learning Environment
+(ALE).** SpaceInvaders (Tier 2) added as a second data point.
 
-Both games require both reflexes (dodge ghosts / jump on moving ice floes) and long-horizon
-planning (route through maze / temperature management + igloo return). Both have
-well-established RL baselines and instantly recognizable visuals. Frostbite is also a
-standard hard-exploration benchmark, providing additional signal.
+All games require both reflexes (dodge ghosts / dodge bombs / surface for oxygen) and
+long-horizon planning (route through maze / clear invader rows / diver-collection +
+oxygen budget). All have SB3-zoo expert checkpoints. Frostbite remains the intended
+Tier-3 stretch target but lacks an SB3 expert and so currently sits in future work.
 
 **Tick rate:** Atari runs at 60Hz. We downsample to **15 Hz nominal** for the fast model
 (every 4 frames; 67ms ideal tick). Measured cold-path latency is **~170ms cold / ~140ms
@@ -112,11 +121,17 @@ fast model's context as text. Measure score ceiling.
 ### Game complexity tiers (for the phase-transition sweep)
 - **Tier 1 (low strategic load):** Pong, Breakout, Beam Rider — fast model alone should
   saturate
-- **Tier 2 (medium):** Ms. Pac-Man, Space Invaders — moderate planning helps
-- **Tier 3 (high):** Frostbite, Montezuma's Revenge (subset), Pitfall — long-horizon
-  planning is critical
+- **Tier 2 (medium):** Ms. Pac-Man (✅ tested, L +54 % over T), Space Invaders (✅
+  tested, surfaced a methodology finding — random-policy T-trajectories fail on
+  reward-asymmetric games; expert-T retry running)
+- **Tier 3 (high):** Seaquest (✅ tested, L +26 % over T); Frostbite, Montezuma's
+  Revenge (subset), Pitfall (future work; need scratch-trained experts)
 
-Prediction: L >> T on Tier 3, L ≈ T on Tier 1.
+Original prediction: L ≫ T on Tier 3, L ≈ T on Tier 1. **Refuted by data**: the L-T
+gap was *smaller* on Tier-3 Seaquest (+26 %) than Tier-2 MsPacman (+54 %), because
+the Seaquest Stage A teacher is weaker (24 % val acc vs 32 %), bottlenecking both T
+and L on action-head capacity. The bridge contribution is bounded above by the
+teacher quality. See `docs/06_results.md` "Hypothesis status" for the full revision.
 
 ### Latency / on-clock fraction
 Wall-clock per-tick latency for each strategy. Confirms that F, T, L all meet the 67ms
