@@ -15,11 +15,20 @@ projection without re-running the slow model.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
 import torch
 from torch import nn
+
+
+def _env_n_bridge_tokens() -> int:
+    """Read LB_BRIDGE_N_TOKENS env var, falling back to 8."""
+    v = os.environ.get("LB_BRIDGE_N_TOKENS", "")
+    if v and v.isdigit():
+        return int(v)
+    return 8
 
 try:
     from PIL import Image
@@ -38,7 +47,8 @@ class SlowModelConfig:
     bridge_dim: int = 4096
     # v2: take the last N positions of the slow's emission as bridge tokens.
     # These positions are closest to the slow model's "answer" (after <think>).
-    n_bridge_tokens: int = 8
+    # Can be overridden by LB_BRIDGE_N_TOKENS env var (for bandwidth ablations).
+    n_bridge_tokens: int = field(default_factory=_env_n_bridge_tokens)
     lora_rank: int = 16
     lora_alpha: int = 32
     lora_target_modules: tuple = ("q_proj", "v_proj")
@@ -107,7 +117,6 @@ class SlowModel(nn.Module):
         """
         from transformers import AutoModelForImageTextToText, AutoProcessor
         # Use cached files when available; fall back to download if not.
-        import os
         local_only = os.environ.get("HF_LOCAL_ONLY", "1") == "1"
         self.tokenizer = AutoProcessor.from_pretrained(
             self.cfg.hf_repo, local_files_only=local_only
