@@ -61,10 +61,17 @@ def main():
     ap.add_argument("--slow-max-tokens", type=int, default=128,
                     help="max tokens per slow emission")
     ap.add_argument("--out", default=None, help="trajectory .pt output path")
-    ap.add_argument("--action-policy", choices=("zero-head", "random-legal"),
+    ap.add_argument("--action-policy", choices=("zero-head", "random-legal", "sb3-expert"),
                     default="random-legal",
                     help="At init the fast action_head outputs zeros; 'random-legal' "
-                         "samples from legal actions for varied demo data.")
+                         "samples from legal actions for varied demo data. "
+                         "'sb3-expert' uses --expert-policy with --epsilon noise (for "
+                         "reward-asymmetric games like SpaceInvaders where random "
+                         "sampling under-represents reward-bearing actions).")
+    ap.add_argument("--expert-policy", default=None,
+                    help="Path to SB3 DQN/PPO .zip; required when action-policy=sb3-expert")
+    ap.add_argument("--epsilon", type=float, default=0.1,
+                    help="exploration rate around the SB3 expert (action-policy=sb3-expert)")
     ap.add_argument("--load-slow", action="store_true", default=True,
                     help="Load Qwen3-VL-8B-Thinking and emit real strategic guidance.")
     ap.add_argument("--no-slow", dest="load_slow", action="store_false",
@@ -92,6 +99,16 @@ def main():
         slow = SlowModel(SlowModelConfig()).load_pretrained()
         print(f"  done in {time.time()-t0:.1f}s. VRAM: {torch.cuda.memory_allocated()/1e9:.2f}GB")
 
+    # ---- Optional SB3 expert ----
+    sb3_policy = None
+    if args.action_policy == "sb3-expert":
+        if not args.expert_policy:
+            raise ValueError("--expert-policy required when action-policy=sb3-expert")
+        from scripts.collect_trajectories import _load_sb3_policy, _build_sb3_view_env
+        print(f"Loading SB3 expert from {args.expert_policy}...", flush=True)
+        sb3_policy = _load_sb3_policy(args.expert_policy)
+        print(f"  done.", flush=True)
+
     # ---- Bridge state (recreated per episode) ----
     bridge_dim = 256
 
@@ -105,6 +122,12 @@ def main():
 
         env = AtariEnv(game_name=args.game, seed=ep_seed)
         obs, _ = env.reset()
+
+        sb3_view_env = None
+        sb3_obs = None
+        if sb3_policy is not None:
+            sb3_view_env = _build_sb3_view_env(args.game, ep_seed)
+            sb3_obs = sb3_view_env.reset()
 
         trace = []
         latest_slow_text: str | None = None
@@ -122,11 +145,26 @@ def main():
                 )
             if args.action_policy == "zero-head":
                 global_action = int(logits.argmax(dim=-1).item())
+            elif args.action_policy == "sb3-expert":
+                # SB3 expert predicts in local action space; map back to global.
+                if rng.random() < args.epsilon:
+                    local_action = int(rng.integers(0, env.action_space_size))
+                else:
+                    pred, _ = sb3_policy.predict(sb3_obs, deterministic=True)
+                    local_action = int(pred[0])
+                # We track global actions in the trace for consistency with the
+                # global action head. Reverse-map local→global via legal_indices.
+                from src.training.imitation_data import GAME_ACTION_TO_GLOBAL
+                global_action = GAME_ACTION_TO_GLOBAL[args.game][local_action]
             else:
                 global_action = int(rng.choice(legal_indices))
 
             local_action = global_to_local_action(args.game, global_action)
             obs, reward, terminated, truncated, text_state = env.step(local_action)
+            if sb3_view_env is not None:
+                sb3_obs, _, sb3_done, _ = sb3_view_env.step(np.array([local_action]))
+                if bool(sb3_done[0]):
+                    sb3_obs = sb3_view_env.reset()
             action = global_action
             cumulative_reward += float(reward)
             slow_emit_text = None
@@ -167,6 +205,8 @@ def main():
                 break
 
         env.close()
+        if sb3_view_env is not None:
+            sb3_view_env.close()
         elapsed = time.time() - t_loop_start
         n_ticks = len(trace)
         n_slow = sum(1 for x in trace if x["slow_text"])
