@@ -3,18 +3,35 @@
 This document summarizes the empirical findings from the v1 → v2 redesign cycle and
 points at the headline numbers, by experiment.
 
-## Headline result (MsPacman, 12 episodes per cell)
+## Headline result — L > T on both games
 
-| Strategy | Mean ± Std | Median | Latency (ms) | On-Clock |
+### MsPacman (Tier 2; 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Best | Latency (ms) |
 |---|---|---|---|---|
-| F (fast only) | 256 ± 24 | 250 | 44 | 81 % |
-| T (text bridge) | 408 ± 88 | 385 | 50 | 80 % |
-| **L (v2 latent bridge)** | **628 ± 341** | **550** | 124 | 37 % |
+| F (fast only) | 256 ± 24 | 250 | 290 | 44 |
+| T (text bridge) | 408 ± 88 | 385 | 600 | 50 |
+| **L (v2 latent bridge)** | **628 ± 341** | **550** | **1740** | 124 |
 
-- **L vs T: +54 % mean, +43 % median** — the latent bridge **beats the text bridge** when
-  given LLaVA-style architectural privileges (tokens-in-input vs mid-layer cross-attn).
-- **L vs F: +145 % mean** — both bridges add a lot over fast-only.
-- Single-best L episode: **1740**, far above the top of any prior condition.
+L vs T: **+54 % mean / +43 % median**. L vs F: +145 %.
+
+### Seaquest (Tier 3; 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Best | Latency (ms) |
+|---|---|---|---|---|
+| F (fast only) | 41.7 ± 19.1 | 40.0 | 80 | 78 |
+| T (text bridge) | 63.3 ± 11.1 | 60.0 | 80 | 87 |
+| **L (v2 latent bridge)** | **80.0 ± 0.0** | **80.0** | 80 | 84 |
+
+L vs T: **+26 % mean**. L vs F: +92 %. **L is fully deterministic** (std = 0 across 12
+seeds) — locked into an exploit-style policy at the local maximum of 8 kills × 10 pts.
+
+### Cross-game summary
+- **H1 ✅ Confirmed on both games**: L > T.
+- **H2 (gap grows with strategic complexity) — REFUTED**: the L-T gap is *smaller* on
+  Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). Why: the Seaquest Stage A
+  teacher is weaker (24 % val acc vs MsPacman's 32 %), bottlenecking both T and L on
+  action-head capacity. The bridge contribution still helps but saturates.
+- The honest interpretation is: **L > T transfers across games, but the size of the
+  bridge advantage depends on Stage A teacher quality, not directly on game tier.**
 
 ## What changed from v1 (the design that failed)
 
@@ -72,11 +89,29 @@ condition for deployment success — confirmed empirically by v1, where KL=0.004
 preceded deployment catastrophe. v2 succeeds in deployment *also* because the
 architectural privileges match the LLM's pretraining.
 
-## Bandwidth ablations (overnight, in progress)
+## Bandwidth ablations
 
-We re-train the slow projection with `n_bridge_tokens ∈ {4, 8, 16}` and re-evaluate
-L on the same MsPacman setup. Hypothesis: 8 is a sweet spot; 4 may under-fit, 16 may
-not help further. (Results pending.)
+### Phase 1: deployment-time bandwidth scan (fixed projection)
+
+We trained Stage C v2 with `LB_BRIDGE_N_TOKENS=4/8/16` env var, but because Stage C
+uses *cached* residuals from T-trajectory files (always saved with N=8) and the seed
+is fixed, all three projections came out **bit-identical**. So this scan actually
+measured: *given a projection trained on 8 tokens, how does eval-time token count affect L*?
+
+| Deploy N | L mean ± std | L median | Note |
+|---|---|---|---|
+| 4 | 232 ± 49 | 190 | Projection under-utilized; bridge collapses below F |
+| **8** | **628 ± 341** | **550** | Matches training |
+| **16** | **720 ± 117** | **770** | Same projection; more tokens at deploy still helps + lower variance |
+
+Result: more inference-time tokens helps even when the projection was trained on fewer.
+Variance also drops substantially at N=16 (117 vs 341).
+
+### Phase 2: true bandwidth ablation (matched train + deploy N) — *running*
+
+A follow-on script re-collects T-trajectories with `N ∈ {4, 16}` saved residuals,
+re-trains Stage C on each, then evals at the same N. Tests whether bandwidth at
+training time also matters. (Results pending; ~2-3 hr GPU job.)
 
 ## MI diagnostic
 
