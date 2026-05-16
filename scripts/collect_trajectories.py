@@ -59,11 +59,20 @@ def _build_sb3_view_env(game: str, seed: int):
     """
     import gymnasium as gym
     import ale_py  # noqa: F401
+    # Use gymnasium directly (SB3's make_atari_env defaults to old gym lib if installed,
+    # and old gym doesn't have ALE-namespaced envs registered).
+    import gymnasium as gym
+    import ale_py  # noqa: F401
     from stable_baselines3.common.atari_wrappers import AtariWrapper
-    from stable_baselines3.common.env_util import make_atari_env
-    from stable_baselines3.common.vec_env import VecFrameStack
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 
-    env = make_atari_env(f"ALE/{game}-v5", n_envs=1, seed=seed)
+    def make_env():
+        e = gym.make(f"ALE/{game}-v5", frameskip=1, repeat_action_probability=0.0)
+        e = AtariWrapper(e)
+        return e
+
+    env = DummyVecEnv([make_env])
+    env.seed(seed)
     env = VecFrameStack(env, n_stack=4)
     return env
 
