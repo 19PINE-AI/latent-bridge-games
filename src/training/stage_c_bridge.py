@@ -155,6 +155,14 @@ def main():
     ap.add_argument("--stage-a-ckpt", default=None,
                     help="Stage A checkpoint to load action_head from (required for "
                          "meaningful KL training — without it teacher logits are uniform).")
+    ap.add_argument("--tune-action-head", action="store_true",
+                    help="Also unfreeze the action_head during Stage C. Addresses the "
+                         "diagnosed issue that action_head trained on un-perturbed "
+                         "hiddens may fail to read bridge-perturbed hiddens at deployment.")
+    ap.add_argument("--gated-bridge", action="store_true",
+                    help="Re-initialize FastModel with a gated bridge (sigmoid gate on "
+                         "the bridge output). The frozen action_head can learn to "
+                         "suppress the bridge in states where it would harm.")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -172,21 +180,27 @@ def main():
     loader = DataLoader(ds, batch_size=1, shuffle=True, collate_fn=_collate)
 
     print("Loading FastModel...")
-    fast = FastModel(FastModelConfig()).load_pretrained()
+    fast_cfg = FastModelConfig(xattn_gated=args.gated_bridge)
+    fast = FastModel(fast_cfg).load_pretrained()
+    if args.gated_bridge:
+        print(f"  using gated bridge (sigmoid gate, init bias=-2)")
     if args.stage_a_ckpt:
         ckpt = torch.load(args.stage_a_ckpt, map_location="cuda", weights_only=False)
         fast.action_head.load_state_dict(ckpt["action_head_state"])
         print(f"  loaded action_head from {args.stage_a_ckpt} "
               f"(val_acc={ckpt.get('val_acc', '?')})")
-    # Freeze action_head during Stage C — bridge xattn is the only trainable part.
-    for p in fast.action_head.parameters():
-        p.requires_grad = False
-    print(f"  trainable: {sum(p.numel() for p in fast.xattn_layers.parameters()):,} "
-          f"(bridge xattn only; action_head frozen)")
+    # Determine trainable params per the flags.
+    trainable = list(fast.xattn_layers.parameters())
+    if args.tune_action_head:
+        trainable += list(fast.action_head.parameters())
+        print(f"  ACTION_HEAD UNFROZEN — joint Stage A + Stage C tuning")
+    else:
+        for p in fast.action_head.parameters():
+            p.requires_grad = False
+    print(f"  trainable: {sum(p.numel() for p in trainable):,} "
+          f"({'xattn + action_head' if args.tune_action_head else 'xattn only'})")
 
-    optimizer = torch.optim.AdamW(
-        list(fast.xattn_layers.parameters()), lr=args.lr, weight_decay=0.0,
-    )
+    optimizer = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.0)
 
     for epoch in range(1, args.epochs + 1):
         losses, n_train, n_skip = [], 0, 0
@@ -202,9 +216,7 @@ def main():
             loss = out["loss"]
             (loss / args.grad_accum).backward()
             if (n_train + 1) % args.grad_accum == 0:
-                torch.nn.utils.clip_grad_norm_(
-                    list(fast.xattn_layers.parameters()), max_norm=1.0,
-                )
+                torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
             losses.append(float(loss.item()))
@@ -219,12 +231,15 @@ def main():
               f"({time.time()-t_start:.0f}s)")
 
     Path(os.path.dirname(args.out) or ".").mkdir(parents=True, exist_ok=True)
-    torch.save({
+    ckpt = {
         "stage": args.stage,
         "xattn_state": {k: m.state_dict() for k, m in fast.xattn_layers.items()},
         "config": vars(fast.cfg),
         "args": vars(args),
-    }, args.out)
+    }
+    if args.tune_action_head:
+        ckpt["action_head_state"] = fast.action_head.state_dict()
+    torch.save(ckpt, args.out)
     print(f"\nWrote {args.out}")
 
 
