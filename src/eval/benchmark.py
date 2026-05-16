@@ -59,15 +59,13 @@ def _run_episode(strategy: str,
     """Run one episode under one strategy on one (game, seed) cell. Returns metrics."""
     legal = legal_action_mask(game)
     legal_indices = legal.nonzero(as_tuple=True)[0].tolist()
-    bridge_dim = fast.cfg.bridge_dim
     rng = np.random.default_rng(seed)
 
-    thought_buffer = ThoughtBuffer(
-        capacity=16, dim=bridge_dim, device="cuda", dtype=torch.bfloat16,
-    )
     env = AtariEnv(game_name=game, seed=seed)
     obs, _ = env.reset()
     latest_slow_text: Optional[str] = None
+    # v2: bridge tokens from the most-recent slow emission (no long buffer)
+    latest_bridge_tokens: Optional[torch.Tensor] = None
     tick_latencies_ms = []
     cumulative_reward = 0.0
     n_slow_emissions = 0
@@ -80,17 +78,22 @@ def _run_episode(strategy: str,
         if strategy == "F":
             with torch.no_grad():
                 logits = fast.predict_action(
-                    obs, thought_buffer=None,
+                    obs, thought_tokens=None,
                     legal_action_mask=legal,
                 )
-        elif strategy in ("T", "L"):
+        elif strategy == "T":
             with torch.no_grad():
                 logits = fast.predict_action(
-                    obs,
-                    thought_buffer=(thought_buffer.read(current_time=(t+1)/15.0)[0].unsqueeze(0)
-                                    if strategy == "L" else None),
+                    obs, thought_tokens=None,
                     legal_action_mask=legal,
-                    slow_text_suffix=(latest_slow_text if strategy == "T" else None),
+                    slow_text_suffix=latest_slow_text,
+                )
+        elif strategy == "L":
+            with torch.no_grad():
+                logits = fast.predict_action(
+                    obs, thought_tokens=latest_bridge_tokens,
+                    legal_action_mask=legal,
+                    slow_text_suffix=None,  # v2 L mode uses latents only
                 )
         else:
             raise ValueError(f"unsupported strategy {strategy!r}")
@@ -114,12 +117,14 @@ def _run_episode(strategy: str,
         if text_state is not None and slow is not None and strategy in ("T", "L"):
             messages = build_slow_model_messages(game, text_state,
                                                  prior_thought=latest_slow_text)
-            emit_text, emit_vecs = slow.emit(messages, frame=obs,
-                                             max_new_tokens=max_slow_tokens)
+            # v2: emit returns N bridge tokens (in fast LLM embedding space)
+            emit_text, emit_bridge = slow.emit(
+                messages, frame=obs, max_new_tokens=max_slow_tokens,
+                return_raw_residuals=False,
+            )
             latest_slow_text = emit_text
-            if emit_vecs.numel() > 0:
-                last_vec = emit_vecs[-1].to(thought_buffer.device, dtype=thought_buffer.dtype)
-                thought_buffer.append(last_vec, timestamp=(t+1)/15.0)
+            if emit_bridge.numel() > 0:
+                latest_bridge_tokens = emit_bridge.unsqueeze(0)  # [1, N, D]
             n_slow_emissions += 1
 
         if terminated or truncated:
@@ -202,13 +207,18 @@ def main():
 
     # ---- Determine FastModel config (gated or not) from the bridge ckpt ----
     fast_cfg = FastModelConfig()
+    bridge_ckpt_is_v2 = False
     if args.bridge_ckpt and os.path.exists(args.bridge_ckpt):
         ck = torch.load(args.bridge_ckpt, map_location="cpu", weights_only=False)
-        cfg_saved = ck.get("config", {})
-        if cfg_saved.get("xattn_gated"):
-            fast_cfg.xattn_gated = True
-            print(f"[config] bridge_ckpt was trained with xattn_gated=True; "
-                  f"instantiating FastModel accordingly.")
+        bridge_ckpt_is_v2 = bool(ck.get("v2", False))
+        if bridge_ckpt_is_v2:
+            print(f"[config] bridge_ckpt is v2 (LLaVA-style latent-as-token).")
+        else:
+            cfg_saved = ck.get("config", {})
+            if cfg_saved.get("xattn_gated"):
+                fast_cfg.xattn_gated = True
+                print(f"[config] bridge_ckpt was trained with xattn_gated=True (v1); "
+                      f"instantiating FastModel accordingly.")
 
     print("\nLoading FastModel...")
     fast = FastModel(fast_cfg).load_pretrained()
@@ -220,22 +230,28 @@ def main():
         if "xattn_state" in ckpt:
             for k, st in ckpt["xattn_state"].items():
                 fast.xattn_layers[k].load_state_dict(st)
-            print(f"  loaded bridge xattn from {args.fast_ckpt}")
+            print(f"  loaded v1 bridge xattn from {args.fast_ckpt}")
     if args.bridge_ckpt and os.path.exists(args.bridge_ckpt):
         ckpt = torch.load(args.bridge_ckpt, map_location="cuda", weights_only=False)
-        for k, st in ckpt["xattn_state"].items():
-            fast.xattn_layers[k].load_state_dict(st)
-        print(f"  loaded bridge xattn from {args.bridge_ckpt}")
-        # If this checkpoint also has a tuned action_head, prefer it
-        if "action_head_state" in ckpt:
-            fast.action_head.load_state_dict(ckpt["action_head_state"])
-            print(f"  loaded action_head from {args.bridge_ckpt} (overrides fast-ckpt)")
+        if not bridge_ckpt_is_v2:
+            # v1 path
+            for k, st in ckpt["xattn_state"].items():
+                fast.xattn_layers[k].load_state_dict(st)
+            print(f"  loaded v1 bridge xattn from {args.bridge_ckpt}")
+            if "action_head_state" in ckpt:
+                fast.action_head.load_state_dict(ckpt["action_head_state"])
+                print(f"  loaded action_head from {args.bridge_ckpt} (overrides fast-ckpt)")
 
     needs_slow = any(s in strategies for s in ("T", "L"))
     slow = None
     if needs_slow:
         print("Loading SlowModel...")
         slow = SlowModel(SlowModelConfig()).load_pretrained()
+        # v2: load slow's trained ThoughtProjection from the bridge checkpoint
+        if bridge_ckpt_is_v2 and args.bridge_ckpt:
+            ck = torch.load(args.bridge_ckpt, map_location="cuda", weights_only=False)
+            slow.projection.load_state_dict(ck["slow_projection_state"])
+            print(f"  loaded v2 slow.projection from {args.bridge_ckpt}")
 
     # ---- Run all cells ----
     cells = []

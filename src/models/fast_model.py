@@ -268,23 +268,31 @@ class FastModel(nn.Module):
 
     def predict_action(self,
                        frame: np.ndarray,
-                       thought_buffer: Optional[torch.Tensor] = None,
-                       age_encoding: Optional[torch.Tensor] = None,
+                       thought_tokens: Optional[torch.Tensor] = None,
+                       thought_buffer: Optional[torch.Tensor] = None,  # deprecated alias
+                       age_encoding: Optional[torch.Tensor] = None,    # ignored in v2
                        legal_action_mask: Optional[torch.Tensor] = None,
                        slow_text_suffix: Optional[str] = None,
                        ) -> torch.Tensor:
         """Frame → 18-way action logits.
 
-        Pipeline: frame -> MiniCPM-o processor -> vision tower (.vpm + .resampler) ->
-        get_vllm_embedding (text token embeds with vision tokens scattered in) ->
-        llm.model (bridge hooks fire at layers 12, 24) -> action_head on last position.
+        v2 pipeline (LLaVA-style):
+          frame
+            → MiniCPM-o processor
+            → get_vllm_embedding fuses 64 SigLIP visual tokens into the text embed seq
+            → PREPEND `thought_tokens` (N×4096) to the embedding sequence
+            → llm.model with extended inputs_embeds (all 36 layers attend over bridge)
+            → action_head on last hidden state position
 
         Args:
             frame: [H, W, 3] uint8 RGB Atari frame.
-            thought_buffer: [B=1, K, D_bridge] or None — slow-model thought-vector ring.
-            age_encoding: [B=1, K, D_bridge] or None — sinusoidal age for each entry.
+            thought_tokens: [B=1, N, hidden_dim] or None — bridge tokens in fast LLM's
+                input embedding space, produced by SlowModel's ThoughtProjection.
+                These are prepended to the sequence so all 36 LLM layers attend to them.
+            thought_buffer: deprecated alias for thought_tokens (v1 name).
+            age_encoding: unused in v2.
             legal_action_mask: [18] bool — illegal actions get logits → -inf.
-            slow_text_suffix: optional T-condition text from slow model.
+            slow_text_suffix: optional T-condition text from slow model (text bridge).
 
         Returns: [1, 18] action logits.
         """
@@ -292,6 +300,10 @@ class FastModel(nn.Module):
             raise RuntimeError("call load_pretrained() before predict_action()")
         if Image is None:
             raise RuntimeError("PIL is required for frame preprocessing")
+
+        # Backward-compat alias
+        if thought_tokens is None and thought_buffer is not None:
+            thought_tokens = thought_buffer
 
         pil = Image.fromarray(frame.astype(np.uint8))
         prompt_str = (
@@ -303,16 +315,12 @@ class FastModel(nn.Module):
             [[pil]],
             [[]],
             [[]],
-            # max_slice_nums=1 cuts ~80ms from the per-tick latency (profiling: 279->197ms
-            # on MsPacman). For Atari frames (210x160) one slice is sufficient — the
-            # multi-slice path is intended for high-res photographs.
             max_slice_nums=1,
             use_image_id=None,
             return_tensors="pt",
             max_length=1024,
         )
 
-        # Move tensors/lists-of-tensors to device.
         def to_dev(x):
             if isinstance(x, torch.Tensor):
                 return x.to(self.cfg.device)
@@ -322,16 +330,28 @@ class FastModel(nn.Module):
         inputs = {k: to_dev(v) for k, v in inputs.items()}
 
         # Vision + token embedding fusion
-        vllm_emb, _ = self.model.get_vllm_embedding(inputs)
+        vllm_emb, _ = self.model.get_vllm_embedding(inputs)  # [1, T, 4096]
+        attention_mask = inputs.get("attention_mask")
 
-        # Activate the bridge for this forward pass
-        self.set_bridge_inputs(thought_buffer, age_encoding)
+        # v2: prepend bridge tokens to the embedding sequence
+        if thought_tokens is not None and thought_tokens.numel() > 0:
+            bt = thought_tokens
+            if bt.dim() == 2:  # [N, D] → [1, N, D]
+                bt = bt.unsqueeze(0)
+            bt = bt.to(vllm_emb.device, dtype=vllm_emb.dtype)
+            vllm_emb = torch.cat([bt, vllm_emb], dim=1)  # [1, N+T, 4096]
+            if attention_mask is not None:
+                bridge_mask = torch.ones(
+                    bt.shape[0], bt.shape[1],
+                    device=attention_mask.device, dtype=attention_mask.dtype,
+                )
+                attention_mask = torch.cat([bridge_mask, attention_mask], dim=1)
+
         out = self.model.llm.model(
             inputs_embeds=vllm_emb,
-            attention_mask=inputs.get("attention_mask"),
+            attention_mask=attention_mask,
             use_cache=False,
         )
-        self.set_bridge_inputs(None)  # clear so a subsequent forward without bridge is clean
 
         logits = self.action_logits_from_hidden(out.last_hidden_state)
         if legal_action_mask is not None:

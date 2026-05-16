@@ -136,18 +136,19 @@ def main():
                 messages = build_slow_model_messages(args.game, text_state,
                                                      prior_thought=latest_slow_text)
                 t_slow = time.time()
-                slow_emit_text, slow_emit_vecs = slow.emit(
+                # v2: get RAW slow residuals (un-projected, slow_hidden_dim=4096).
+                # Stage C will re-project these through a trainable ThoughtProjection.
+                slow_emit_text, slow_emit_residuals = slow.emit(
                     messages, frame=obs, max_new_tokens=args.slow_max_tokens,
+                    return_raw_residuals=True,
                 )
                 slow_elapsed = time.time() - t_slow
-                if slow_emit_vecs.numel() > 0:
-                    last_vec = slow_emit_vecs[-1].to(
-                        thought_buffer.device, dtype=thought_buffer.dtype,
-                    )
-                    thought_buffer.append(last_vec, timestamp=(t + 1) / 15.0)
                 latest_slow_text = slow_emit_text
                 print(f"  [ep {ep} tick {t+1:3d}] slow emission ({slow_elapsed:.1f}s, "
-                      f"{slow_emit_vecs.shape[0]} tokens)", flush=True)
+                      f"residuals shape={tuple(slow_emit_residuals.shape)})", flush=True)
+                slow_emit_vecs = slow_emit_residuals  # alias for backward-compat key
+            else:
+                slow_emit_vecs = None
 
             trace.append({
                 "tick": t,
@@ -156,6 +157,8 @@ def main():
                 "obs": obs.copy(),
                 "text_state": vars(text_state) if text_state is not None else None,
                 "slow_text": slow_emit_text,
+                # v2: contains raw slow residuals at layer 24, last N positions, 4096-d.
+                # Stage C will re-project these via a trainable projection.
                 "slow_vecs": (slow_emit_vecs.detach().to("cpu", dtype=torch.float32)
                               if slow_emit_vecs is not None else None),
             })

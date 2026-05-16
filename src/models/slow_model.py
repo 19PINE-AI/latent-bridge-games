@@ -1,12 +1,17 @@
-"""Slow model: Qwen3-VL-8B-Thinking (frozen) + projection head for thought vectors.
+"""Slow model: Qwen3-VL-8B-Thinking (frozen) + ThoughtProjection.
 
-Operates at 1-2Hz asynchronously to the fast model. Emits both text reasoning tokens
-(for diagnostic / text-bridge baseline) and projected thought vectors that the fast
-model consumes via cross-attention.
+v2 (LLaVA-style latent-as-token bridge):
+  - emit() returns (text, bridge_tokens) where bridge_tokens has shape
+    [N=8, fast_hidden_dim=4096]. These tokens live in the FAST model's input
+    embedding space and are prepended to the fast model's input sequence as if
+    they were word tokens.
+  - ThoughtProjection: MLP `4096 (slow hidden) → 4096 → 4096 (fast embedding)`
+    with LayerNorm. Only this module is trainable in Stage C. ~32M params.
 
-Primary configuration is Qwen3-VL-8B-Thinking — same scale as MiniCPM-o's backbone, with
-native vision. A capability-scaling ablation swaps in Qwen3-30B-A3B-Thinking (MoE) on one
-Tier-3 game only; see `SlowModelConfig.from_scaling_ablation()`.
+emit() also has a `return_raw_residuals=True` mode that returns un-projected
+slow residuals at layer 24 (last N positions). This is what we save in the
+T-condition trajectory file, so Stage C can re-project them through a trainable
+projection without re-running the slow model.
 """
 from __future__ import annotations
 
@@ -27,8 +32,13 @@ class SlowModelConfig:
     hf_repo: str = "Qwen/Qwen3-VL-8B-Thinking"
     dtype: str = "bfloat16"
     device: str = "cuda"
-    projection_layer_idx: int = 24  # which residual stream to project
-    bridge_dim: int = 256
+    projection_layer_idx: int = 24  # which slow-model layer's residuals to project
+    # v2: bridge_dim equals the FAST model's hidden_dim (4096 for Qwen3-8B in MiniCPM-o).
+    # The slow projection maps slow's residual (4096) → fast's input embedding (4096).
+    bridge_dim: int = 4096
+    # v2: take the last N positions of the slow's emission as bridge tokens.
+    # These positions are closest to the slow model's "answer" (after <think>).
+    n_bridge_tokens: int = 8
     lora_rank: int = 16
     lora_alpha: int = 32
     lora_target_modules: tuple = ("q_proj", "v_proj")
@@ -51,22 +61,33 @@ class SlowModelConfig:
 
 
 class ThoughtProjection(nn.Module):
-    """Projects slow-model residual stream to thought vectors of bridge dim.
+    """Projects slow-model residuals into the fast model's input embedding space.
 
-    Trained via COCONUT-style curriculum: latent vectors must reconstruct the
-    predictive content of the text they replace.
+    v2 design (LLaVA-style):
+        Input:  slow residuals at layer 24, shape [B, T, slow_hidden_dim=4096]
+        Output: bridge tokens in fast LLM embedding space, shape [B, T, fast_hidden_dim=4096]
+
+    The output LayerNorm is critical: it constrains the projected tokens to have
+    statistics similar to text token embeddings (LayerNorm'd by the LLM's input
+    embedding pipeline), giving the frozen LLM an immediate inductive bias for
+    treating these tokens as "well-behaved" input.
+
+    Trained via COCONUT-style curriculum in Stage C: latent tokens must produce
+    the same logits as the text channel does at the action-prediction position.
     """
-    def __init__(self, hidden_dim: int, bridge_dim: int):
+    def __init__(self, hidden_dim_in: int, hidden_dim_out: int):
         super().__init__()
+        # 4-layer MLP with a LayerNorm bookend on each side
         self.proj = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
-            nn.Linear(hidden_dim, bridge_dim * 2),
+            nn.LayerNorm(hidden_dim_in),
+            nn.Linear(hidden_dim_in, hidden_dim_out),
             nn.GELU(),
-            nn.Linear(bridge_dim * 2, bridge_dim),
+            nn.Linear(hidden_dim_out, hidden_dim_out),
+            nn.LayerNorm(hidden_dim_out),
         )
 
     def forward(self, residual: torch.Tensor) -> torch.Tensor:
-        """residual: [B, T, D_h] → [B, T, D_bridge]"""
+        """residual: [B, T, D_in] → [B, T, D_out]"""
         return self.proj(residual)
 
 
@@ -114,6 +135,7 @@ class SlowModel(nn.Module):
              messages: list[dict],
              frame: Optional[np.ndarray] = None,
              max_new_tokens: Optional[int] = None,
+             return_raw_residuals: bool = False,
              ) -> tuple[str, torch.Tensor]:
         """Run one emission cycle of the slow model.
 
@@ -124,12 +146,16 @@ class SlowModel(nn.Module):
                 Qwen3-VL accepts images via the chat template's image content. Ignored
                 if the model's `cfg.vision_enabled` is False (scaling-ablation case).
             max_new_tokens: cap on generated tokens; defaults to `cfg.max_emission_tokens`.
+            return_raw_residuals: if True, return un-projected slow residuals (last N
+                positions × slow_hidden_dim). Useful for caching during T-trajectory
+                collection so Stage C can re-project through a trainable projection
+                without re-running the slow model. Default False = return projected
+                bridge tokens.
 
         Returns:
             text_emission: decoded text (everything generated after the prompt)
-            thought_vectors: [L, D_bridge] bf16 tensor on `cfg.device`, one vector per
-                generated token (from the residual stream at `cfg.projection_layer_idx`
-                projected through `self.projection`).
+            bridge_or_residuals: shape [N, D] where N = min(L_generated, n_bridge_tokens)
+                and D = bridge_dim (projected) or slow_hidden_dim (raw).
         """
         if self.model is None or self.tokenizer is None or self.projection is None:
             raise RuntimeError("call load_pretrained() before emit()")
@@ -180,7 +206,6 @@ class SlowModel(nn.Module):
         # `hidden_states` from generate() is a tuple of length n_new_tokens; each entry
         # is a tuple of length (num_layers + 1) — the embedding layer + each decoder
         # block's output. Index 0 is the embedding; index k is layer k's output.
-        # We project the residual stream at our target layer for each generated token.
         target_layer = self.cfg.projection_layer_idx
         per_token_residuals = []
         for step_hidden_states in gen_out.hidden_states:
@@ -189,8 +214,39 @@ class SlowModel(nn.Module):
             # We want the residual at the last position (the newly generated token).
             residual = step_hidden_states[target_layer][0, -1, :]  # [D_h]
             per_token_residuals.append(residual)
-        residuals = torch.stack(per_token_residuals, dim=0).unsqueeze(0)  # [1, L, D_h]
-        thought_vectors = self.projection(residuals.to(self.projection.proj[1].weight.dtype))
-        thought_vectors = thought_vectors.squeeze(0)  # [L, D_bridge]
+        if not per_token_residuals:
+            # No tokens generated (rare). Return empty tensor.
+            empty_d = self.projection.proj[0].normalized_shape[0] if return_raw_residuals else self.cfg.bridge_dim
+            return text_emission, torch.zeros(0, empty_d, device=self.cfg.device, dtype=torch.bfloat16)
 
-        return text_emission, thought_vectors
+        # v2: take only the LAST N positions (closest to the slow model's conclusion).
+        n_keep = min(self.cfg.n_bridge_tokens, len(per_token_residuals))
+        last_n_residuals = torch.stack(per_token_residuals[-n_keep:], dim=0)  # [N, D_h]
+
+        if return_raw_residuals:
+            # Return un-projected residuals so callers can save them and re-project later
+            # through a trainable projection. Shape: [N, slow_hidden_dim=4096].
+            return text_emission, last_n_residuals
+
+        # Apply the projection: slow_hidden_dim → fast_hidden_dim
+        residuals_batched = last_n_residuals.unsqueeze(0)  # [1, N, D_h]
+        bridge_tokens = self.projection(
+            residuals_batched.to(self.projection.proj[1].weight.dtype)
+        ).squeeze(0)  # [N, bridge_dim]
+
+        return text_emission, bridge_tokens
+
+    def project_residuals(self, residuals: torch.Tensor) -> torch.Tensor:
+        """Apply the (potentially trainable) ThoughtProjection to a batch of raw
+        residuals. Used by Stage C to re-project cached residuals each forward pass.
+
+        Args:
+            residuals: [B, N, slow_hidden_dim] (typically bf16 or float32)
+
+        Returns:
+            bridge_tokens: [B, N, bridge_dim]
+        """
+        if self.projection is None:
+            raise RuntimeError("call load_pretrained() before project_residuals()")
+        target_dtype = self.projection.proj[1].weight.dtype
+        return self.projection(residuals.to(target_dtype))
