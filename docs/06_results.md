@@ -25,29 +25,46 @@ L vs T: **+26 % mean**. L vs F: +92 %. **L is fully deterministic** (std = 0 acr
 seeds) — locked into an exploit-style policy at the local maximum of 8 kills × 10 pts.
 
 ### SpaceInvaders (Tier 2; 12 episodes per cell)
-| Strategy | Mean ± Std | Median | Best | Latency (ms) |
-|---|---|---|---|---|
-| F (fast only) | 105 ± 0 | 105 | 105 | 34 |
-| T (text bridge) | **0 ± 0** | 0 | 0 | 61 |
-| **L (v2 latent bridge)** | **0 ± 0** | 0 | 0 | 54 |
+| Strategy | Mean ± Std | Median | Best | Latency (ms) | Bridge MI minus baseline |
+|---|---|---|---|---|---|
+| F (fast only) | 105 ± 0 | 105 | 105 | 34 | — |
+| T (text bridge) | **0 ± 0** | 0 | 0 | 61 | — |
+| L (latent, random-T) | **0 ± 0** | 0 | 0 | 54 | I(b;a)=−0.004, I(b;r)=−0.003 |
+| L (latent, expert-T) | **0 ± 0** | 0 | 0 | 80 | **I(b;a)=+0.024, I(b;r)=+0.012** |
 
-Both T and L collapse to zero score. F alone fires and scores; **either bridge format,
-once the slow model is in the loop, suppresses the FIRE action**. MI diagnostic on the
-trained SpaceInvaders bridge: I(bridge; action) − baseline = **−0.004 nats**;
-I(bridge; sign(reward)) − baseline = **−0.003 nats**. The bridge carries no signal
-above chance — confirming the latent channel is faithful to the slow's (poor)
-guidance, not introducing noise.
+Both T and L collapse to zero score, and the expert-T retry (re-collecting
+T-trajectories using the SB3-DQN expert with ε=0.1 instead of a random policy)
+*did not* recover the score. F alone fires and scores 105; any setup that places the
+slow model in the loop suppresses FIRE.
 
-**Root cause** — SpaceInvaders is reward-asymmetric: only FIRE actions can score, and
-only ~17 % of the random-policy T-trajectory action distribution is FIRE. Stage C KL
-training matches that random-policy marginal, so L learns a passive policy. The
-slow-model textual guidance ("dodge bombs by lateral movement, clear easier rows
-first") biases the prompt distribution away from training, and the fast model — which
-*can* fire under F — defers to the suggestion and waits. This is a **methodology
-finding**: KL bridge training on random-policy trajectories implicitly assumes that
-action-marginal ≈ reward-bearing-action-marginal. For symmetric-reward games
-(MsPacman: every movement collects dots; Seaquest: divers + kills + surfacing) this
-holds; for asymmetric-reward games (SpaceInvaders) it doesn't.
+**Initial diagnosis (later refuted)** — we first hypothesized this was a data
+methodology issue: random-policy T-trajectories under-represent FIRE (~17 % of
+random-uniform actions vs ~55 % under expert), so the bridge learns a passive
+distribution. The expert-T retry was designed to test this exactly.
+
+**Result of the expert-T retry** — same outcome (L = 0) but **MI(bridge; action) flips
+from −0.004 to +0.024 nats** and MI(bridge; reward_sign) from −0.003 to +0.012.
+The bridge under expert-T data carries the *most* information of any game in this
+sweep, yet the deployed policy still scores zero. So the data fix worked at the
+representation level — the bridge does learn structure — but the deployed effect on
+the fast model is still passivity.
+
+**Refined diagnosis (correct one)** — Stage C trains L to match T's distribution.
+T's distribution is dominated by the slow model's textual guidance (`"dodge bombs by
+lateral movement, clear easier rows first"`), which pushes the fast model to wait.
+KL imitation faithfully transmits this *behavior* into the bridge, even when the
+*information* in the bridge is rich. The bottleneck is **upstream**: the slow model's
+text policy for SpaceInvaders is itself wrong, and the bridge inherits that error.
+
+This is a deeper finding than the v1 cross-attn failure: in v1, the bridge couldn't
+transmit anything (architecturally broken); here, the bridge transmits the wrong
+*content* faithfully. The methodology lesson: **L is bounded above by T**, because L
+is trained to imitate T. If T is bad (because the slow model's prompt is bad), L
+will be bad too — no amount of bridge engineering rescues a misaligned slow policy.
+
+Future remedies (not run): rewrite the SpaceInvaders system prompt to emphasize
+shooting; or use Stage D PPO so L is fine-tuned on game reward directly, decoupling
+it from T's distribution.
 
 ### Cross-game summary
 - **H1 ✅ Confirmed on 2/3 games**: L > T on MsPacman (+54 %) and Seaquest (+26 %); L
@@ -220,13 +237,19 @@ Remaining latency work (queued task): vision-token caching across consecutive fr
    degenerate solution where both teacher and student output the same deterministic
    distribution. Do not unfreeze action_head during KL training without entropy
    regularization or labeled CE supervision.
-5. **KL training on random-policy T-trajectories breaks on reward-asymmetric games.**
-   SpaceInvaders (where only FIRE actions can score) gives L = T = 0 while F = 105.
-   The random-policy action marginal under-represents FIRE (~17 %), so the bridge
-   learns to imitate a passive policy. Symmetric-reward games (MsPacman, Seaquest)
-   are not affected because every action has positive expected reward potential.
-   Future remedies: expert-policy T-trajectories (with epsilon-noise) or
-   reward-weighted KL.
+5. **L is bounded above by T under the Stage C KL(student||teacher) objective.**
+   SpaceInvaders gives L = T = 0 while F = 105. We initially hypothesized this was a
+   random-policy data issue (FIRE under-represented in random T-trajectories) and ran
+   an expert-T retry with SB3-DQN-collected trajectories. The expert-T bridge's MI
+   jumped from −0.004 to +0.024 nats — confirming the data fix worked at the
+   representation level — but L was still 0. The actual root cause is that Stage C
+   trains the bridge to make L's distribution match T's. T is itself broken on this
+   game because the slow model's text guidance ("dodge bombs by lateral movement,
+   clear easier rows first") is passive, and the fast model — which fires fine under
+   F — defers to that guidance. The bridge then faithfully transmits "be passive"
+   into L. **Implication**: no bridge architecture or data fix can rescue an
+   upstream-misaligned slow policy. Future remedies: rewrite the slow-model prompt to
+   emphasize shooting; or use Stage D PPO to decouple L from T.
 
 ## What's queued / running
 

@@ -20,6 +20,29 @@
 
 ## Completed (research execution, in order)
 
+- [x] **🔬 SpaceInvaders expert-T retry — refines the diagnosis (2026-05-16, late).**
+  Re-collected T-trajectories using the SB3-DQN expert (with ε=0.1) instead of the
+  random policy. Then re-trained Stage C v2 and re-evaluated F/T/L.
+  - Expert T-trajectory mean score 165 (vs random ~40); 55 % FIRE-containing actions
+    (RIGHTFIRE 25 %, LEFTFIRE 14 %, FIRE 16 % — expert mostly fires while moving).
+  - Stage C v2 KL converged similarly (~0.005). **Eval: F=105, T=0, L=0** — same
+    outcome as random-T.
+  - **But the MI diagnostic flipped sign**: I(bridge; action) − baseline went from
+    −0.004 (random-T) to **+0.024** (expert-T); I(bridge; reward_sign) − baseline
+    from −0.003 to **+0.012**. The expert-bridge carries the *most* information of
+    any game in this sweep — yet still scores 0 deployed.
+  - **The data fix worked at the representation level, but the policy still
+    collapsed.** Root cause: Stage C trains L to imitate T's distribution. T is
+    passive (because the slow model's text guidance for SI says "dodge / clear
+    rows / wait"). KL transmits that passivity into L regardless of bridge content.
+  - **Refined methodology lesson**: L is bounded above by T under KL(student||teacher).
+    No bridge architecture or data engineering rescues a misaligned slow policy.
+    Future remedies (not run): rewrite the SI system prompt to emphasize shooting,
+    or use Stage D PPO to fine-tune L on reward (decoupling from T).
+  - Pipeline: `scripts/spaceinvaders_expert_t_retry.sh`. Result:
+    `results/eval_v2_spaceinvaders_expert.json`,
+    `results/mi_diagnostic_spaceinvaders_expert.json`.
+
 - [x] **🔬 SpaceInvaders end-to-end — clean negative finding (2026-05-16).**
   Third game in the F/T/L sweep. **F = 105, T = 0, L = 0** (12 episodes per cell).
   Stage A val_acc 32.9 % (2.0 × random for the 6-action space, similar to MsPacman's

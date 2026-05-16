@@ -34,9 +34,12 @@ planning (Ms. Pac-Man, Seaquest, Space Invaders).
 
 - **L > T on symmetric-reward games**: +54 % MsPacman, +26 % Seaquest.
 - L > F by +145 % MsPacman, +92 % Seaquest.
-- L = T = 0 on SpaceInvaders: a clean negative finding — KL training on random-policy
-  trajectories breaks on reward-asymmetric games (only FIRE scores; random-policy
-  marginal under-represents FIRE → bridge learns passive policy). Details in
+- L = T = 0 on SpaceInvaders: a clean negative finding — **L is bounded above by T**
+  because Stage C trains L to imitate T's distribution. On SpaceInvaders, the slow
+  model's text guidance ("dodge bombs, clear easier rows") makes T-mode passive, and
+  L inherits that passivity even when the bridge tokens are richly informative
+  (MI +0.024 nats with expert-T data — best of all three games). The bottleneck is
+  the slow model's text policy, not the bridge or the data collection. Details:
   [`docs/06_results.md`](docs/06_results.md).
 
 The full story (v1 cross-attn → v2 LLaVA-style redesign) is in
