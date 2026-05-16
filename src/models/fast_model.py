@@ -44,6 +44,7 @@ class FastModelConfig:
     lora_target_modules: list = field(default_factory=lambda: ["q_proj", "v_proj", "k_proj", "o_proj"])
     xattn_insert_layers: list = field(default_factory=lambda: [12, 24])
     xattn_n_heads: int = 8
+    xattn_gated: bool = False  # if True, output is multiplied by a learnable gate
     backbone_hidden_dim: int = 4096  # Qwen3-8B backbone in MiniCPM-o-4.5
     bridge_dim: int = 256
     n_actions: int = 18  # ALE max action space size
@@ -54,17 +55,34 @@ class BridgeCrossAttention(nn.Module):
 
     Initialised so output projection is zero — model behaves identically to base at init.
     Bridge contribution emerges through training.
+
+    Optional gating (`gated=True`): the output is multiplied elementwise by
+    `sigmoid(gate(hidden))`, letting the model learn to suppress the bridge in states
+    where its contribution would be harmful. Gate weights start at zero, biases at
+    -2 (sigmoid(-2) ≈ 0.12), so the bridge is initially mostly silent and the model
+    can gradually open the gate where helpful.
+
+    The plain (ungated) variant is what the original Stage C trained — it can produce
+    catastrophic behavior when the bridge output is wrong because the frozen action
+    head can't ignore the perturbation. The gated variant lets the model route around
+    bad bridge outputs by closing the gate.
     """
-    def __init__(self, hidden_dim: int, bridge_dim: int, n_heads: int = 8):
+    def __init__(self, hidden_dim: int, bridge_dim: int, n_heads: int = 8,
+                 gated: bool = False):
         super().__init__()
         self.n_heads = n_heads
         self.head_dim = hidden_dim // n_heads
+        self.gated = gated
         self.q_proj = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.k_proj = nn.Linear(bridge_dim, hidden_dim, bias=False)
         self.v_proj = nn.Linear(bridge_dim, hidden_dim, bias=False)
         self.o_proj = nn.Linear(hidden_dim, hidden_dim, bias=False)
         # Zero-init the output projection so the layer is a no-op at start of training
         nn.init.zeros_(self.o_proj.weight)
+        if gated:
+            self.gate = nn.Linear(hidden_dim, hidden_dim, bias=True)
+            nn.init.zeros_(self.gate.weight)
+            nn.init.constant_(self.gate.bias, -2.0)  # sigmoid(-2) ≈ 0.12
 
     def forward(self, hidden: torch.Tensor, thought_buffer: torch.Tensor,
                 age_encoding: torch.Tensor | None = None) -> torch.Tensor:
@@ -82,7 +100,10 @@ class BridgeCrossAttention(nn.Module):
         v = self.v_proj(thought_buffer).view(B, K, self.n_heads, self.head_dim).transpose(1, 2)
         out = torch.nn.functional.scaled_dot_product_attention(q, k, v)
         out = out.transpose(1, 2).reshape(B, T, D)
-        return self.o_proj(out)
+        out = self.o_proj(out)
+        if self.gated:
+            out = out * torch.sigmoid(self.gate(hidden))
+        return out
 
 
 class FastModel(nn.Module):
@@ -104,6 +125,7 @@ class FastModel(nn.Module):
                 hidden_dim=cfg.backbone_hidden_dim,
                 bridge_dim=cfg.bridge_dim,
                 n_heads=cfg.xattn_n_heads,
+                gated=cfg.xattn_gated,
             )
             for li in cfg.xattn_insert_layers
         })
