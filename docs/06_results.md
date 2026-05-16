@@ -107,11 +107,32 @@ measured: *given a projection trained on 8 tokens, how does eval-time token coun
 Result: more inference-time tokens helps even when the projection was trained on fewer.
 Variance also drops substantially at N=16 (117 vs 341).
 
-### Phase 2: true bandwidth ablation (matched train + deploy N) — *running*
+### Phase 2: true bandwidth ablation (matched train + deploy N)
 
-A follow-on script re-collects T-trajectories with `N ∈ {4, 16}` saved residuals,
-re-trains Stage C on each, then evals at the same N. Tests whether bandwidth at
-training time also matters. (Results pending; ~2-3 hr GPU job.)
+| N | KL converged | L mean ± std | L median | Comment |
+|---|---|---|---|---|
+| 4 | 0.020 | 296 ± 63 | 260 | Above F=256 but below T=408 — bandwidth-bottlenecked |
+| **8** | 0.026 | **628 ± 341** | **550** | **Sweet spot** — best mean |
+| 16 | 0.021 | 259 ± 71 | 290 | Worse than F! — over-bandwidth dilutes |
+
+**Surprising finding: bandwidth is Goldilocks, not monotonic.** Both N=4 and N=16
+underperform N=8.
+
+Why N=16 hurts:
+- The slow model generates ~96 tokens per emission. The "last 8" positions contain
+  its *conclusion* (after `<think>`). The "last 16" dilutes with more reasoning tokens.
+- Bigger bridge prefix = the fast LLM's attention budget is split across more tokens.
+- The projection has to learn more variation with the same training data.
+
+**Reconciliation with Phase 1:**
+- Phase 1 N=16 deployment-only (with N=8-trained projection): L = 720. This works
+  because the projection learned the high-info 8-position distribution AND received
+  extra tokens at inference.
+- Phase 2 N=16 train+deploy: L = 259. Training the projection on lower-info positions
+  *and* deploying at that bandwidth gives the worst-of-both-worlds.
+
+The practical recipe: **train on N=8, deploy with N=8-16**. The training distribution
+matters more than the deployment bandwidth.
 
 ## MI diagnostic
 
