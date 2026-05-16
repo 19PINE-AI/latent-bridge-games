@@ -200,9 +200,18 @@ def main():
           f"{len(strategies) * len(games) * len(seeds)}")
     print(f"  total episodes: {len(strategies) * len(games) * len(seeds) * episodes}")
 
-    # ---- Load models once (per outer loop) ----
+    # ---- Determine FastModel config (gated or not) from the bridge ckpt ----
+    fast_cfg = FastModelConfig()
+    if args.bridge_ckpt and os.path.exists(args.bridge_ckpt):
+        ck = torch.load(args.bridge_ckpt, map_location="cpu", weights_only=False)
+        cfg_saved = ck.get("config", {})
+        if cfg_saved.get("xattn_gated"):
+            fast_cfg.xattn_gated = True
+            print(f"[config] bridge_ckpt was trained with xattn_gated=True; "
+                  f"instantiating FastModel accordingly.")
+
     print("\nLoading FastModel...")
-    fast = FastModel(FastModelConfig()).load_pretrained()
+    fast = FastModel(fast_cfg).load_pretrained()
     if args.fast_ckpt and os.path.exists(args.fast_ckpt):
         ckpt = torch.load(args.fast_ckpt, map_location="cuda", weights_only=False)
         if "action_head_state" in ckpt:
@@ -217,6 +226,10 @@ def main():
         for k, st in ckpt["xattn_state"].items():
             fast.xattn_layers[k].load_state_dict(st)
         print(f"  loaded bridge xattn from {args.bridge_ckpt}")
+        # If this checkpoint also has a tuned action_head, prefer it
+        if "action_head_state" in ckpt:
+            fast.action_head.load_state_dict(ckpt["action_head_state"])
+            print(f"  loaded action_head from {args.bridge_ckpt} (overrides fast-ckpt)")
 
     needs_slow = any(s in strategies for s in ("T", "L"))
     slow = None
