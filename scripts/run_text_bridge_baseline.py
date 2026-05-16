@@ -69,6 +69,10 @@ def main():
                     help="Load Qwen3-VL-8B-Thinking and emit real strategic guidance.")
     ap.add_argument("--no-slow", dest="load_slow", action="store_false",
                     help="Skip slow model (fast-only baseline; F condition).")
+    ap.add_argument("--episodes", type=int, default=1,
+                    help="Number of episodes to run (each with seed+i). Models loaded once.")
+    ap.add_argument("--out-dir", default=None,
+                    help="When --episodes > 1, write to <out-dir>/<game>_seed{i}.pt instead of --out.")
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -88,107 +92,123 @@ def main():
         slow = SlowModel(SlowModelConfig()).load_pretrained()
         print(f"  done in {time.time()-t0:.1f}s. VRAM: {torch.cuda.memory_allocated()/1e9:.2f}GB")
 
-    # ---- Bridge state ----
+    # ---- Bridge state (recreated per episode) ----
     bridge_dim = 256
-    thought_buffer = ThoughtBuffer(
-        capacity=16, dim=bridge_dim, device="cuda", dtype=torch.bfloat16,
-    )
 
-    # ---- Env loop ----
-    env = AtariEnv(game_name=args.game, seed=args.seed)
-    obs, _ = env.reset()
+    episode_summaries = []
+    for ep in range(args.episodes):
+        ep_seed = args.seed + ep
+        rng = np.random.default_rng(ep_seed)
+        thought_buffer = ThoughtBuffer(
+            capacity=16, dim=bridge_dim, device="cuda", dtype=torch.bfloat16,
+        )
 
-    trace = []  # per-tick: dict(tick, action, reward, slow_emit?, text_state?)
-    latest_slow_text: str | None = None
-    cumulative_reward = 0.0
-    t_loop_start = time.time()
+        env = AtariEnv(game_name=args.game, seed=ep_seed)
+        obs, _ = env.reset()
 
-    for t in range(args.ticks):
-        # 1) Predict fast-model action logits (frame-conditioned)
-        with torch.no_grad():
-            logits = fast.predict_action(
-                obs,
-                thought_buffer=None,  # T-mode: bridge present-but-silent (zero-init no-op anyway)
-                legal_action_mask=legal,
-                slow_text_suffix=latest_slow_text,
-            )
-        # 2) Choose action (in the global 18-way space)
-        if args.action_policy == "zero-head":
-            global_action = int(logits.argmax(dim=-1).item())
-        else:
-            global_action = int(rng.choice(legal_indices))
+        trace = []
+        latest_slow_text: str | None = None
+        cumulative_reward = 0.0
+        t_loop_start = time.time()
 
-        # 3) Map global -> local for ALE, then step
-        local_action = global_to_local_action(args.game, global_action)
-        obs, reward, terminated, truncated, text_state = env.step(local_action)
-        action = global_action  # what we record in trace
-        cumulative_reward += float(reward)
-        slow_emit_text = None
-        slow_emit_vecs = None
+        for t in range(args.ticks):
+            # 1) Predict fast-model action logits (frame-conditioned)
+            with torch.no_grad():
+                logits = fast.predict_action(
+                    obs,
+                    thought_buffer=None,  # T-mode: bridge present-but-silent
+                    legal_action_mask=legal,
+                    slow_text_suffix=latest_slow_text,
+                )
+            if args.action_policy == "zero-head":
+                global_action = int(logits.argmax(dim=-1).item())
+            else:
+                global_action = int(rng.choice(legal_indices))
 
-        # 4) Slow emission on text-state ticks
-        if text_state is not None and slow is not None:
-            messages = build_slow_model_messages(args.game, text_state,
-                                                 prior_thought=latest_slow_text)
-            t_slow = time.time()
-            slow_emit_text, slow_emit_vecs = slow.emit(
-                messages, frame=obs, max_new_tokens=args.slow_max_tokens,
-            )
-            slow_elapsed = time.time() - t_slow
-            # Write a single summary vector (last token's projection) to the thought buffer
-            if slow_emit_vecs.numel() > 0:
-                last_vec = slow_emit_vecs[-1].to(thought_buffer.device, dtype=thought_buffer.dtype)
-                thought_buffer.append(last_vec, timestamp=(t + 1) / 15.0)
-            latest_slow_text = slow_emit_text
-            print(f"  [tick {t+1:3d}] slow emission ({slow_elapsed:.1f}s, "
-                  f"{slow_emit_vecs.shape[0]} tokens): "
-                  f"{slow_emit_text[:120]!r}", flush=True)
+            local_action = global_to_local_action(args.game, global_action)
+            obs, reward, terminated, truncated, text_state = env.step(local_action)
+            action = global_action
+            cumulative_reward += float(reward)
+            slow_emit_text = None
+            slow_emit_vecs = None
 
-        trace.append({
-            "tick": t,
-            "action": action,
-            "reward": float(reward),
-            "obs": obs.copy(),  # save the frame so Stage C can rerun the fast model
-            "text_state": vars(text_state) if text_state is not None else None,
-            "slow_text": slow_emit_text,
-            # Detach to CPU+float32 for portable serialization. Bridge dim is 256 so
-            # 200 tokens × 256 × 4 bytes = ~200KB per emission — fine for offline.
-            "slow_vecs": (slow_emit_vecs.detach().to("cpu", dtype=torch.float32)
-                          if slow_emit_vecs is not None else None),
+            if text_state is not None and slow is not None:
+                messages = build_slow_model_messages(args.game, text_state,
+                                                     prior_thought=latest_slow_text)
+                t_slow = time.time()
+                slow_emit_text, slow_emit_vecs = slow.emit(
+                    messages, frame=obs, max_new_tokens=args.slow_max_tokens,
+                )
+                slow_elapsed = time.time() - t_slow
+                if slow_emit_vecs.numel() > 0:
+                    last_vec = slow_emit_vecs[-1].to(
+                        thought_buffer.device, dtype=thought_buffer.dtype,
+                    )
+                    thought_buffer.append(last_vec, timestamp=(t + 1) / 15.0)
+                latest_slow_text = slow_emit_text
+                print(f"  [ep {ep} tick {t+1:3d}] slow emission ({slow_elapsed:.1f}s, "
+                      f"{slow_emit_vecs.shape[0]} tokens)", flush=True)
+
+            trace.append({
+                "tick": t,
+                "action": action,
+                "reward": float(reward),
+                "obs": obs.copy(),
+                "text_state": vars(text_state) if text_state is not None else None,
+                "slow_text": slow_emit_text,
+                "slow_vecs": (slow_emit_vecs.detach().to("cpu", dtype=torch.float32)
+                              if slow_emit_vecs is not None else None),
+            })
+
+            if terminated or truncated:
+                break
+
+        env.close()
+        elapsed = time.time() - t_loop_start
+        n_ticks = len(trace)
+        n_slow = sum(1 for x in trace if x["slow_text"])
+
+        # Per-episode summary
+        print(f"  [ep {ep} done] ticks={n_ticks} score={cumulative_reward:.0f} "
+              f"slow_emissions={n_slow} wall={elapsed:.1f}s", flush=True)
+        episode_summaries.append({
+            "ep": ep, "seed": ep_seed, "ticks": n_ticks,
+            "score": cumulative_reward, "slow_emissions": n_slow,
+            "wall_clock": elapsed,
         })
 
-        if terminated or truncated:
-            print(f"  [tick {t+1}] episode ended", flush=True)
-            break
+        # Write trajectory file
+        if args.out_dir is not None:
+            Path(args.out_dir).mkdir(parents=True, exist_ok=True)
+            out_path = os.path.join(args.out_dir, f"{args.game}_seed{ep_seed}.pt")
+        elif args.out:
+            base, ext = os.path.splitext(args.out)
+            out_path = args.out if args.episodes == 1 else f"{base}_ep{ep}{ext}"
+        else:
+            out_path = None
 
-    env.close()
-    elapsed = time.time() - t_loop_start
-    n_ticks = len(trace)
-    n_slow = sum(1 for x in trace if x["slow_text"])
+        if out_path:
+            Path(os.path.dirname(out_path) or ".").mkdir(parents=True, exist_ok=True)
+            torch.save({
+                "game": args.game,
+                "seed": ep_seed,
+                "trace": trace,
+                "cumulative_reward": cumulative_reward,
+            }, out_path)
+            print(f"  wrote {out_path} ({os.path.getsize(out_path)/1e6:.1f}MB)", flush=True)
 
-    # ---- Summary ----
+    # ---- Aggregate summary ----
     print("\n" + "=" * 60)
-    print(f"T-condition episode summary ({args.game}):")
-    print(f"  total ticks: {n_ticks}")
-    print(f"  cumulative reward (score): {cumulative_reward:.0f}")
-    print(f"  slow emissions: {n_slow}")
-    print(f"  wall-clock: {elapsed:.1f}s  (game time: {n_ticks/15:.1f}s)")
-    print(f"  slow-time fraction: "
-          f"{(elapsed - n_ticks * (elapsed-n_slow*5)/max(1,n_ticks))/elapsed*100 if n_slow else 0:.0f}% est.")
-    if n_slow > 0:
-        print(f"\n  Sample slow emission:")
-        first_slow = next(x for x in trace if x["slow_text"])
-        print(f"    {first_slow['slow_text'][:300]!r}")
-
-    if args.out:
-        Path(os.path.dirname(args.out) or ".").mkdir(parents=True, exist_ok=True)
-        torch.save({
-            "game": args.game,
-            "seed": args.seed,
-            "trace": trace,
-            "cumulative_reward": cumulative_reward,
-        }, args.out)
-        print(f"\nWrote {args.out}")
+    print(f"T-condition multi-episode summary ({args.game}, {len(episode_summaries)} episodes):")
+    scores = [s["score"] for s in episode_summaries]
+    ticks = [s["ticks"] for s in episode_summaries]
+    n_emits = [s["slow_emissions"] for s in episode_summaries]
+    total_wall = sum(s["wall_clock"] for s in episode_summaries)
+    print(f"  mean score: {np.mean(scores):.1f} ± {np.std(scores):.1f}  "
+          f"(range [{min(scores):.0f}, {max(scores):.0f}])")
+    print(f"  mean ticks: {np.mean(ticks):.0f}")
+    print(f"  total slow emissions: {sum(n_emits)}  (mean {np.mean(n_emits):.1f}/ep)")
+    print(f"  total wall-clock: {total_wall:.0f}s")
 
 
 if __name__ == "__main__":
