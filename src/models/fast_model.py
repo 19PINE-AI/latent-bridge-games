@@ -138,6 +138,17 @@ class FastModel(nn.Module):
         self._current_thought_buffer: Optional[torch.Tensor] = None
         self._current_age_encoding: Optional[torch.Tensor] = None
         self._hook_handles: list = []
+
+        # Vision-token cache (v2 latency optimization)
+        # Caches the most-recent (vllm_emb, attention_mask) tuple. Reused for the next
+        # N-1 ticks when `predict_action(vision_refresh_every=N)` is passed and the
+        # `slow_text_suffix` is unchanged.
+        # Saves 80-150 ms per tick when N > 1, at the cost of 1-K-tick visual staleness.
+        # Atari frames change by ~1 px per tick at 15 Hz so staleness is mild.
+        self._vision_cache_emb: Optional[torch.Tensor] = None
+        self._vision_cache_mask: Optional[torch.Tensor] = None
+        self._vision_cache_age: int = 0
+        self._vision_cache_prompt_id: Optional[str] = None
         # Latency budget for real-time tick rate (paper claim: 67ms @ 15Hz, 100ms @ 10Hz).
         # Current breakdown after max_slice_nums=1 (profiled): processor 14ms +
         # to_device 42ms + vision/get_vllm_embedding 80ms + llm.model forward 52ms +
@@ -266,6 +277,12 @@ class FastModel(nn.Module):
             tokenize=False, add_generation_prompt=True,
         )
 
+    def reset_vision_cache(self):
+        """Clear the vision-token cache. Call between episodes."""
+        self._vision_cache_emb = None
+        self._vision_cache_mask = None
+        self._vision_cache_age = 0
+
     def predict_action(self,
                        frame: np.ndarray,
                        thought_tokens: Optional[torch.Tensor] = None,
@@ -273,6 +290,7 @@ class FastModel(nn.Module):
                        age_encoding: Optional[torch.Tensor] = None,    # ignored in v2
                        legal_action_mask: Optional[torch.Tensor] = None,
                        slow_text_suffix: Optional[str] = None,
+                       vision_refresh_every: int = 1,
                        ) -> torch.Tensor:
         """Frame → 18-way action logits.
 
@@ -310,28 +328,51 @@ class FastModel(nn.Module):
             self._build_action_prompt(slow_text_suffix)
             if slow_text_suffix else self._action_prompt_str
         )
-        inputs = self.model.processor(
-            [prompt_str],
-            [[pil]],
-            [[]],
-            [[]],
-            max_slice_nums=1,
-            use_image_id=None,
-            return_tensors="pt",
-            max_length=1024,
+
+        # Vision-token cache: if recent vllm_emb is fresh enough and the prompt
+        # is unchanged, skip processor + vision tower entirely.
+        prompt_id = prompt_str[:128]  # cheap identity key
+        use_cache = (
+            vision_refresh_every > 1
+            and self._vision_cache_emb is not None
+            and self._vision_cache_age < vision_refresh_every
+            and self._vision_cache_prompt_id == prompt_id
         )
 
-        def to_dev(x):
-            if isinstance(x, torch.Tensor):
-                return x.to(self.cfg.device)
-            if isinstance(x, list):
-                return [to_dev(y) for y in x]
-            return x
-        inputs = {k: to_dev(v) for k, v in inputs.items()}
+        if use_cache:
+            vllm_emb = self._vision_cache_emb
+            attention_mask = self._vision_cache_mask
+            self._vision_cache_age += 1
+        else:
+            inputs = self.model.processor(
+                [prompt_str],
+                [[pil]],
+                [[]],
+                [[]],
+                max_slice_nums=1,
+                use_image_id=None,
+                return_tensors="pt",
+                max_length=1024,
+            )
 
-        # Vision + token embedding fusion
-        vllm_emb, _ = self.model.get_vllm_embedding(inputs)  # [1, T, 4096]
-        attention_mask = inputs.get("attention_mask")
+            def to_dev(x):
+                if isinstance(x, torch.Tensor):
+                    return x.to(self.cfg.device)
+                if isinstance(x, list):
+                    return [to_dev(y) for y in x]
+                return x
+            inputs = {k: to_dev(v) for k, v in inputs.items()}
+
+            # Vision + token embedding fusion
+            vllm_emb, _ = self.model.get_vllm_embedding(inputs)  # [1, T, 4096]
+            attention_mask = inputs.get("attention_mask")
+
+            # Refresh cache
+            if vision_refresh_every > 1:
+                self._vision_cache_emb = vllm_emb
+                self._vision_cache_mask = attention_mask
+                self._vision_cache_prompt_id = prompt_id
+                self._vision_cache_age = 1
 
         # v2: prepend bridge tokens to the embedding sequence
         if thought_tokens is not None and thought_tokens.numel() > 0:
