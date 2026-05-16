@@ -9,17 +9,25 @@ sub-200ms reactive output and long-horizon deliberation. Both endpoints are at m
 **Centerpiece scenario:** Atari-class video games requiring fast reflexes AND strategic
 planning (Ms. Pac-Man, Seaquest).
 
-## 🎯 Headline result (Ms. Pac-Man, 12 episodes per cell)
+## 🎯 Headline result — L > T on BOTH games
 
+### MsPacman (Tier 2)
 | Strategy | Mean ± Std | Median | n |
 |---|---|---|---|
 | F (fast only)           | 256 ± 24  | 250 | 12 |
 | T (text bridge)         | 408 ± 88  | 385 | 12 |
 | **L (v2 latent bridge)** | **628 ± 341** | **550** | 12 |
 
-- **L > T by +54% mean / +43% median** — the latent bridge **beats text** with LLaVA-style
-  architectural privileges.
-- L > F by +145% mean.
+### Seaquest (Tier 3)
+| Strategy | Mean ± Std | Median | n |
+|---|---|---|---|
+| F (fast only)           | 41.7 ± 19.1 | 40 | 12 |
+| T (text bridge)         | 63.3 ± 11.1 | 60 | 12 |
+| **L (v2 latent bridge)** | **80.0 ± 0.0** | **80** | 12 |
+
+- **L > T on both games**: +54% MsPacman, +26% Seaquest.
+- L > F by +145% MsPacman, +92% Seaquest.
+- L is deterministic on Seaquest (std=0) — locked into a stable exploit.
 
 The full story (v1 cross-attn → v2 LLaVA-style redesign) is in
 [`docs/06_results.md`](docs/06_results.md).
