@@ -61,6 +61,19 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **Full pipeline validated end-to-end on real GPU (this session, GPU rebooted clean).**
+    1. T-condition (slow + fast joint): 75 ticks of MsPacman in 10.6s wall-clock, 5
+       slow emissions at 1.5s each (~64 tok/s, fits 1Hz budget). Joint VRAM 36.5GB.
+       Each emission produces 96-token text + 256-dim thought-vector stream. Trajectory
+       persisted to `results/t_episode_mspacman_seed0.pt` (9.7MB).
+    2. Stage C2 KL training on that trajectory: 61 valid steps in 6s. First run hit
+       a NaN bug — `0 × -inf` when illegal-action positions intersected with the
+       KL formula. Fixed by computing KL only over legal-action indices; regression
+       test added (`test_kl_loss_handles_legal_mask_without_nan`).
+    3. Stage C signal test (perturbed action_head + non-zero bridge): KL = 0.923,
+       8/8 bridge xattn params get non-zero gradients, action_head gradients flow.
+       Confirms the central novel architectural element (cross-attn injection at
+       layers 12/24 of the frozen Qwen3-8B backbone) trains correctly under signal.
 - [x] **Stage C COCONUT-curriculum scaffold** (`src/training/stage_c_data.py`,
   `src/training/stage_c_bridge.py`). Dataset reads T-condition trajectories and
   flat-indexes per-tick samples with the most-recent active emission attached

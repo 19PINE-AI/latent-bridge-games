@@ -126,11 +126,16 @@ def _train_step(fast: FastModel, sample: dict, stage: str,
         slow_text_suffix=student_text,
     ).float()
 
-    # KL divergence over the 18-way distribution, restricted to legal actions
-    # (illegal positions are -inf in both, contributing 0 to KL).
-    log_s = F.log_softmax(student_logits / kl_temp, dim=-1)
-    p_t = F.softmax(teacher_logits / kl_temp, dim=-1)
-    kl = (p_t * (p_t.add(1e-12).log() - log_s)).sum(dim=-1).mean()
+    # KL divergence over the legal-action distribution. Compute on legal-only logits
+    # so that illegal positions (-inf) don't generate 0 * -inf = NaN. predict_action
+    # uses the same legal-mask on both teacher and student, so the legal sets agree.
+    legal_idx = legal.nonzero(as_tuple=True)[0].to(student_logits.device)
+    s = student_logits.index_select(-1, legal_idx) / kl_temp
+    t = teacher_logits.index_select(-1, legal_idx) / kl_temp
+    log_s = F.log_softmax(s, dim=-1)
+    log_t = F.log_softmax(t, dim=-1)
+    p_t = log_t.exp()
+    kl = (p_t * (log_t - log_s)).sum(dim=-1).mean()
     return {"loss": kl, "skipped": False}
 
 

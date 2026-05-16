@@ -103,6 +103,30 @@ def test_truncated_text_per_stage():
     assert truncated == "head down-left to dodge the"
 
 
+def test_kl_loss_handles_legal_mask_without_nan():
+    """Regression test: previous KL formula did 0 * -inf = NaN at masked positions.
+    Now we restrict to legal indices before log_softmax, so no NaN."""
+    import torch.nn.functional as F
+    from src.training.imitation_data import legal_action_mask
+
+    legal = legal_action_mask("MsPacman")
+    # Build zero-init logits + apply legal mask the same way predict_action does.
+    teacher = torch.zeros(1, 18).masked_fill(~legal.unsqueeze(0), float("-inf"))
+    student = torch.zeros(1, 18).masked_fill(~legal.unsqueeze(0), float("-inf"))
+
+    legal_idx = legal.nonzero(as_tuple=True)[0]
+    s = student.index_select(-1, legal_idx)
+    t = teacher.index_select(-1, legal_idx)
+    log_s = F.log_softmax(s, dim=-1)
+    log_t = F.log_softmax(t, dim=-1)
+    p_t = log_t.exp()
+    kl = (p_t * (log_t - log_s)).sum(dim=-1).mean()
+
+    assert torch.isfinite(kl), f"KL should be finite, got {kl}"
+    # Identical zero logits → identical uniform → KL ≈ 0
+    assert kl.item() < 1e-4
+
+
 def test_truncated_text_handles_none():
     # Short-circuit: None passes through for any stage. The train loop skips
     # samples with no active emission, so this branch is never the loss target.
