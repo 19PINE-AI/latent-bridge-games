@@ -24,14 +24,44 @@ L vs T: **+54 % mean / +43 % median**. L vs F: +145 %.
 L vs T: **+26 % mean**. L vs F: +92 %. **L is fully deterministic** (std = 0 across 12
 seeds) — locked into an exploit-style policy at the local maximum of 8 kills × 10 pts.
 
+### SpaceInvaders (Tier 2; 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Best | Latency (ms) |
+|---|---|---|---|---|
+| F (fast only) | 105 ± 0 | 105 | 105 | 34 |
+| T (text bridge) | **0 ± 0** | 0 | 0 | 61 |
+| **L (v2 latent bridge)** | **0 ± 0** | 0 | 0 | 54 |
+
+Both T and L collapse to zero score. F alone fires and scores; **either bridge format,
+once the slow model is in the loop, suppresses the FIRE action**. MI diagnostic on the
+trained SpaceInvaders bridge: I(bridge; action) − baseline = **−0.004 nats**;
+I(bridge; sign(reward)) − baseline = **−0.003 nats**. The bridge carries no signal
+above chance — confirming the latent channel is faithful to the slow's (poor)
+guidance, not introducing noise.
+
+**Root cause** — SpaceInvaders is reward-asymmetric: only FIRE actions can score, and
+only ~17 % of the random-policy T-trajectory action distribution is FIRE. Stage C KL
+training matches that random-policy marginal, so L learns a passive policy. The
+slow-model textual guidance ("dodge bombs by lateral movement, clear easier rows
+first") biases the prompt distribution away from training, and the fast model — which
+*can* fire under F — defers to the suggestion and waits. This is a **methodology
+finding**: KL bridge training on random-policy trajectories implicitly assumes that
+action-marginal ≈ reward-bearing-action-marginal. For symmetric-reward games
+(MsPacman: every movement collects dots; Seaquest: divers + kills + surfacing) this
+holds; for asymmetric-reward games (SpaceInvaders) it doesn't.
+
 ### Cross-game summary
-- **H1 ✅ Confirmed on both games**: L > T.
+- **H1 ✅ Confirmed on 2/3 games**: L > T on MsPacman (+54 %) and Seaquest (+26 %); L
+  = T = 0 on SpaceInvaders (both collapse).
 - **H2 (gap grows with strategic complexity) — REFUTED**: the L-T gap is *smaller* on
   Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). Why: the Seaquest Stage A
   teacher is weaker (24 % val acc vs MsPacman's 32 %), bottlenecking both T and L on
   action-head capacity. The bridge contribution still helps but saturates.
-- The honest interpretation is: **L > T transfers across games, but the size of the
-  bridge advantage depends on Stage A teacher quality, not directly on game tier.**
+- **New finding (SpaceInvaders): the bridge methodology assumes symmetric-reward
+  action distributions.** Games where only one or two actions carry reward signal need
+  expert-data Stage C (vs random-policy T-trajectories), or reward-weighted KL.
+- The honest interpretation is: **L > T transfers across symmetric-reward games, but
+  the size of the bridge advantage depends on Stage A teacher quality, and the entire
+  approach breaks on reward-asymmetric games under random-policy KL.**
 
 ## What changed from v1 (the design that failed)
 
@@ -72,6 +102,7 @@ reuse its existing sequence-processing pipeline.
 |---|---|---|---|---|
 | MsPacman | 4852 | 32.1 % | 11.1 % (1/9) | 2.9 × |
 | Seaquest | 4733 | 24.2 % | 5.6 % (1/18) | 4.3 × |
+| SpaceInvaders | 4634 | 32.9 % | 16.7 % (1/6) | 2.0 × |
 
 Seaquest's per-action signal is stronger relative to random (4.3 × vs 2.9 ×) because
 the larger 18-action space gives the slow expert more to exploit; in absolute terms
@@ -82,7 +113,13 @@ MsPacman's 9-action accuracy is higher.
 | Game | Mean KL (epoch 1) | Final KL (last steps) |
 |---|---|---|
 | MsPacman | 0.026 | ~0.005 |
-| Seaquest | (running) | — |
+| Seaquest | 0.024 | ~0.006 |
+| SpaceInvaders | 0.023 | ~0.005 |
+
+KL convergence is similar across all three games — yet deployment outcomes diverge
+dramatically. This re-confirms the v1 lesson: **training KL is necessary but does
+not predict deployment behavior** when the trajectory distribution diverges from the
+reward-relevant policy.
 
 KL convergence on training distribution is a *necessary* but **not sufficient**
 condition for deployment success — confirmed empirically by v1, where KL=0.004
@@ -183,12 +220,18 @@ Remaining latency work (queued task): vision-token caching across consecutive fr
    degenerate solution where both teacher and student output the same deterministic
    distribution. Do not unfreeze action_head during KL training without entropy
    regularization or labeled CE supervision.
+5. **KL training on random-policy T-trajectories breaks on reward-asymmetric games.**
+   SpaceInvaders (where only FIRE actions can score) gives L = T = 0 while F = 105.
+   The random-policy action marginal under-represents FIRE (~17 %), so the bridge
+   learns to imitate a passive policy. Symmetric-reward games (MsPacman, Seaquest)
+   are not affected because every action has positive expected reward potential.
+   Future remedies: expert-policy T-trajectories (with epsilon-noise) or
+   reward-weighted KL.
 
 ## What's queued / running
 
-- Seaquest F/T/L eval (Tier 3 H2 test) — running overnight
-- MsPacman N=4 / N=16 bandwidth ablations — overnight
-- MI diagnostic on all bridges — overnight (CPU)
+- (all overnight experiments complete — Seaquest, SpaceInvaders, true bandwidth
+  ablation, MI on all three bridges)
 
 ## What's still future work
 

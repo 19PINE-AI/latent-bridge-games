@@ -7,9 +7,9 @@ sub-200ms reactive output and long-horizon deliberation. Both endpoints are at m
 ~8-9B scale so the channel — not a capability gap — is the load-bearing variable.
 
 **Centerpiece scenario:** Atari-class video games requiring fast reflexes AND strategic
-planning (Ms. Pac-Man, Seaquest).
+planning (Ms. Pac-Man, Seaquest, Space Invaders).
 
-## 🎯 Headline result — L > T on BOTH games
+## 🎯 Headline result — L > T on symmetric-reward games
 
 ### MsPacman (Tier 2)
 | Strategy | Mean ± Std | Median | n |
@@ -25,9 +25,19 @@ planning (Ms. Pac-Man, Seaquest).
 | T (text bridge)         | 63.3 ± 11.1 | 60 | 12 |
 | **L (v2 latent bridge)** | **80.0 ± 0.0** | **80** | 12 |
 
-- **L > T on both games**: +54% MsPacman, +26% Seaquest.
-- L > F by +145% MsPacman, +92% Seaquest.
-- L is deterministic on Seaquest (std=0) — locked into a stable exploit.
+### SpaceInvaders (Tier 2; reward-asymmetric — see §"Negative finding")
+| Strategy | Mean ± Std | Median | n |
+|---|---|---|---|
+| F (fast only)            | 105 ± 0 | 105 | 12 |
+| T (text bridge)          | 0 ± 0   | 0   | 12 |
+| L (v2 latent bridge)     | 0 ± 0   | 0   | 12 |
+
+- **L > T on symmetric-reward games**: +54 % MsPacman, +26 % Seaquest.
+- L > F by +145 % MsPacman, +92 % Seaquest.
+- L = T = 0 on SpaceInvaders: a clean negative finding — KL training on random-policy
+  trajectories breaks on reward-asymmetric games (only FIRE scores; random-policy
+  marginal under-represents FIRE → bridge learns passive policy). Details in
+  [`docs/06_results.md`](docs/06_results.md).
 
 The full story (v1 cross-attn → v2 LLaVA-style redesign) is in
 [`docs/06_results.md`](docs/06_results.md).
@@ -69,11 +79,15 @@ and using the full attention stack.
 ## Hypotheses
 
 - **H1**: Latent bridge > text bridge on games needing both reflex + planning.
-  **✅ Confirmed on MsPacman** (+54% mean).
-- **H2**: Latent-vs-text gap *grows* with strategic complexity. **Testing on Seaquest**
-  (Tier 3; oxygen management + diver-collection planning).
+  **✅ Confirmed on 2/3 games**: +54 % MsPacman, +26 % Seaquest. SpaceInvaders failure
+  is methodology-driven (random-policy KL on reward-asymmetric game), not
+  architectural.
+- **H2**: Latent-vs-text gap *grows* with strategic complexity. **❌ Refuted** — the
+  L-T gap is smaller on Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). The
+  bottleneck is Stage A teacher quality, not game tier.
 - **H3**: Frozen base + COCONUT curriculum recovers most of a unified upper bound.
-  **✅ Confirmed**: only 33.6M slow-projection params trainable; everything else frozen.
+  **✅ Confirmed**: only 33.6 M slow-projection params trainable; everything else
+  frozen.
 
 ## Repo layout
 
@@ -150,13 +164,17 @@ A single scaling ablation with Qwen3-30B-A3B-Thinking (~60GB) fits at inference 
 ## Status
 
 - [x] Joint inference validation (34GB VRAM, ~270ms cold tick)
-- [x] Stage A behavioral cloning (MsPacman 32% val acc, Seaquest 24%)
-- [x] Stage B text-bridge baseline (T = +59% over F)
-- [x] **v2 Stage C latent bridge (L = +54% over T)** ← headline
-- [x] MI diagnostic (bridge is informative, not collapsed)
+- [x] Stage A behavioral cloning (MsPacman 32 %, Seaquest 24 %, SpaceInvaders 33 %)
+- [x] Stage B text-bridge baseline (T = +59 % over F on MsPacman)
+- [x] **v2 Stage C latent bridge (L = +54 % over T on MsPacman)** ← headline
+- [x] Seaquest end-to-end (L = +26 % over T)
+- [x] SpaceInvaders end-to-end (negative finding: random-policy KL fails on
+      reward-asymmetric games)
+- [x] MI diagnostic on all three games (informative on MsPacman & Seaquest, collapsed
+      on SpaceInvaders — consistent with score outcomes)
+- [x] True bandwidth ablation N=4/8/16 (Goldilocks at N=8)
 - [x] Vision-token cache (latency option)
-- [ ] Seaquest end-to-end (H2 phase-transition test) — running
-- [ ] Bridge bandwidth ablation N=4/16 — running
 - [ ] Stage D PPO (online RL with bridge in loop) — future work
+- [ ] SpaceInvaders revisit with expert-policy T-trajectories — future work
 - [ ] Demo video — future work
 ```

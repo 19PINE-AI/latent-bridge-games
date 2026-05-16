@@ -24,6 +24,9 @@ data/
 *.pt
 *.ckpt
 
+# Generated figures (reproducible from results/ via scripts/make_figures.py)
+figs/
+
 # Logs
 logs/
 *.log
