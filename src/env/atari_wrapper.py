@@ -196,10 +196,63 @@ def _decode_seaquest_ram(ram: np.ndarray) -> dict:
     }
 
 
+def _decode_spaceinvaders_ram(ram: np.ndarray) -> dict:
+    """Return decoded SpaceInvaders text-state.
+
+    Sources: AtariARI, OCAtari spaceinvaders.py, ALE SpaceInvaders.cpp.
+
+    Score encoding (verified via ALE `getDecimalScore(0xE8, 0xE6, &system)`):
+      ram[104] = low BCD pair (ones/tens digits)
+      ram[102] = high BCD pair (hundreds/thousands)
+      → score = bcd(ram[102]) * 100 + bcd(ram[104])   (max 9999, wraps)
+
+    Lives encoded raw at ram[73] (per ALE `readRam(0xC9)`).
+
+    Strategic fields:
+      - invaders_left ram[17]: 0..36 invaders alive
+      - per-row alive bitfields ram[18..23]: which columns survive in each row
+      - formation x/y at ram[26], ram[24]
+      - 2 enemy bombs at (ram[83], ram[81]) and (ram[84], ram[82])
+      - player missile at (ram[87], ram[85])
+    """
+    score = _bcd(int(ram[102])) * 100 + _bcd(int(ram[104]))
+    lives = int(ram[73])
+    cannon_x = int(ram[28])
+    form_x, form_y = int(ram[26]), int(ram[24])
+    invaders_left = int(ram[17])
+    row_bitfields = [int(ram[18 + i]) & 0x3F for i in range(6)]
+    saucer_x = int(ram[30])
+    saucer_active = saucer_x != 0 and saucer_x < 160
+    player_missile_x = int(ram[87])
+    player_missile_y = int(ram[85])
+    player_missile_active = player_missile_y != 0
+    bombs = []
+    for slot in range(2):
+        by = int(ram[81 + slot])
+        bx = int(ram[83 + slot])
+        if by != 0:
+            bombs.append({"x": bx, "y": by, "slot": slot})
+    return {
+        "score": score,
+        "lives": lives,
+        "level": 0,  # not exposed
+        "entities": {
+            "cannon_x": cannon_x,
+            "invaders_left": invaders_left,
+            "row_bitfields_top_to_bottom": row_bitfields,
+            "formation_xy": (form_x, form_y),
+            "player_missile_xy": (player_missile_x, player_missile_y) if player_missile_active else None,
+            "enemy_bombs": bombs,
+            "saucer_x": saucer_x if saucer_active else None,
+        },
+    }
+
+
 _RAM_DECODERS = {
     "MsPacman": _decode_mspacman_ram,
     "Frostbite": _decode_frostbite_ram,
     "Seaquest": _decode_seaquest_ram,
+    "SpaceInvaders": _decode_spaceinvaders_ram,
 }
 
 

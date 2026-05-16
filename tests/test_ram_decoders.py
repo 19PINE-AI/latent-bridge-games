@@ -168,6 +168,28 @@ def test_seaquest_decoder_structure():
     assert len(e["slot_xs"]) == 4
 
 
+def test_spaceinvaders_score_matches_reward():
+    import numpy as np
+    env = AtariEnv(game_name="SpaceInvaders", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    last_text_score = 0
+    n_actions = env.action_space_size
+    for t in range(600):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            last_text_score = text.score
+        if term or trunc:
+            break
+    env.close()
+    assert last_text_score == int(cumulative_reward), (
+        f"SpaceInvaders decoded score {last_text_score} != ALE cum reward {cumulative_reward}"
+    )
+
+
 def test_unknown_game_returns_empty_entities():
     # Pong has no registered decoder
     env = AtariEnv(game_name="Pong", seed=0)

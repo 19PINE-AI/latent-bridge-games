@@ -124,10 +124,41 @@ for points but the kill-economy is secondary to diver-collection. Provide guidan
 for the next ~10 seconds."""
 
 
+def _spaceinvaders_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    cannon_x = e["cannon_x"]
+    form_x, form_y = e["formation_xy"]
+    rows_alive = e["row_bitfields_top_to_bottom"]
+    rows_lines = "\n".join(
+        f"  - row{i} (top→bottom): alive_columns={bin(b)[2:].zfill(6)[::-1]} ({bin(b).count('1')}/6)"
+        for i, b in enumerate(rows_alive)
+    )
+    bomb_lines = "\n".join(
+        f"  - bomb at ({b['x']}, {b['y']})" for b in e["enemy_bombs"]
+    ) or "  - none in flight"
+    own_missile = (f"\n- Own missile in flight at {e['player_missile_xy']}"
+                   if e["player_missile_xy"] is not None else "")
+    saucer = (f"\n- Bonus saucer at x={e['saucer_x']} — high reward!"
+              if e["saucer_x"] is not None else "")
+    return f"""[Space Invaders — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}
+- Cannon at x={cannon_x}; invaders left: {e['invaders_left']}/36
+- Invader formation centered at ({form_x}, {form_y}){own_missile}{saucer}
+- Surviving invaders per row:
+{rows_lines}
+- Enemy bombs:
+{bomb_lines}
+
+Strategic considerations: clear easier rows first (lower invaders score less and are
+slower); dodge bombs by lateral movement; saucers are worth high bonus points.
+Provide guidance for the next ~10 seconds."""
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
     "Seaquest": _seaquest_user_prompt,
+    "SpaceInvaders": _spaceinvaders_user_prompt,
 }
 
 
