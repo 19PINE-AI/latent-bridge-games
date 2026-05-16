@@ -1,44 +1,76 @@
 # Architecture
 
-## Component overview
+## **v2 design (current) — LLaVA-style latent-as-token bridge**
+
+The original v1 design (mid-layer cross-attention into the frozen LLM at depths 12/24,
+with a 256-dim thought buffer) was empirically shown to fail at deployment despite
+converging to KL=0.004 on offline data. Diagnosis: the bridge had no learned inductive
+bias (random-init 256-d vectors with ~5K training samples), and information only
+entered the LLM at two specific layers — most of the 36-layer stack saw nothing.
+
+**v2 fixes both issues** by adopting the standard multimodal pattern used by LLaVA,
+BLIP-2, MiniCPM-o, Qwen-VL, etc.: the slow model's residuals are projected into the
+*fast model's input embedding space* (4096-d, not 256-d) as *N latent tokens* (default
+N=8), and these are **prepended as actual tokens to the fast model's input sequence**.
+The LLM processes them through every one of its 36 layers with full attention, exactly
+the same path text tokens take. The frozen LLM thus inherits its enormous text-pretraining
+inductive bias for handling sequence tokens of arbitrary content — we are not asking it
+to learn a new modality from scratch with cross-attention surgery.
 
 ```
-┌─────────────────────┐         ┌──────────────────────┐
-│  Atari game state   │  60Hz   │   Slow Model         │
-│  (RGB frame +       │ ──────▶ │   Qwen3-VL-8B        │
-│   game-state text)  │         │   -Thinking          │
-└────────┬────────────┘         │   (frozen + LoRA     │
-         │                      │    projection head)  │
-         │ 15Hz visual          │   1-2 Hz emission    │
-         ▼                      └──────────┬───────────┘
-┌─────────────────────┐                    │
-│  Fast Model         │   cross-attn       │ thought
-│  MiniCPM-o 4.5      │ ◀──────────────────┤ vectors
-│  (frozen + LoRA on  │   over thought-    │ (D_bridge=256)
-│   attn + new        │   buffer           ▼
-│   cross-attn        │             ┌──────────────────┐
-│   layers)           │             │  Thought Buffer  │
-│                     │             │  ring, K=16      │
-│  Output: action     │  perception │  (256-dim each   │
-│  token at 15Hz      │  summary    │   + age stamp)   │
-└────────┬────────────┘  ─────────▶ └──────────────────┘
-         │                            │
-         │ action                     │
-         ▼                            │
-┌─────────────────────┐               │
-│  ALE step           │               │
-│  reward, next frame │               │
-└─────────────────────┘               │
-                                      ▼
-                              ┌──────────────────┐
-                              │ Perception Buffer│
-                              │ ring, K=8        │
-                              │ (256-dim each)   │
-                              │ → read by slow   │
-                              │   model's LoRA   │
-                              │   cross-attn     │
-                              └──────────────────┘
+┌─────────────────────┐         ┌────────────────────────────────────┐
+│  Atari game state   │  60Hz   │   Slow Model: Qwen3-VL-8B-Thinking │
+│  (RGB frame +       │ ──────▶ │   (frozen base; trainable          │
+│   game-state text)  │         │    ThoughtProjection: 4096→4096)   │
+└────────┬────────────┘         │   1-2 Hz emission                  │
+         │                      └────────────┬───────────────────────┘
+         │                                   │
+         │ 15Hz visual                       │ N=8 latent tokens
+         │                                   │ in fast-model embedding
+         │                                   │ space (D=4096)
+         ▼                                   ▼
+┌─────────────────────────────────────────────────────────┐
+│  Fast Model: MiniCPM-o 4.5  (Qwen3-8B backbone)         │
+│                                                         │
+│  inputs_embeds = [bridge_tokens(N×4096) ;               │
+│                    vision_tokens(64×4096) ;             │
+│                    text_tokens(...×4096)]               │
+│                                                         │
+│  ▶ ALL 36 LLM LAYERS attend over bridge tokens          │
+│  (same path text uses — no mid-layer surgery)           │
+│                                                         │
+│  Last hidden state → action_head → action_logits[18]    │
+└────────┬────────────────────────────────────────────────┘
+         │ action token at 15Hz
+         ▼
+┌─────────────────────┐
+│  ALE step           │
+│  reward, next frame │
+└─────────────────────┘
 ```
+
+### What changed from v1
+
+| Aspect | v1 (deprecated) | v2 (current) |
+|---|---|---|
+| Bridge entry point | Cross-attn at LLM layers 12 & 24 | **Input embedding (all 36 layers attend)** |
+| Bridge dim | 256 | **4096 (LLM hidden size)** |
+| Bridge tokens per emission | 16-entry ring buffer, 256-d each | **N=8 tokens, 4096-d each (latest emission only)** |
+| Trainable bridge params | Q/K/V/O cross-attn (71M) | **ThoughtProjection only (~32M, slow side)** |
+| LLM modification | Mid-layer cross-attn injection | **None — just concat tokens to input** |
+| Inductive bias | None (random 256-d) | **Inherits LLM's full sequence-token prior** |
+
+### Outcome on MsPacman (v1)
+
+| Strategy | Mean ± Std | Notes |
+|---|---|---|
+| F (fast only) | 256 ± 24 | baseline |
+| T (text bridge) | **408 ± 88** | +59% over F |
+| L (v1 latent) | 225 ± 85 | bimodal: 4/12 catastrophic |
+
+The text channel's lift is large and reliable; the v1 latent bridge fails. v2 is
+designed to close this gap by giving the latents the same architectural privileges
+text enjoys.
 
 ## Fast model: MiniCPM-o 4.5
 
@@ -67,20 +99,23 @@ keep the bridge readable without budget pressure on the main attention.
 - Trainable adapters:
   - LoRA on attention projection layers (rank 16) — for adapting thought emission to
     game-context patterns
-  - **Projection head**: linear from residual stream (4096-dim at layer 24) to thought
-    vector (256-dim)
+  - **ThoughtProjection** (v2): MLP `4096 → 4096 → 4096` with LayerNorm on output.
+    Maps slow model's residual at layer 24 to bridge tokens in the **fast model's
+    input embedding space**. Takes the last `N=8` token positions from the slow's
+    emission (these contain the slow model's "conclusion" closest to its answer).
+    This is the **only trainable bridge parameter** in v2 (~32M params).
   - **Cross-attention LoRA** at layer 20: reads the perception buffer (Stage C3 only)
 - Input: 1Hz frame snapshot + rolling 4-second window of (a) compact text game state
   (RAM-derived entity positions, score, lives, level) and (b) perception summaries from
   fast model
-- Output: text reasoning tokens (with `<think>` block) + projected thought vectors at ~1-2Hz
+- Output: text reasoning tokens (with `<think>` block) + N=8 latent tokens at ~1-2Hz
 
 **Why same-architecture-family on both sides:** MiniCPM-o 4.5's backbone is Qwen3-8B and
-Qwen3-VL-8B-Thinking is built on the same family. This means the hidden dims (4096) are
-identical on both ends of the bridge, so the projection head is a straightforward 4096→256
-rather than a cross-family adapter. It also makes the perception-buffer cross-attention
-on the slow side architecturally symmetric with the thought-buffer cross-attention on the
-fast side.
+Qwen3-VL-8B-Thinking is built on the same family. **In v2 this is critical**: the slow's
+hidden_dim (4096) equals the fast's hidden_dim (4096), so the projection is dimension-
+preserving rather than cross-family. The fast model's input embedding space is therefore
+*compatible* with the slow's residual stream — the projection just needs to learn a
+selective re-encoding, not a cross-architecture mapping.
 
 ### Scaling ablation (single configuration, not the main experiment)
 
@@ -96,27 +131,44 @@ learned projection compresses to 256-dim while preserving task-relevant informat
 trained via the COCONUT-style curriculum (reconstruction against text-channel
 predictions).
 
-## The bridge
+## The bridge (v2 — LLaVA-style)
 
-### Thought buffer (slow → fast)
-- Ring of K=16 entries
-- Each entry: 256-dim vector + age stamp (in fast ticks)
-- Slow model writes one entry per emission (1-2 Hz)
-- Fast model's new cross-attn layers attend over all 16 on every tick (15Hz)
-- Bandwidth: 2 entries/s × 256 dim × bf16 = ~8 Kbps continuous
+### Slow → fast (latent-as-token)
+- Slow model emits a `<think>...</think>` response (up to ~96 tokens).
+- The slow model's hidden states at layer 24 are captured for the **last N=8 token positions** of the emission (these contain the model's conclusion closest to its answer, which has the highest information density per token).
+- A trainable `ThoughtProjection` MLP (4096 → 4096 → 4096 with LayerNorm) maps each
+  of these N residuals into the **fast model's input embedding space** (4096-d).
+- The result is `[N=8, 4096]` "latent tokens" that look statistically like text token
+  embeddings to the fast model.
+- These tokens are **prepended** to the fast model's `inputs_embeds` sequence (before
+  the image and text tokens). All 36 LLM layers attend over them through full causal
+  attention — exactly the same code path as text.
+- Bandwidth: 1 emission/s × 8 tokens × 4096 dim × bf16 ≈ **524 Kbps**, ~60× the v1
+  bandwidth. But because the model uses the bandwidth via its existing attention
+  machinery (no new modules), the *effective* signal capacity is much higher than the
+  raw bit-rate suggests.
 
-### Perception buffer (fast → slow)
-- Ring of K=8 entries
-- Each entry: 256-dim vector summarizing recent game state from fast model's perspective
-- Fast model writes one entry per ~500ms (every ~7 fast ticks)
-- Slow model's LoRA cross-attn reads on each forward pass
+### Why we replaced the v1 ring buffer
 
-### Async coupling
-- Both models run on independent threads / CUDA streams
-- Buffers are append-only with positional encoding for age
-- Fast model emits actions at fixed tick rate regardless of buffer freshness
-- If slow model's emission rate drops, fast model attends over staler buffer entries
-  with appropriate downweighting via age encoding
+The v1 design used a 16-entry × 256-dim ring buffer read by dedicated cross-attention
+layers at LLM depths 12 and 24. This had two architectural problems empirically:
+
+1. **No inductive bias**: 256-d vectors with arbitrary content; the model had no
+   pretraining for this format and Stage C had to learn the mapping from scratch
+   with only ~5K training samples.
+2. **Information bottleneck at most layers**: Only layers 12 and 24 saw the bridge.
+   The other 34 layers had no direct access; bridge information had to propagate via
+   the residual stream alone, attenuated by intervening attention + MLPs.
+
+The text channel (T condition) doesn't have either problem — text tokens enter at
+layer 0 and are attended over by all 36 layers, and the LLM has billions of
+pretraining examples teaching it how to use sequence tokens. **v2 gives the latent
+bridge the same architectural privileges as text.**
+
+### Perception buffer (fast → slow) — deferred to v2.1
+
+Currently not implemented. Will be added analogously when bidirectional coupling is
+needed.
 
 ## Memory budget (96GB target)
 

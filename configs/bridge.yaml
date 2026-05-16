@@ -1,16 +1,23 @@
-# Bridge configuration
-bridge_dim: 256
-thought_buffer:
-  capacity: 16          # K, number of recent slow-model emissions retained
-  dtype: bfloat16
-perception_buffer:
-  capacity: 8           # K, number of recent fast-model summaries retained
-  dtype: bfloat16
+# Bridge configuration (v2 — LLaVA-style latent-as-token)
 
-# Emission rates
-slow_emission_hz: 1.0   # slow model emits thought vectors at this rate
-fast_tick_hz: 15.0      # fast model emits actions at this rate
-fast_summary_period_ticks: 7  # fast model writes one perception summary per N ticks
+# v2: bridge tokens live in the fast model's input embedding space.
+# They are prepended to the fast model's `inputs_embeds` sequence so all 36
+# LLM layers attend through full causal attention (same path as text/image tokens).
+bridge_dim: 4096           # equal to fast LLM hidden_dim (Qwen3-8B); was 256 in v1
+n_bridge_tokens: 8         # how many latent tokens per slow emission
 
-# Age encoding for stale buffer entries
-age_encoding_n_freq: 8  # sinusoidal frequency basis size
+# Only the most-recent slow emission's tokens are used (no long ring buffer in v2).
+# The fast model's RoPE handles position; bridge tokens occupy positions 0..N-1.
+
+# Emission rates (unchanged from v1)
+slow_emission_hz: 1.0      # slow model emits 1 set of N bridge tokens per second
+fast_tick_hz: 15.0         # fast model emits an action per 67ms
+
+# Slow side
+slow_residual_layer: 24    # which layer's residuals to project
+slow_last_n_positions: 8   # take the last N=8 token positions of each emission
+                           # (these contain the slow model's "conclusion")
+
+# Trainable params in v2 Stage C
+# Only the slow's ThoughtProjection (~32M MLP) is trainable. Fast model entirely frozen.
+# Compare v1: 71M cross-attn + (optional) action_head — both removed in v2.

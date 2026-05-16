@@ -42,8 +42,16 @@ real time" as an alternative.
 **T is the TML-comparable baseline:** slow model emits text strategic guidance every ~1s;
 fast model consumes it as extra context. No LoRA on slow model — pure prompting.
 
-**L is the proposal:** continuous-valued ring buffer between models, LoRA adapters on
-both ends, COCONUT-style curriculum training.
+**L is the proposal:** v2 architecture (post-2026-05-16) is the LLaVA-style latent-as-token
+bridge — the slow model produces N=8 latent tokens in the fast model's input embedding
+space (4096-d), prepended to the fast model's input sequence so all 36 LLM layers attend
+through full causal attention. **The v1 design (mid-layer cross-attn into a 256-d ring
+buffer at LLM depths 12 & 24) was empirically shown to fail** despite converging to
+KL=0.004 on offline data (see `docs/05_status.md` for details). The v2 redesign was
+motivated by analysis of how LLaVA / BLIP-2 / MiniCPM-o themselves succeed at multimodal
+coupling: text and visual tokens both enter at the LLM's input embedding and share the
+attention stack. v2 gives the latent bridge the same architectural privileges. Only the
+slow model's `ThoughtProjection` is trainable (~32M params); everything else is frozen.
 
 We also include **O (oracle)**: pre-computed slow-model analysis injected as fast-model
 context. Cheating, but bounds the upper limit of what *any* fast/slow coupling can buy.
