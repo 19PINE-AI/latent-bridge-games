@@ -61,6 +61,38 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **🎯 v2 HEADLINE RESULT — LLaVA-style latent-as-token bridge succeeds**
+  (`results/eval_v2_mspacman.json`, 12 episodes per cell, MsPacman):
+
+  | Strategy | Mean ± Std | Median | n |
+  |---|---|---|---|
+  | F (fast only) | 256 ± 24 | 250 | 12 |
+  | T (text bridge) | 408 ± 88 | 385 | 12 |
+  | **L (v2 latent bridge)** | **628 ± 341** | **550** | 12 |
+
+  - **L v2 vs F: +145% mean lift** (256 → 628)
+  - **L v2 vs T: +54% mean** (408 → 628), **+43% median** (385 → 550)
+  - Best single L episode: **1740** (far above the top of any prior condition)
+
+  This validates the user's two-part diagnosis that defeated v1:
+    1. The latent bridge needed an LLM-pretraining-compatible inductive bias
+       (4096-d tokens in the LLM's own input-embedding space, not arbitrary
+       256-d vectors).
+    2. The latent bridge needed full-stack attention (all 36 LLM layers), not
+       mid-layer cross-attn at only depths 12 and 24.
+
+  v2 architecture (the standard LLaVA / BLIP-2 / MiniCPM-o pattern):
+    - Slow model: N=8 token positions from its emission, each projected through
+      a trainable MLP `4096→4096→4096` with LayerNorm bookends (33.6M params).
+    - Fast model: bridge tokens **prepended to the input embedding sequence**.
+      All 36 LLM layers attend over them via the standard causal attention path.
+    - Stage C training: only the slow's ThoughtProjection is trainable; fast
+      model entirely frozen. KL(student||teacher) loss converges to mean=0.026.
+
+  This is the central paper result. The text channel does work (+59% over F),
+  but the latent channel **also works and works better than text** when given
+  LLM-native architectural privileges.
+
 - [x] **EXPANDED EVAL: three L variants vs F vs T** (each 12 ep, MsPacman):
 
   | Variant | Mean ± Std | Median | Failure mode |
