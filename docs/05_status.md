@@ -61,6 +61,37 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **EXPANDED EVAL: three L variants vs F vs T** (each 12 ep, MsPacman):
+
+  | Variant | Mean ± Std | Median | Failure mode |
+  |---|---|---|---|
+  | F | 256 ± 24 | 250 | (baseline) |
+  | T | **408 ± 88** | 385 | (best — +59% over F) |
+  | L ungated (baseline) | 225 ± 85 | 255 | **Bimodal**: 4/12 episodes scored 70-160 (catastrophic); when not catastrophic ≈ F |
+  | L gated only | **256 ± 110** | 255 | No catastrophes; bridge mostly silent → matches F |
+  | L gated + action-head tune | 210 ± 0 | 210 | **Mode collapse** — joint KL+tune has a degenerate solution; ALL F/T/L become identical deterministic policy |
+
+  **What we learned about why L fails on-policy despite KL=0.004 on offline data:**
+
+  1. **The bridge perturbs hidden states at layers 12/24** in a way the frozen Stage A
+     action_head can't read robustly. In ~33% of episodes this causes a deterministic
+     bad action sequence that ends the episode prematurely.
+  2. **Gating fixes the catastrophe but not the lift**. With a learnable sigmoid gate
+     starting at sigmoid(-2)≈0.12, the action_head can suppress bad bridge outputs by
+     closing the gate. Catastrophic episodes disappear (no scores <100). But the gate
+     stays mostly closed everywhere, so the bridge contributes near-zero on average and
+     L ≈ F (256 vs 256).
+  3. **Joint action_head + bridge KL training has a degenerate solution**: both can
+     collapse to the same deterministic output, satisfying KL=0 perfectly without
+     learning anything useful. Observed empirically: all F/T/L cells became identical
+     210/375 episodes after this training. **Do not unfreeze action_head during KL
+     training without entropy regularization or labeled CE supervision.**
+
+  **Real next step**: the underlying issue is offline-vs-online distribution shift
+  (the Stage C training distribution doesn't include states the L policy visits) AND
+  the action_head being mis-calibrated for bridge-perturbed hiddens. Both are exactly
+  what Stage D (online RL) is designed for. DAgger alone won't fix #2; PPO with
+  bridge in the loop will.
 - [x] **HEADLINE EVAL RESULT — MsPacman, 12 episodes per cell (3 seeds × 4 eps)**
   (`results/eval_full.json`):
 
