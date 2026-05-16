@@ -59,6 +59,7 @@ def _train_one_epoch(fast: FastModel,
     t_start = time.time()
     optimizer.zero_grad(set_to_none=True)
 
+    trainable = [p for p in fast.action_head.parameters()]
     for step, batch in enumerate(_iter_dataset(loader)):
         frame_np = batch["frame"][0].numpy()  # batch size 1
         action_global = batch["action_global"][0].item()
@@ -76,9 +77,7 @@ def _train_one_epoch(fast: FastModel,
         )
         (loss / grad_accum).backward()
         if (step + 1) % grad_accum == 0:
-            torch.nn.utils.clip_grad_norm_(
-                list(fast.trainable_parameters()), max_norm=1.0
-            )
+            torch.nn.utils.clip_grad_norm_(trainable, max_norm=1.0)
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
@@ -192,16 +191,26 @@ def main():
     # ---- Model ----
     print("Loading FastModel (MiniCPM-o)...")
     fast = FastModel(FastModelConfig()).load_pretrained()
-    n_trainable = sum(p.numel() for p in fast.trainable_parameters())
-    print(f"  trainable parameters: {n_trainable:,} "
-          f"(action_head + bridge xattn; base + bridge are no-op at init)")
 
-    optimizer = torch.optim.AdamW(
-        list(fast.trainable_parameters()), lr=args.lr, weight_decay=0.0,
-    )
+    # Stage A: train ONLY the action_head. Bridge xattn stays zero-init (no-op);
+    # it is trained in Stage C. Including bridge xattn at Stage A makes the
+    # optimization much harder (71M params, high-variance gradients) and tends to
+    # diverge after the action head has warmed up.
+    for p in fast.xattn_layers.parameters():
+        p.requires_grad = False
+    trainable_params = list(fast.action_head.parameters())
+    n_trainable = sum(p.numel() for p in trainable_params)
+    print(f"  trainable parameters: {n_trainable:,} (action_head only; "
+          f"bridge xattn frozen at zero-init for Stage A)")
+
+    optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=0.0)
 
     # ---- Train ----
     history = []
+    best_val_acc = -1.0
+    base, ext = os.path.splitext(args.out)
+    Path(os.path.dirname(args.out) or ".").mkdir(parents=True, exist_ok=True)
+
     for epoch in range(1, args.epochs + 1):
         print(f"\nEpoch {epoch}/{args.epochs} (train, {len(train_loader)} steps)")
         train_stats = _train_one_epoch(
@@ -217,17 +226,36 @@ def main():
 
         history.append({"epoch": epoch, "train": train_stats, "val": val_stats})
 
-    # ---- Save ----
-    Path(os.path.dirname(args.out) or ".").mkdir(parents=True, exist_ok=True)
-    checkpoint = {
-        "action_head_state": fast.action_head.state_dict(),
-        "xattn_state": {k: m.state_dict() for k, m in fast.xattn_layers.items()},
-        "config": vars(fast.cfg),
-        "history": history,
-        "args": vars(args),
-    }
-    torch.save(checkpoint, args.out)
-    print(f"\nWrote {args.out}")
+        # Checkpoint per epoch (action_head only — bridge xattn was frozen so no need
+        # to persist its zero-init state).
+        ep_path = f"{base}_ep{epoch}{ext}"
+        torch.save({
+            "epoch": epoch,
+            "action_head_state": fast.action_head.state_dict(),
+            "config": vars(fast.cfg),
+            "history": history,
+            "args": vars(args),
+            "val_acc": val_stats["mean_acc"],
+            "val_loss": val_stats["mean_loss"],
+        }, ep_path)
+        print(f"  wrote {ep_path}")
+
+        # Track the best-val checkpoint at args.out
+        if val_stats["mean_acc"] > best_val_acc:
+            best_val_acc = val_stats["mean_acc"]
+            torch.save({
+                "epoch": epoch,
+                "action_head_state": fast.action_head.state_dict(),
+                "config": vars(fast.cfg),
+                "history": history,
+                "args": vars(args),
+                "val_acc": val_stats["mean_acc"],
+                "val_loss": val_stats["mean_loss"],
+                "is_best": True,
+            }, args.out)
+            print(f"  new best val acc {best_val_acc:.3f}; updated {args.out}")
+
+    print(f"\nDone. Best val acc: {best_val_acc:.3f}")
 
 
 if __name__ == "__main__":

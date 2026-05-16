@@ -152,6 +152,9 @@ def main():
     ap.add_argument("--max-samples", type=int, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="checkpoints/stage_c/bridge.pt")
+    ap.add_argument("--stage-a-ckpt", default=None,
+                    help="Stage A checkpoint to load action_head from (required for "
+                         "meaningful KL training — without it teacher logits are uniform).")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -170,7 +173,16 @@ def main():
 
     print("Loading FastModel...")
     fast = FastModel(FastModelConfig()).load_pretrained()
-    print(f"  trainable: {sum(p.numel() for p in fast.trainable_parameters()):,}")
+    if args.stage_a_ckpt:
+        ckpt = torch.load(args.stage_a_ckpt, map_location="cuda", weights_only=False)
+        fast.action_head.load_state_dict(ckpt["action_head_state"])
+        print(f"  loaded action_head from {args.stage_a_ckpt} "
+              f"(val_acc={ckpt.get('val_acc', '?')})")
+    # Freeze action_head during Stage C — bridge xattn is the only trainable part.
+    for p in fast.action_head.parameters():
+        p.requires_grad = False
+    print(f"  trainable: {sum(p.numel() for p in fast.xattn_layers.parameters()):,} "
+          f"(bridge xattn only; action_head frozen)")
 
     optimizer = torch.optim.AdamW(
         list(fast.xattn_layers.parameters()), lr=args.lr, weight_decay=0.0,
