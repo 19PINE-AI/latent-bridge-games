@@ -91,9 +91,43 @@ def _frostbite_user_prompt(ts: TextState) -> str:
 Provide strategic guidance for the next ~10 seconds."""
 
 
+def _seaquest_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    px, py = e["player_xy"]
+    oxygen = e["oxygen"]
+    divers = e["divers_collected"]
+    facing = "right" if e["facing_east"] else "left"
+    own_torpedo = (f"\n- Own torpedo in flight at x={e['own_torpedo_x']}"
+                   if e["own_torpedo_x"] is not None else "")
+    surface_enemy = (f"\n- SURFACE ENEMY at x={e['surface_enemy_x']} (must shoot before surfacing)"
+                     if e["surface_enemy_x"] is not None else "")
+    crit_oxy = "\n- ⚠ OXYGEN CRITICAL — must surface" if e["oxygen_critical"] else ""
+    sub_full = "\n- ⚠ SUBMARINE FULL (6 divers) — surface to claim bonus" if e["submarine_full"] else ""
+    lane_lines = "\n".join(
+        f"  - lane{i} (bottom→top) base_x={x}" for i, x in enumerate(e["enemy_lane_xs"])
+    )
+    slot_lines = "\n".join(
+        f"  - slot{i} at x={x}" for i, x in enumerate(e["slot_xs"]) if x != 0
+    ) or "  - all slots empty"
+    return f"""[Seaquest — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}
+- Oxygen: {oxygen}/64    Divers collected: {divers}/6
+- Player at ({px}, {py}), facing {facing}{crit_oxy}{sub_full}{own_torpedo}{surface_enemy}
+- Enemy lanes:
+{lane_lines}
+- Diver/missile slots:
+{slot_lines}
+
+Strategic considerations: oxygen depletion forces surfacing; surfacing with 6 divers
+gives a big bonus; surfacing with 0 divers in later levels costs a life; shoot enemies
+for points but the kill-economy is secondary to diver-collection. Provide guidance
+for the next ~10 seconds."""
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
+    "Seaquest": _seaquest_user_prompt,
 }
 
 

@@ -44,6 +44,7 @@ N_GLOBAL_ACTIONS = 18
 _GAME_ACTION_NAMES = {
     "MsPacman": ("NOOP", "UP", "RIGHT", "LEFT", "DOWN", "UPRIGHT", "UPLEFT", "DOWNRIGHT", "DOWNLEFT"),
     "Frostbite": GLOBAL_ACTION_NAMES,
+    "Seaquest": GLOBAL_ACTION_NAMES,
     "Pong": ("NOOP", "FIRE", "RIGHT", "LEFT", "RIGHTFIRE", "LEFTFIRE"),
     "Breakout": ("NOOP", "FIRE", "RIGHT", "LEFT"),
     "BeamRider": ("NOOP", "FIRE", "UP", "RIGHT", "LEFT", "UPRIGHT", "UPLEFT", "RIGHTFIRE", "LEFTFIRE"),

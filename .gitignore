@@ -6,7 +6,8 @@ __pycache__/
 .Python
 .venv/
 venv/
-env/
+/env/
+# (note: "env/" without leading slash would also match src/env/ — keep rooted)
 *.egg-info/
 .eggs/
 build/

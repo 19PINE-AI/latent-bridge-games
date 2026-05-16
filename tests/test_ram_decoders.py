@@ -125,6 +125,49 @@ def test_frostbite_score_matches_reward():
     )
 
 
+def test_seaquest_score_matches_reward():
+    import numpy as np
+    env = AtariEnv(game_name="Seaquest", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    last_text_score = 0
+    n_actions = env.action_space_size
+    for t in range(400):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            last_text_score = text.score
+        if term or trunc:
+            break
+    env.close()
+    assert last_text_score == int(cumulative_reward), (
+        f"Seaquest decoded score {last_text_score} != ALE cumulative reward {cumulative_reward}"
+    )
+
+
+def test_seaquest_decoder_structure():
+    env = AtariEnv(game_name="Seaquest", seed=0)
+    env.reset()
+    text = None
+    for _ in range(40):
+        _, _, _, _, t = env.step(0)
+        if t is not None:
+            text = t
+            break
+    env.close()
+    assert text is not None
+    e = text.entities
+    for k in ("oxygen", "divers_collected", "player_xy", "enemy_lane_xs", "slot_xs",
+              "alive", "submarine_full", "oxygen_critical"):
+        assert k in e, f"missing key {k}"
+    assert 0 <= e["oxygen"] < 256
+    assert 0 <= e["divers_collected"] <= 6
+    assert len(e["enemy_lane_xs"]) == 4
+    assert len(e["slot_xs"]) == 4
+
+
 def test_unknown_game_returns_empty_entities():
     # Pong has no registered decoder
     env = AtariEnv(game_name="Pong", seed=0)

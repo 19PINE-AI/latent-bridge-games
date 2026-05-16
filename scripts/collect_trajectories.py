@@ -41,12 +41,20 @@ def _load_sb3_policy(policy_path: str):
     The returned object exposes `.predict(obs, deterministic=True)`. SB3 standard Atari
     policies expect grayscale 84×84 frames stacked into a 4-channel input, so we also
     build the standard AtariPreprocessing wrapper for the policy's view of the env.
+
+    Older SB3 zoo checkpoints (Seaquest DQN, etc.) were saved with
+    optimize_memory_usage=True AND handle_timeout_termination=True, which is no longer
+    allowed in current SB3. We override via custom_objects to make them load.
     """
     from stable_baselines3 import DQN, PPO
-    # Try DQN first, fall back to PPO.
+    custom_objects = {
+        "replay_buffer_kwargs": {"handle_timeout_termination": False},
+        "optimize_memory_usage": False,
+    }
     for cls in (DQN, PPO):
         try:
-            return cls.load(policy_path, device="auto")
+            return cls.load(policy_path, device="auto",
+                            custom_objects=custom_objects)
         except Exception:
             continue
     raise ValueError(f"could not load SB3 policy from {policy_path}")
