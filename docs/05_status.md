@@ -61,6 +61,40 @@
   transformers' static import-check trips on; the actual call site is a lazy video
   helper we never invoke. PyPI `minicpmo` is broken (metadata="unknown" + only audio
   code); the stub satisfies the static check without affecting image inference.
+- [x] **HEADLINE EVAL RESULT — MsPacman, 12 episodes per cell (3 seeds × 4 eps)**
+  (`results/eval_full.json`):
+
+  | Strategy | Mean ± Std | Median | Latency | On-Clock |
+  |---|---|---|---|---|
+  | F (fast-only) | 256 ± 24 | 250 | 44ms | 81% |
+  | **T (text bridge)** | **408 ± 88** | 385 | 50ms | 80% |
+  | L (latent bridge) | 225 ± 85 | 255 | 64ms | 71% |
+
+  **H1 confirmed for T**: text-bridge gives +59% over fast-only (256 → 408). Strong
+  effect well outside the noise envelope.
+
+  **H1 REJECTED for L on this configuration**: latent bridge is bimodal — median
+  matches F (255 vs 250), but several episodes die early producing 70-160 scores.
+  The Stage C bridge converged to KL=0.004 on offline T-rollout frames, but at
+  deployment L visits states T never visited. Distribution-shift / compounding
+  error: the textbook offline-imitation failure mode.
+
+  **Asymmetric vulnerability**: T appends text as a *prompt suffix* that the model
+  can choose to ignore; L modifies the residual stream additively at layers 12+24
+  so the model can't escape a bad bridge output.
+
+  **Implications for the paper**: the bridge architecture works distributionally
+  (KL is tiny) but fails on-policy. The plan's Stage D — online RL fine-tuning of
+  the bridge in deployment — is now clearly the load-bearing next step, not a
+  nice-to-have. DAgger-style on-policy bridge correction is the obvious cheaper
+  alternative.
+
+  **Latency is fine**: all three conditions are at or under the 67ms 15Hz target
+  when warm (44/50/64 ms, 71-81% on-clock).
+- [x] **Frostbite T-trajectories**: 10 episodes collected (`results/t_trajectories/Frostbite_seed{0..9}.pt`),
+  mean score 55 ± 20 (matches published random baseline). Stage C-Frostbite and
+  L-vs-T-Frostbite eval pending (Frostbite has no SB3 zoo expert; would need to
+  train a Stage A teacher first).
 - [x] **Full pipeline validated end-to-end on real GPU (this session, GPU rebooted clean).**
     1. T-condition (slow + fast joint): 75 ticks of MsPacman in 10.6s wall-clock, 5
        slow emissions at 1.5s each (~64 tok/s, fits 1Hz budget). Joint VRAM 36.5GB.
