@@ -98,6 +98,32 @@ suffix-augmented prompts so the action head is in-distribution for T/L; or (b) u
 Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
+### River Raid (Tier 3; bandwidth-claim test — 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Bridge MI minus baseline |
+|---|---|---|---|
+| F (fast only) | **1067 ± 84** | 1060 | — |
+| T (text bridge) | 383 ± 57 | 390 | — |
+| L (latent bridge) | 360 ± 0 | 360 | I(b;a) = −0.0006, I(b;r) = +0.003 |
+
+River Raid was selected as the bandwidth-claim test: 4 interacting objectives
+(fuel / dodging / shooting / path), continuous long-horizon state. Predicted
+L > T > F.
+
+**Observed pattern: another Stage A OOD-brittleness case.** F plays well (Stage A
+val_acc 31.5 %); but the slow-text suffix and bridge tokens both *degrade* the
+policy to a fraction of F's score. The pattern matches the SpaceInvaders failure
+exactly: when the action head was trained on the bare-prompt distribution and
+the game requires precision (dodging + targeting), even a small distribution
+shift from the suffix flips a working policy into a failing one. MI on the
+bridge is near zero, confirming nothing useful was encoded.
+
+**Implication for the bandwidth claim:** the experiment was designed to test L
+vs T at the bandwidth bottleneck, but Stage A OOD-brittleness pre-empts the
+test — F is much higher than T, and L is bounded above by T's KL anchor. The
+honest reading: the bandwidth thesis can only be tested *after* the Stage A
+distribution mismatch is fixed (via Stage A robustness training, à la the SI
+fix, or Stage D PPO under deployment).
+
 ### Pong (Tier 1; reactive-only — 12 episodes per cell)
 | Strategy | Mean | Median | Comment |
 |---|---|---|---|
