@@ -58,15 +58,19 @@ class SlowModelConfig:
 
     @classmethod
     def from_scaling_ablation(cls) -> "SlowModelConfig":
-        """30B-A3B MoE configuration for the single Tier-3 scaling ablation.
+        """30B-A3B-FP8 VL MoE configuration for the single scaling ablation.
 
-        Not used in the main four-strategy sweep. Different hidden size (5120 vs 4096)
-        and no native vision encoder — slow side falls back to text+perception channels.
+        - hf_repo: Qwen-official FP8 checkpoint (~30GB on disk vs bf16 ~60GB).
+        - hidden_size: 2048 (auto-detected from config; ThoughtProjection adapts).
+        - num_hidden_layers: 48 → projection_layer_idx=32 keeps the same ~67% depth
+          ratio as the 8B's layer 24 / 36.
+        - vision_enabled: True — Qwen3-VL-30B-A3B-Thinking is the VL variant.
+        - bridge_dim: still 4096 (MiniCPM-o fast hidden size, unchanged).
         """
         return cls(
-            hf_repo="Qwen/Qwen3-30B-A3B-Thinking-2507",
+            hf_repo="Qwen/Qwen3-VL-30B-A3B-Thinking-FP8",
             projection_layer_idx=32,
-            vision_enabled=False,
+            vision_enabled=True,
         )
 
 
