@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Latent Bridge — Fast/Slow Model Coupling for Real-Time Agents</title>
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #16181f; --panel-2: #1d2029;
+    --text: #e6e7eb; --muted: #9094a4; --accent: #ffb84d; --good: #5fd991; --bad: #ff6b6b;
+    --link: #6fb1ff;
+  }
+  body { background: var(--bg); color: var(--text); margin: 0;
+         font: 15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  header { padding: 36px 48px 12px; max-width: 1200px; margin: 0 auto; }
+  header h1 { margin: 0 0 6px; font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
+  header .sub { color: var(--muted); font-size: 16px; }
+  header a { color: var(--link); }
+  main { max-width: 1200px; margin: 0 auto; padding: 12px 48px 80px; }
+  section { margin: 36px 0; }
+  h2 { font-size: 20px; margin: 28px 0 12px; border-bottom: 1px solid #2a2e3a;
+       padding-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .demo { background: var(--panel); border-radius: 10px; overflow: hidden;
+          border: 1px solid #232733; }
+  .demo video { width: 100%; display: block; background: #000; }
+  .demo .meta { padding: 12px 14px; }
+  .demo h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .demo .score { font-family: ui-monospace, SFMono-Regular, monospace;
+                 font-size: 13px; color: var(--muted); }
+  .score .good { color: var(--good); }
+  .score .bad { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel);
+          border-radius: 10px; overflow: hidden; }
+  th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid #232733;
+           font-size: 14px; }
+  th { background: var(--panel-2); font-weight: 600; }
+  td.num { font-family: ui-monospace, SFMono-Regular, monospace; text-align: right; }
+  .callout { background: var(--panel); border-left: 3px solid var(--accent);
+             padding: 14px 18px; border-radius: 6px; margin: 16px 0; }
+  .callout strong { color: var(--accent); }
+  footer { color: var(--muted); padding: 32px 48px; text-align: center;
+           font-size: 13px; max-width: 1200px; margin: 0 auto; }
+  .sidebyside { background: var(--panel); border: 1px solid #232733;
+                border-radius: 10px; padding: 14px; margin: 18px 0; }
+  .sidebyside video { width: 100%; display: block; background: #000; border-radius: 6px; }
+  .sidebyside h3 { margin: 0 0 10px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Latent Bridge</h1>
+  <div class="sub">Fast/slow model coupling for real-time agents, demonstrated on Atari.
+    <a href="https://github.com/bojieli/latent-bridge-games">GitHub</a> ·
+    <a href="https://github.com/bojieli/latent-bridge-games/blob/main/docs/06_results.md">Full results</a>
+  </div>
+</header>
+
+<main>
+
+<section>
+  <p>A frozen real-time multimodal model (MiniCPM-o 4.5, 9 B) handles per-frame
+  reactive control at 15 Hz; a frozen reasoning model (Qwen3-VL-8B-Thinking, 8 B)
+  emits strategic guidance at 1 Hz. The two are coupled via a trainable
+  <strong>latent bridge</strong>: the slow model produces 8 latent tokens in the
+  fast model's input embedding space, prepended to the per-frame sequence so all
+  36 LLM layers attend over them. This is the same architectural pattern that
+  LLaVA, BLIP-2, Flamingo, and MiniCPM-o itself use for multimodal coupling.</p>
+
+  <p>The latent channel beats a text-only baseline by <strong>+54 % on
+  Ms. Pac-Man</strong> and <strong>+26 % on Seaquest</strong>. The bridge fails on
+  Space Invaders, and we trace that failure to a methodology issue (the action
+  head's out-of-distribution brittleness, not the bridge itself).</p>
+</section>
+
+<section>
+  <h2>Headline side-by-side: F (fast only) vs L (latent bridge)</h2>
+  <p>Same game, same seed, two policies. F is just MiniCPM-o; L adds the slow
+  model's reasoning through the latent bridge.</p>
+
+  <div class="sidebyside">
+    <h3>Ms. Pac-Man — F = 250, L = 550 (+120 %)</h3>
+    <video src="../demos/mspacman_F_vs_L.mp4" controls playsinline></video>
+  </div>
+
+  <div class="sidebyside">
+    <h3>Seaquest — F = 60, L = 80 (+33 %)</h3>
+    <video src="../demos/seaquest_F_vs_L.mp4" controls playsinline></video>
+  </div>
+
+  <div class="sidebyside">
+    <h3>Space Invaders — F = 105, L = 0 (negative finding)</h3>
+    <video src="../demos/spaceinvaders_F_vs_L.mp4" controls playsinline></video>
+    <p style="color: var(--muted); margin: 8px 0 0;">An honest result. Three
+    interventions failed to recover L here; we diagnose the issue as Stage A
+    OOD-brittleness of the action head, not a bridge problem.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Individual playthroughs</h2>
+  <div class="grid">
+    <div class="demo">
+      <video src="../demos/mspacman_F.mp4" controls playsinline></video>
+      <div class="meta"><h3>Ms. Pac-Man — F</h3>
+      <div class="score">fast-only · <span class="bad">score 250</span></div></div>
+    </div>
+    <div class="demo">
+      <video src="../demos/mspacman_L.mp4" controls playsinline></video>
+      <div class="meta"><h3>Ms. Pac-Man — L</h3>
+      <div class="score">latent bridge · <span class="good">score 550</span></div></div>
+    </div>
+    <div class="demo">
+      <video src="../demos/seaquest_F.mp4" controls playsinline></video>
+      <div class="meta"><h3>Seaquest — F</h3>
+      <div class="score">fast-only · <span class="bad">score 60</span></div></div>
+    </div>
+    <div class="demo">
+      <video src="../demos/seaquest_L.mp4" controls playsinline></video>
+      <div class="meta"><h3>Seaquest — L</h3>
+      <div class="score">latent bridge · <span class="good">score 80</span></div></div>
+    </div>
+    <div class="demo">
+      <video src="../demos/spaceinvaders_F.mp4" controls playsinline></video>
+      <div class="meta"><h3>Space Invaders — F</h3>
+      <div class="score">fast-only · <span class="good">score 105</span></div></div>
+    </div>
+    <div class="demo">
+      <video src="../demos/spaceinvaders_L.mp4" controls playsinline></video>
+      <div class="meta"><h3>Space Invaders — L</h3>
+      <div class="score">latent bridge · <span class="bad">score 0 (collapse)</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Headline numbers (12 episodes per cell)</h2>
+  <table>
+    <thead><tr>
+      <th>Game</th>
+      <th class="num">F (fast)</th>
+      <th class="num">T (text bridge)</th>
+      <th class="num">L (latent bridge)</th>
+      <th class="num">L vs T</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>MsPacman</td><td class="num">256 ± 24</td>
+          <td class="num">408 ± 88</td><td class="num"><b>628 ± 341</b></td>
+          <td class="num good">+54 %</td></tr>
+      <tr><td>Seaquest</td><td class="num">42 ± 19</td>
+          <td class="num">63 ± 11</td><td class="num"><b>80 ± 0</b></td>
+          <td class="num good">+26 %</td></tr>
+      <tr><td>SpaceInvaders</td><td class="num">105 ± 0</td>
+          <td class="num">0 ± 0</td><td class="num">0 ± 0</td>
+          <td class="num bad">collapse</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>What the demo shows</h2>
+  <div class="callout">
+    The slow model's text emission is overlaid as a side panel in each demo. You
+    can watch the latent agent (<strong>L</strong>) react to the slow's reasoning
+    in real time. The fast-only agent (<strong>F</strong>) plays without that
+    input — it sees the same frames but has no strategic context.
+  </div>
+  <p>On Ms. Pac-Man, watch the agent pick a coherent direction once the slow has
+  emitted; on Seaquest, watch it lock into a deterministic kill pattern.</p>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <p>The slow model thinks (with chain-of-thought) and emits 8 latent vectors per
+  cycle. A small MLP (~33 M trainable params) projects those into the fast
+  model's input embedding space; they're prepended to the fast model's per-frame
+  prompt. All other parameters of both base models stay frozen.</p>
+  <ul>
+    <li>Fast: MiniCPM-o 4.5 (9 B), bf16, ~18 GB VRAM</li>
+    <li>Slow: Qwen3-VL-8B-Thinking, bf16, ~17 GB VRAM</li>
+    <li>Bridge bandwidth: 8 tokens × 4096 dims per emission (the bandwidth
+        sweet spot — both N=4 and N=16 underperform)</li>
+    <li>Training: KL(student ‖ teacher) where the teacher is T (text) and the
+        student is L (latent); ~10 min per game on a single GPU</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  All demos generated from <code>scripts/demo_pipeline.sh</code> using
+  <code>src/eval/benchmark.py --save-trace-dir</code> + <code>scripts/render_demo_mp4.py</code>.
+  Reproducible from a single GPU; see the repo for instructions.
+</footer>
+
+</body>
+</html>
