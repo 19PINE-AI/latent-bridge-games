@@ -27,6 +27,10 @@ data/
 # Generated figures (reproducible from results/ via scripts/make_figures.py)
 figs/
 
+# Per-tick trace dirs from benchmark.py --save-trace-dir (large; demos/ has the
+# compiled MP4s which are the actual deliverable)
+traces/
+
 # Logs
 logs/
 *.log

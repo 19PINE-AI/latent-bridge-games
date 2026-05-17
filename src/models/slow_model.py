@@ -36,12 +36,31 @@ except ImportError:  # PIL is a transformers dependency; guarded for type-only c
     Image = None  # type: ignore
 
 
+def _default_hf_repo() -> str:
+    """Default slow-model repo, overridable by env var for the scaling ablation.
+
+    Set LB_USE_SCALING_SLOW=1 in the environment to switch to the 30B-A3B-FP8 VL
+    variant without having to pass a config flag through every entry point.
+    """
+    if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
+        return "Qwen/Qwen3-VL-30B-A3B-Thinking-FP8"
+    return "Qwen/Qwen3-VL-8B-Thinking"
+
+
+def _default_proj_layer_idx() -> int:
+    """Projection layer index — depth-67% of the slow model's transformer stack.
+    8B has 36 layers → 24; 30B has 48 layers → 32."""
+    if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
+        return 32
+    return 24
+
+
 @dataclass
 class SlowModelConfig:
-    hf_repo: str = "Qwen/Qwen3-VL-8B-Thinking"
+    hf_repo: str = field(default_factory=_default_hf_repo)
     dtype: str = "bfloat16"
     device: str = "cuda"
-    projection_layer_idx: int = 24  # which slow-model layer's residuals to project
+    projection_layer_idx: int = field(default_factory=_default_proj_layer_idx)
     # v2: bridge_dim equals the FAST model's hidden_dim (4096 for Qwen3-8B in MiniCPM-o).
     # The slow projection maps slow's residual (4096) → fast's input embedding (4096).
     bridge_dim: int = 4096
