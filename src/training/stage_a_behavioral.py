@@ -48,16 +48,56 @@ def _iter_dataset(loader: DataLoader) -> Iterable[dict]:
         yield batch
 
 
+# Canned slow-style guidance strings used for suffix-augmentation training. These
+# are generic enough to apply to any game; their purpose is *not* to teach correct
+# strategy but to expose the action head to the per-tick input distribution it
+# will see at deployment (where the prompt has a `[strategic-guidance]: ...`
+# suffix). Empirically this is what prevents the SpaceInvaders L=T=0 collapse.
+_SUFFIX_LIBRARY = [
+    "head toward the nearest reward and clear safe targets first.",
+    "stay alert for incoming threats; conserve a usable escape direction.",
+    "prioritize high-value targets when the path is clear.",
+    "dodge laterally when threatened, then resume the attack pattern.",
+    "track the agent's facing direction and only commit to long moves when safe.",
+    "balance offense and survival; favor offense when health is high.",
+    "complete the closest objective before chasing distant rewards.",
+    "if blocked, switch to a perpendicular route rather than reversing.",
+    "exploit corners and walls to constrain enemy approach angles.",
+    "favor consistent rhythmic actions over random switching.",
+]
+
+
+def _maybe_load_real_suffixes(trace_path: str | None) -> list[str]:
+    """If a T-trajectory file is provided, extract real slow emissions; else
+    return the canned library. Real emissions are higher-fidelity but the canned
+    library is sufficient for the OOD-robustness test."""
+    if not trace_path or not os.path.exists(trace_path):
+        return _SUFFIX_LIBRARY
+    try:
+        data = torch.load(trace_path, map_location="cpu", weights_only=False)
+        emissions = [t.get("slow_text") for t in data.get("trace", [])
+                     if t.get("slow_text")]
+        emissions = list(dict.fromkeys(e for e in emissions if e))  # dedupe
+        if emissions:
+            return emissions
+    except Exception:
+        pass
+    return _SUFFIX_LIBRARY
+
+
 def _train_one_epoch(fast: FastModel,
                      loader: DataLoader,
                      optimizer: torch.optim.Optimizer,
                      grad_accum: int,
                      epoch: int,
-                     log_every: int = 25) -> dict:
+                     log_every: int = 25,
+                     suffix_prob: float = 0.0,
+                     suffix_library: list[str] | None = None) -> dict:
     fast.train()
     losses, accs, n = [], [], 0
     t_start = time.time()
     optimizer.zero_grad(set_to_none=True)
+    rng = np.random.default_rng(epoch * 1000 + 7)  # deterministic per epoch
 
     trainable = [p for p in fast.action_head.parameters()]
     for step, batch in enumerate(_iter_dataset(loader)):
@@ -66,10 +106,18 @@ def _train_one_epoch(fast: FastModel,
         game = batch["game"][0]
         legal = batch["action_legal_mask"][0]
 
+        # Suffix augmentation: with prob `suffix_prob`, attach a fake slow
+        # text suffix so the action head learns to ignore the suffix
+        # perturbation (deployment-distribution match).
+        slow_text_suffix = None
+        if suffix_prob > 0 and rng.random() < suffix_prob:
+            slow_text_suffix = rng.choice(suffix_library or _SUFFIX_LIBRARY)
+
         logits = fast.predict_action(
             frame_np,
             thought_buffer=None,
             legal_action_mask=legal,
+            slow_text_suffix=slow_text_suffix,
         )
         loss = F.cross_entropy(
             logits.float(),
@@ -157,6 +205,16 @@ def main():
     ap.add_argument("--out", default="checkpoints/stage_a/action_head.pt")
     ap.add_argument("--max-samples", type=int, default=None,
                     help="limit dataset size for fast iteration (subsample uniformly)")
+    ap.add_argument("--suffix-prob", type=float, default=0.0,
+                    help="Probability of attaching a fake slow-text suffix during "
+                         "training (robustness augmentation). 0.0 = original behavior; "
+                         "0.5 = half of training samples see a suffix. This is the "
+                         "fix for the SpaceInvaders L=T=0 collapse (action head was "
+                         "OOD-brittle to suffix-augmented prompts).")
+    ap.add_argument("--suffix-from-trace", default=None,
+                    help="Optional path to a T-trajectory .pt file; real slow "
+                         "emissions are extracted from it and used as the suffix "
+                         "library. If omitted, a canned 10-string library is used.")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -211,10 +269,18 @@ def main():
     base, ext = os.path.splitext(args.out)
     Path(os.path.dirname(args.out) or ".").mkdir(parents=True, exist_ok=True)
 
+    # Load suffix library once
+    suffix_library = _maybe_load_real_suffixes(args.suffix_from_trace)
+    if args.suffix_prob > 0:
+        print(f"  suffix augmentation: prob={args.suffix_prob}, library size="
+              f"{len(suffix_library)} "
+              f"(source={'trace' if args.suffix_from_trace else 'canned'})")
+
     for epoch in range(1, args.epochs + 1):
         print(f"\nEpoch {epoch}/{args.epochs} (train, {len(train_loader)} steps)")
         train_stats = _train_one_epoch(
             fast, train_loader, optimizer, args.grad_accum, epoch,
+            suffix_prob=args.suffix_prob, suffix_library=suffix_library,
         )
         print(f"  train: loss={train_stats['mean_loss']:.4f}  "
               f"acc={train_stats['mean_acc']:.3f}  "
