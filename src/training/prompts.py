@@ -149,9 +149,15 @@ def _spaceinvaders_user_prompt(ts: TextState) -> str:
 - Enemy bombs:
 {bomb_lines}
 
-Strategic considerations: clear easier rows first (lower invaders score less and are
-slower); dodge bombs by lateral movement; saucers are worth high bonus points.
-Provide guidance for the next ~10 seconds."""
+CRITICAL: the only way to score is to FIRE at invaders. Every fired missile that
+hits is +5 to +30 points; every tick spent not firing is a tick the enemy advances.
+Bombs are RARE and a 1-tile dodge is enough — never abandon firing to dodge unless
+a bomb is directly above the cannon. Saucers (when present) are worth up to 200
+points — drop everything to shoot them.
+
+Recommend: keep firing constantly (FIRE / RIGHTFIRE / LEFTFIRE actions). Choose
+the directional component to align the cannon under the densest surviving column.
+Provide guidance for the next ~10 seconds; lead with the column to target."""
 
 
 _USER_PROMPT_BUILDERS = {

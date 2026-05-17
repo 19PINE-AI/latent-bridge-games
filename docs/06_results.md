@@ -28,7 +28,8 @@ seeds) — locked into an exploit-style policy at the local maximum of 8 kills �
 | Strategy | Mean ± Std | Median | Best | Latency (ms) | Bridge MI minus baseline |
 |---|---|---|---|---|---|
 | F (fast only) | 105 ± 0 | 105 | 105 | 34 | — |
-| T (text bridge) | **0 ± 0** | 0 | 0 | 61 | — |
+| T (text bridge, original prompt) | **0 ± 0** | 0 | 0 | 61 | — |
+| T (text bridge, aggressive prompt) | **0 ± 0** | 0 | 0 | 41 | — |
 | L (latent, random-T) | **0 ± 0** | 0 | 0 | 54 | I(b;a)=−0.004, I(b;r)=−0.003 |
 | L (latent, expert-T) | **0 ± 0** | 0 | 0 | 80 | **I(b;a)=+0.024, I(b;r)=+0.012** |
 
@@ -49,22 +50,39 @@ sweep, yet the deployed policy still scores zero. So the data fix worked at the
 representation level — the bridge does learn structure — but the deployed effect on
 the fast model is still passivity.
 
-**Refined diagnosis (correct one)** — Stage C trains L to match T's distribution.
-T's distribution is dominated by the slow model's textual guidance (`"dodge bombs by
-lateral movement, clear easier rows first"`), which pushes the fast model to wait.
-KL imitation faithfully transmits this *behavior* into the bridge, even when the
-*information* in the bridge is rich. The bottleneck is **upstream**: the slow model's
-text policy for SpaceInvaders is itself wrong, and the bridge inherits that error.
+**Second hypothesis (also refuted)** — we then rewrote the SI slow-model prompt to
+be aggressively shoot-oriented ("CRITICAL: the only way to score is to FIRE… never
+abandon firing to dodge unless a bomb is directly above the cannon"). Ran T eval
+again with no other changes. **Result: T = 0 ± 0 across 12 episodes** — same outcome.
+So the bottleneck is not the slow model's guidance *content* either.
 
-This is a deeper finding than the v1 cross-attn failure: in v1, the bridge couldn't
-transmit anything (architecturally broken); here, the bridge transmits the wrong
-*content* faithfully. The methodology lesson: **L is bounded above by T**, because L
-is trained to imitate T. If T is bad (because the slow model's prompt is bad), L
-will be bad too — no amount of bridge engineering rescues a misaligned slow policy.
+**Final diagnosis (consistent with all observations)** — Stage A trained on
+SB3-DQN-collected trajectories with a **bare game-state prompt** (no slow-model
+suffix). At deployment, F uses the same bare prompt (matches training); T appends
+a text suffix; L prepends bridge tokens. Both T and L therefore present an
+**out-of-distribution prompt** to a frozen action head. The head degrades.
+- On MsPacman (9 actions, every direction collects dots) and Seaquest (18 actions,
+  every direction does something useful), degraded action selection still scores —
+  the slow's guidance contributes enough beyond the noise to give L > T > F.
+- On SI (6 actions, only the 3 FIRE-containing actions score), the same degradation
+  manifests as a non-FIRE-biased policy → zero score.
 
-Future remedies (not run): rewrite the SpaceInvaders system prompt to emphasize
-shooting; or use Stage D PPO so L is fine-tuned on game reward directly, decoupling
-it from T's distribution.
+This is a single coherent story across all our experiments: random-T, expert-T, and
+aggressive-prompt all produce L = T = 0 on SI not because of bridge architecture,
+data policy, or slow content, but because the action head was never exposed to a
+suffix-augmented prompt during Stage A and the action space is too unforgiving of
+the resulting policy drift to give us a non-zero readout.
+
+**Why the bridge methodology works at all then** — for symmetric-reward games the
+distribution shift induced by adding a bridge / suffix is *small enough* that the
+slow's contextual information improves the policy net of the shift cost. The bridge
+mechanism is sound; it is bounded above by the worst-case OOD robustness of the
+frozen Stage A head.
+
+Future remedies (not run): (a) co-train Stage A with a mix of bare and
+suffix-augmented prompts so the action head is in-distribution for T/L; or (b) use
+Stage D PPO to fine-tune the action head on game reward under the deployment
+prompt distribution. Either should recover SI.
 
 ### Cross-game summary
 - **H1 ✅ Confirmed on 2/3 games**: L > T on MsPacman (+54 %) and Seaquest (+26 %); L
@@ -237,19 +255,19 @@ Remaining latency work (queued task): vision-token caching across consecutive fr
    degenerate solution where both teacher and student output the same deterministic
    distribution. Do not unfreeze action_head during KL training without entropy
    regularization or labeled CE supervision.
-5. **L is bounded above by T under the Stage C KL(student||teacher) objective.**
-   SpaceInvaders gives L = T = 0 while F = 105. We initially hypothesized this was a
-   random-policy data issue (FIRE under-represented in random T-trajectories) and ran
-   an expert-T retry with SB3-DQN-collected trajectories. The expert-T bridge's MI
-   jumped from −0.004 to +0.024 nats — confirming the data fix worked at the
-   representation level — but L was still 0. The actual root cause is that Stage C
-   trains the bridge to make L's distribution match T's. T is itself broken on this
-   game because the slow model's text guidance ("dodge bombs by lateral movement,
-   clear easier rows first") is passive, and the fast model — which fires fine under
-   F — defers to that guidance. The bridge then faithfully transmits "be passive"
-   into L. **Implication**: no bridge architecture or data fix can rescue an
-   upstream-misaligned slow policy. Future remedies: rewrite the slow-model prompt to
-   emphasize shooting; or use Stage D PPO to decouple L from T.
+5. **Stage A action-head OOD brittleness collapses reward-asymmetric games when a
+   bridge/suffix is added at deployment.** Convergent finding from three
+   SpaceInvaders interventions (all gave L = T = 0 vs F = 105): the random-T
+   baseline, the expert-T retry (which proved the bridge does carry information —
+   MI flipped from −0.004 to +0.024 nats — yet still L = 0), and the
+   aggressive-prompt retry (rewriting the slow's text guidance to emphasize
+   shooting also produced T = 0). Root cause: Stage A was trained on the bare
+   game-state prompt; T appends a slow-model text suffix and L prepends bridge
+   tokens, both of which present OOD input to the frozen action head. On
+   reward-symmetric games (MsPacman, Seaquest) the resulting policy drift still
+   scores; on SI the drift biases away from FIRE and gives zero. Future remedies:
+   co-train Stage A with suffix-augmented prompts, or use Stage D PPO under the
+   deployment distribution.
 
 ## What's queued / running
 

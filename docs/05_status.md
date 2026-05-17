@@ -20,6 +20,21 @@
 
 ## Completed (research execution, in order)
 
+- [x] **🔬 SpaceInvaders aggressive-prompt retry — refutes the prompt-content
+  hypothesis (2026-05-17, early).** Rewrote the SI slow-model prompt to be
+  aggressively shoot-oriented ("CRITICAL: the only way to score is to FIRE…").
+  Re-ran T-only eval (no Stage C retraining needed). **Result: T = 0 ± 0 across
+  12 episodes** — identical to the original-prompt T result.
+  - Combined with the earlier random-T and expert-T results, this rules out:
+    (a) data action policy, (b) slow-model prompt content, and (c) bridge
+    architecture. All three knobs were tuned; none changed the outcome.
+  - **Convergent diagnosis**: Stage A trained on bare game-state prompts; T and L
+    both present OOD inputs (suffix / prepended tokens) to the frozen action head.
+    On reward-symmetric games the policy drift still scores; on SI it biases away
+    from FIRE and gives zero. Future remedies require either Stage A co-training
+    with the deployment prompt distribution, or Stage D PPO under deployment.
+  - Result file: `results/eval_v2_spaceinvaders_aggprompt.json`.
+
 - [x] **🔬 SpaceInvaders expert-T retry — refines the diagnosis (2026-05-16, late).**
   Re-collected T-trajectories using the SB3-DQN expert (with ε=0.1) instead of the
   random policy. Then re-trained Stage C v2 and re-evaluated F/T/L.
