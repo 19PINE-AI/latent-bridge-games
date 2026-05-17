@@ -138,18 +138,28 @@ class SlowModel(nn.Module):
         4.57+ as `Qwen3VLForConditionalGeneration` (no trust_remote_code); the 30B-A3B
         scaling-ablation also loads via the same auto class.
         """
-        from transformers import AutoModelForImageTextToText, AutoProcessor
+        from transformers import AutoModelForImageTextToText, AutoProcessor, AutoConfig
         # Use cached files when available; fall back to download if not.
         local_only = os.environ.get("HF_LOCAL_ONLY", "1") == "1"
         self.tokenizer = AutoProcessor.from_pretrained(
             self.cfg.hf_repo, local_files_only=local_only
         )
-        self.model = AutoModelForImageTextToText.from_pretrained(
-            self.cfg.hf_repo,
-            torch_dtype=torch.bfloat16,
+        # Quantized checkpoints (FP8, INT8) are loaded with meta tensors and require
+        # device_map="auto" (which dispatches via accelerate) rather than a literal
+        # device string. Detect via config.quantization_config.
+        cfg = AutoConfig.from_pretrained(self.cfg.hf_repo, local_files_only=local_only)
+        is_quantized = getattr(cfg, "quantization_config", None) is not None
+        device_map = "auto" if is_quantized else self.cfg.device
+        load_kwargs = dict(
             attn_implementation="sdpa",
-            device_map=self.cfg.device,
+            device_map=device_map,
             local_files_only=local_only,
+        )
+        if not is_quantized:
+            # Quantized models manage their own dtype via the quant config.
+            load_kwargs["torch_dtype"] = torch.bfloat16
+        self.model = AutoModelForImageTextToText.from_pretrained(
+            self.cfg.hf_repo, **load_kwargs,
         )
         for p in self.model.parameters():
             p.requires_grad = False
