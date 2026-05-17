@@ -357,7 +357,7 @@ def main():
                     help="single short rollout; verifies gradients flow")
     args = ap.parse_args()
 
-    hp = PPOHyperparams(rollout_len=args.rollout_len, total_updates=args.total_updates)
+    hp = PPOHyperparams(rollout_len=args.rollout_len)
     if args.smoke_test:
         hp.rollout_len = 16
         hp.minibatch_size = 4

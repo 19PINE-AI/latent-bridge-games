@@ -98,6 +98,28 @@ suffix-augmented prompts so the action head is in-distribution for T/L; or (b) u
 Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
+### Pong (Tier 1; reactive-only — 12 episodes per cell)
+| Strategy | Mean | Median | Comment |
+|---|---|---|---|
+| F (fast only) | −21 ± 0 | −21 | Loss floor (CPU 21-0) |
+| T (text bridge) | −21 ± 0 | −21 | Same |
+| L (latent bridge) | −21 ± 0 | −21 | Same |
+
+Stage A val_acc was only 25.1 % (1.5 × random for 6 actions), so the action head
+cannot play Pong even at amateur level. The slow model cannot rescue a broken
+reactive policy — its strategic guidance ("move paddle to match ball y") cannot
+compensate for the head not learning the basic reflex. This is the **other**
+Tier-1 failure mode (vs the predicted "F saturates and bridges don't help
+because there's nothing to plan for"): here F fails *and* T/L can't fix it.
+
+The published H2 prediction was L ≈ T on Tier 1. Empirically all three are
+*identical at the loss floor*, which is consistent with L ≈ T but for a different
+reason than predicted. The clean conclusion for the paper: **the bridge
+mechanism's contribution is gated by the fast model's baseline competence; on
+games where the action head fails the imitation step, no bridge architecture
+can fix it.** This is the upstream analogue of the SpaceInvaders finding
+(which was Stage A OOD-brittleness; this is Stage A under-fitting).
+
 ### Cross-game summary
 - **H1 ✅ Confirmed on 2/3 games**: L > T on MsPacman (+54 %) and Seaquest (+26 %); L
   = T = 0 on SpaceInvaders (both collapse).
