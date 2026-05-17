@@ -68,10 +68,17 @@
   36 LLM layers attend over them. This is the same architectural pattern that
   LLaVA, BLIP-2, Flamingo, and MiniCPM-o itself use for multimodal coupling.</p>
 
-  <p>The latent channel beats a text-only baseline by <strong>+54 % on
-  Ms. Pac-Man</strong> and <strong>+26 % on Seaquest</strong>. The bridge fails on
-  Space Invaders, and we trace that failure to a methodology issue (the action
-  head's out-of-distribution brittleness, not the bridge itself).</p>
+  <p>The latent channel beats a text-only baseline by <strong>+59 % on
+  RoadRunner</strong>, <strong>+54 % on Ms. Pac-Man</strong>, and <strong>+26 % on
+  Seaquest</strong>. The bridge fails on Space Invaders and River Raid, and we
+  trace those failures to a methodology issue (the action head's
+  out-of-distribution brittleness, not the bridge itself).</p>
+
+  <p>Most striking single result: on <strong>RoadRunner</strong>, the fast
+  model alone scores zero — it has the reflexes but doesn't know which
+  direction to commit. The slow model's continuous strategic context unlocks
+  scoring behavior: F=0, T=608, <strong>L=967</strong>. This is fast/slow
+  coupling in its purest visible form.</p>
 </section>
 
 <section>
@@ -151,12 +158,21 @@
       <tr><td>Seaquest</td><td class="num">42 ± 19</td>
           <td class="num">63 ± 11</td><td class="num"><b>80 ± 0</b></td>
           <td class="num good">+26 %</td></tr>
+      <tr><td><b>RoadRunner</b></td><td class="num">0 ± 0</td>
+          <td class="num">608 ± 240</td><td class="num"><b>967 ± 47</b></td>
+          <td class="num good">+59 %</td></tr>
       <tr><td>SpaceInvaders <i>(bare Stage A)</i></td><td class="num">105 ± 0</td>
           <td class="num">0 ± 0</td><td class="num">0 ± 0</td>
           <td class="num bad">collapse</td></tr>
       <tr><td>SpaceInvaders <i>(robust Stage A)</i></td><td class="num">107 ± 60</td>
           <td class="num">18 ± 18</td><td class="num">15 ± 0</td>
           <td class="num">recovered from 0</td></tr>
+      <tr><td>River Raid</td><td class="num">1067 ± 84</td>
+          <td class="num">383 ± 57</td><td class="num">360 ± 0</td>
+          <td class="num bad">Stage A OOD case</td></tr>
+      <tr><td>Pong</td><td class="num">−21 ± 0</td>
+          <td class="num">−21 ± 0</td><td class="num">−21 ± 0</td>
+          <td class="num">all at loss floor</td></tr>
     </tbody>
   </table>
 </section>
