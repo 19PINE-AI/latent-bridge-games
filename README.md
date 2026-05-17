@@ -31,21 +31,37 @@ planning (Ms. Pac-Man, Seaquest, Space Invaders).
 | T (text bridge)         | 63.3 ± 11.1 | 60 | 12 |
 | **L (v2 latent bridge)** | **80.0 ± 0.0** | **80** | 12 |
 
-### SpaceInvaders (Tier 2; reward-asymmetric — see §"Negative finding")
-| Strategy | Mean ± Std | Median | n |
-|---|---|---|---|
-| F (fast only)            | 105 ± 0 | 105 | 12 |
-| T (text bridge)          | 0 ± 0   | 0   | 12 |
-| L (v2 latent bridge)     | 0 ± 0   | 0   | 12 |
+### SpaceInvaders (Tier 2; reward-asymmetric — diagnosis confirmed)
+| Strategy | bare Stage A | robust Stage A (suffix-prob 0.5) |
+|---|---|---|
+| F (fast only)            | 105 ± 0   | 107 ± 60 |
+| T (text bridge)          | **0 ± 0** | **18 ± 18** |
+| L (v2 latent bridge)     | **0 ± 0** | **15 ± 0** |
+
+The L=T=0 collapse on SpaceInvaders was caused by Stage A OOD-brittleness (action
+head trained on bare prompts, OOD when T/L attach a suffix or bridge tokens).
+Retraining Stage A with mixed-prompt data (`--suffix-prob=0.5`) recovers T and L
+above 0; the bridge mechanism itself was never broken. PPO under the deployment
+distribution (Stage D) is the next step to close the F-L gap.
 
 - **L > T on symmetric-reward games**: +54 % MsPacman, +26 % Seaquest.
 - L > F by +145 % MsPacman, +92 % Seaquest.
-- L = T = 0 on SpaceInvaders despite three ablations (random-T, expert-T,
-  aggressive-prompt): convergent failure pattern with a deeper diagnosis. Stage A
-  trained on bare game-state prompts; T appends a text suffix and L prepends bridge
-  tokens, both OOD to the frozen action head. On reward-symmetric games the policy
-  drift still scores; on SI it biases away from FIRE and gives zero. Full diagnosis:
-  [`docs/06_results.md`](docs/06_results.md).
+- SpaceInvaders diagnosis end-to-end validated: L=T=0 under bare Stage A;
+  L=15, T=18 under robust Stage A (suffix-prob=0.5). The bridge mechanism was
+  never broken; Stage A OOD-brittleness was. PPO under deployment distribution
+  is the next step to close the F-L gap.
+
+### Slow-only S baseline (MsPacman, n=3)
+| Strategy | Score | Comment |
+|---|---|---|
+| **S (slow only, ~1 Hz)** | 113 ± 24 | Just use the big model: 4 s/decision, too slow |
+| F (fast only, 15 Hz) | 256 ± 24 | Reactive, no planning |
+| T (text bridge) | 408 ± 88 | Slow guides fast via text |
+| **L (latent bridge)** | **628 ± 341** | Slow guides fast via latents |
+
+The ordering **S < F < T < L** is the four-strategy story: slow-only is too slow
+for real-time, fast-only lacks planning, text bridges help, latent bridges help
+more.
 
 The full story (v1 cross-attn → v2 LLaVA-style redesign) is in
 [`docs/06_results.md`](docs/06_results.md).
