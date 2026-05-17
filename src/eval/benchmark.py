@@ -56,6 +56,7 @@ def _run_episode(strategy: str,
                  stop_action_policy: str = "argmax",
                  max_slow_tokens: int = 64,
                  vision_refresh_every: int = 1,
+                 trace_dir: Optional[str] = None,
                  ) -> dict:
     """Run one episode under one strategy on one (game, seed) cell. Returns metrics."""
     legal = legal_action_mask(game)
@@ -66,6 +67,14 @@ def _run_episode(strategy: str,
     obs, _ = env.reset()
     if vision_refresh_every > 1:
         fast.reset_vision_cache()
+
+    # Trace logging — for demo MP4 / live playback
+    trace_path: Optional[Path] = None
+    trace_events: list[dict] = []
+    if trace_dir:
+        trace_path = Path(trace_dir) / f"{strategy}_{game}_seed{seed}"
+        trace_path.mkdir(parents=True, exist_ok=True)
+
     latest_slow_text: Optional[str] = None
     # v2: bridge tokens from the most-recent slow emission (no long buffer)
     latest_bridge_tokens: Optional[torch.Tensor] = None
@@ -115,11 +124,14 @@ def _run_episode(strategy: str,
         tick_latencies_ms.append((time.perf_counter() - t_tick) * 1000.0)
 
         local_action = global_to_local_action(game, global_action)
+        # Capture pre-step frame for the trace so the (frame, action) pair is aligned
+        prev_obs = obs
         obs, reward, terminated, truncated, text_state = env.step(local_action)
         cumulative_reward += float(reward)
         n_ticks += 1
 
         # --- Slow emission (only T/L) ---
+        emit_text_this_tick = None
         if text_state is not None and slow is not None and strategy in ("T", "L"):
             messages = build_slow_model_messages(game, text_state,
                                                  prior_thought=latest_slow_text)
@@ -129,14 +141,36 @@ def _run_episode(strategy: str,
                 return_raw_residuals=False,
             )
             latest_slow_text = emit_text
+            emit_text_this_tick = emit_text
             if emit_bridge.numel() > 0:
                 latest_bridge_tokens = emit_bridge.unsqueeze(0)  # [1, N, D]
             n_slow_emissions += 1
+
+        # --- Trace logging ---
+        if trace_path is not None:
+            np.savez_compressed(trace_path / f"frame_{t:05d}.npz", frame=prev_obs)
+            trace_events.append({
+                "tick": t,
+                "action": global_action,
+                "local_action": local_action,
+                "reward": float(reward),
+                "cumulative_reward": cumulative_reward,
+                "latest_slow_text": latest_slow_text,
+                "new_emission": emit_text_this_tick,
+            })
 
         if terminated or truncated:
             break
 
     env.close()
+    if trace_path is not None:
+        (trace_path / "events.json").write_text(json.dumps({
+            "strategy": strategy, "game": game, "seed": seed,
+            "final_score": cumulative_reward,
+            "n_ticks": n_ticks,
+            "tick_hz": 15,
+            "events": trace_events,
+        }))
     on_clock = sum(1 for x in tick_latencies_ms if x <= TICK_BUDGET_MS) / max(1, len(tick_latencies_ms))
     return {
         "game": game,
@@ -197,6 +231,11 @@ def main():
                     help="Refresh the vision tower (SigLIP + resampler) every N "
                          "fast ticks; 1 = every tick (default). Higher = faster but "
                          "the model sees stale visual context.")
+    ap.add_argument("--save-trace-dir", default=None,
+                    help="If set, per-episode subdirectories are created under this "
+                         "path containing per-tick frame_XXXXX.npz files and an "
+                         "events.json with actions, rewards, and slow-text emissions. "
+                         "Foundation for the demo MP4 renderer and live playback.")
     ap.add_argument("--out", default="results/eval_main.json")
     args = ap.parse_args()
 
@@ -280,6 +319,7 @@ def main():
                         stop_action_policy="argmax",
                         max_slow_tokens=args.max_slow_tokens,
                         vision_refresh_every=args.vision_refresh_every,
+                        trace_dir=args.save_trace_dir,
                     )
                     cells.append(result)
                     print(f"    score={result['score']:.0f} ticks={result['ticks']} "
