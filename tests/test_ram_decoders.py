@@ -190,9 +190,54 @@ def test_spaceinvaders_score_matches_reward():
     )
 
 
-def test_unknown_game_returns_empty_entities():
-    # Pong has no registered decoder
+def test_pong_decoder_structure():
     env = AtariEnv(game_name="Pong", seed=0)
+    env.reset()
+    text = None
+    for _ in range(60):
+        _, _, _, _, t = env.step(0)
+        if t is not None:
+            text = t
+            break
+    env.close()
+    assert text is not None
+    e = text.entities
+    for k in ("player_paddle_y", "enemy_paddle_y", "ball_xy",
+              "player_score", "enemy_score",
+              "ball_relative_to_player", "ball_relative_to_enemy"):
+        assert k in e, f"missing key {k}"
+    bx, by = e["ball_xy"]
+    assert 0 <= bx < 256 and 0 <= by < 256
+    assert 0 <= e["player_paddle_y"] < 256
+    assert 0 <= e["enemy_paddle_y"] < 256
+
+
+def test_pong_score_matches_reward():
+    """Pong score = player_score - enemy_score must equal cumulative ALE reward.
+    ALE reward is +1 / -1 per point so the delta is tracked exactly."""
+    env = AtariEnv(game_name="Pong", seed=0)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    last_text_score = 0
+    n_actions = env.action_space_size
+    for t in range(2000):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            last_text_score = text.score
+        if term or trunc:
+            break
+    env.close()
+    assert last_text_score == int(cumulative_reward), (
+        f"Pong decoded score {last_text_score} != ALE cum reward {cumulative_reward}"
+    )
+
+
+def test_unknown_game_returns_empty_entities():
+    # Breakout has no registered decoder (yet)
+    env = AtariEnv(game_name="Breakout", seed=0)
     env.reset()
     text = None
     for _ in range(40):

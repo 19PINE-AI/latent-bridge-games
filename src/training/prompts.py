@@ -160,11 +160,34 @@ the directional component to align the cannon under the densest surviving column
 Provide guidance for the next ~10 seconds; lead with the column to target."""
 
 
+def _pong_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    player_y = e["player_paddle_y"]
+    enemy_y = e["enemy_paddle_y"]
+    bx, by = e["ball_xy"]
+    rel_to_player = e["ball_relative_to_player"]
+    cue = ""
+    if abs(rel_to_player) > 20:
+        cue = "  (move toward ball)"
+    elif abs(rel_to_player) < 6:
+        cue = "  (paddle aligned with ball)"
+    return f"""[Pong — game state at frame {ts.frame_idx}]
+- Score: player {e['player_score']} - enemy {e['enemy_score']}
+- Player paddle (right) y={player_y}; enemy paddle (left) y={enemy_y}
+- Ball at ({bx}, {by}); ball is {rel_to_player:+d} relative to player paddle{cue}
+
+Strategic considerations: Pong rewards consistent paddle alignment with the ball
+(positive vertical-delta = ball below = move DOWN; negative = ball above = move UP).
+Score-difference matters more than per-rally win rate. Provide guidance for the
+next ~5 seconds."""
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
     "Seaquest": _seaquest_user_prompt,
     "SpaceInvaders": _spaceinvaders_user_prompt,
+    "Pong": _pong_user_prompt,
 }
 
 

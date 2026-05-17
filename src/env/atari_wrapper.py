@@ -248,11 +248,51 @@ def _decode_spaceinvaders_ram(ram: np.ndarray) -> dict:
     }
 
 
+def _decode_pong_ram(ram: np.ndarray) -> dict:
+    """Pong RAM decoder.
+
+    Sources: AtariARI ram_annotations.py (pong dict) and OCAtari/ocatari/ram/pong.py.
+    Pong is the simplest decoder: two paddles + one ball + two scores. Used as the
+    Tier-1 control game (predicted: L ~ T because fast model alone saturates).
+
+    Bytes (from AtariARI):
+      player_y    = ram[51]   (our paddle, right side)
+      enemy_y     = ram[50]   (CPU paddle, left side)
+      ball_x      = ram[49]
+      ball_y      = ram[54]
+      player_score= ram[14]   (single byte, 0..21)
+      enemy_score = ram[13]
+    """
+    player_y = int(ram[51])
+    enemy_y = int(ram[50])
+    ball_x = int(ram[49])
+    ball_y = int(ram[54])
+    player_score = int(ram[14])
+    enemy_score = int(ram[13])
+    # Net score (player − enemy); used by the score-vs-reward regression test
+    return {
+        "score": player_score - enemy_score,
+        "lives": 1,  # Pong has no lives
+        "level": 0,
+        "entities": {
+            "player_paddle_y": player_y,
+            "enemy_paddle_y": enemy_y,
+            "ball_xy": (ball_x, ball_y),
+            "player_score": player_score,
+            "enemy_score": enemy_score,
+            # Convenience derived fields
+            "ball_relative_to_player": ball_y - player_y,
+            "ball_relative_to_enemy": ball_y - enemy_y,
+        },
+    }
+
+
 _RAM_DECODERS = {
     "MsPacman": _decode_mspacman_ram,
     "Frostbite": _decode_frostbite_ram,
     "Seaquest": _decode_seaquest_ram,
     "SpaceInvaders": _decode_spaceinvaders_ram,
+    "Pong": _decode_pong_ram,
 }
 
 
