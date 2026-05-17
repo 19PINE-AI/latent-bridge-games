@@ -57,6 +57,8 @@ _GAME_ACTION_NAMES = {
     "Berzerk": GLOBAL_ACTION_NAMES,       # 18-action ALE-canonical space
     "RoadRunner": GLOBAL_ACTION_NAMES,    # 18-action ALE-canonical space
     "Roadrunner": GLOBAL_ACTION_NAMES,
+    "Enduro": ("NOOP", "FIRE", "RIGHT", "LEFT", "DOWN",
+               "DOWNRIGHT", "DOWNLEFT", "RIGHTFIRE", "LEFTFIRE"),
 }
 
 _NAME_TO_GLOBAL = {name: i for i, name in enumerate(GLOBAL_ACTION_NAMES)}

@@ -362,6 +362,48 @@ def test_roadrunner_decoder_structure():
         assert k in e
 
 
+def test_enduro_score_matches_reward():
+    import numpy as np
+    env = AtariEnv(game_name="Enduro", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    snapshots = []
+    n_actions = env.action_space_size
+    for t in range(600):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            snapshots.append((int(cumulative_reward), text.score))
+        if term or trunc:
+            break
+    env.close()
+    for cum, score in snapshots:
+        assert score == cum, f"Enduro score {score} != cum {cum}"
+
+
+def test_qbert_score_matches_reward():
+    import numpy as np
+    env = AtariEnv(game_name="Qbert", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    snapshots = []
+    n_actions = env.action_space_size
+    for t in range(600):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            snapshots.append((int(cumulative_reward), text.score))
+        if term or trunc:
+            break
+    env.close()
+    for cum, score in snapshots:
+        assert score == cum, f"Qbert score {score} != cum {cum}"
+
+
 def test_unknown_game_returns_empty_entities():
     # Breakout has no registered decoder (yet)
     env = AtariEnv(game_name="Breakout", seed=0)

@@ -256,6 +256,41 @@ position trade-off: pellets reward but slow you; obstacles require quick lateral
 dodges. Provide guidance for the next ~10 seconds."""
 
 
+def _enduro_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    enemy_str = "\n".join(
+        f"  - car at ({x}, {y})" for x, y in zip(e["enemy_car_xs"], e["enemy_car_ys"])
+        if (x, y) != (0, 0)
+    ) or "  - clear road"
+    quota_warn = "⚠ behind quota!" if e["cars_to_pass"] > 100 else ""
+    return f"""[Enduro — game state at frame {ts.frame_idx}]
+- Day: {e['day']}    Score: {ts.score}    Speed: {e['speed']}
+- Player car x={e['player_x']} (lateral position)
+- Cars left to pass today: {e['cars_to_pass']}  {quota_warn}
+- Visible opposing cars:
+{enemy_str}
+
+Strategic considerations: pass the daily car quota before time runs out;
+keep speed up (RIGHT to accelerate) but steer (LEFT/RIGHT) to dodge cars;
+weather/visibility changes throughout the day. Lead with: steer direction
++ accelerate/brake decision for the next ~5 seconds."""
+
+
+def _qbert_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    return f"""[Q*bert — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}    Level: {e['level']}
+- Q*bert on tile row={e['qbert_on_tile_row']}, col={e['qbert_on_tile_col']}
+- Q*bert pixel position: ({e['qbert_x']}, {e['qbert_y']})
+- Coily (snake) at ({e['coily_x']}, {e['coily_y']})
+- Purple ball y={e['purple_ball_y']}, green enemy y={e['green_enemy_y']}
+
+Strategic considerations: jump on all tiles to change their color (level
+clears). Avoid Coily and falling balls. Coily can be tricked off the edge.
+Plan a tile-jump sequence; lead with direction (UP/RIGHT/LEFT/DOWN) for
+the next ~5 seconds."""
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
@@ -267,6 +302,8 @@ _USER_PROMPT_BUILDERS = {
     "Berzerk": _berzerk_user_prompt,
     "RoadRunner": _roadrunner_user_prompt,
     "Roadrunner": _roadrunner_user_prompt,
+    "Enduro": _enduro_user_prompt,
+    "Qbert": _qbert_user_prompt,
 }
 
 

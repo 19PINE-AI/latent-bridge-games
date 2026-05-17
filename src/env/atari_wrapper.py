@@ -332,6 +332,50 @@ def _decode_berzerk_ram(ram: np.ndarray) -> dict:
     }
 
 
+def _decode_enduro_ram(ram: np.ndarray) -> dict:
+    """Enduro RAM decoder (driving game). Strategic profile similar to RoadRunner:
+    scrolling environment + directional context + long-horizon day quota.
+
+    AtariARI / OCAtari conventions, score via passthrough.
+    """
+    return {
+        "score": None,
+        "lives": 1,
+        "level": int(ram[31]),  # current day
+        "entities": {
+            "player_x": int(ram[39]),         # car horizontal position
+            "speed": int(ram[42]),
+            "cars_to_pass": int(ram[57]),     # remaining quota for the day
+            "day": int(ram[31]),
+            "enemy_car_xs": [int(ram[i]) for i in (47, 48, 49, 50, 51)],
+            "enemy_car_ys": [int(ram[i]) for i in (24, 25, 26, 27, 28)],
+        },
+    }
+
+
+def _decode_qbert_ram(ram: np.ndarray) -> dict:
+    """Qbert RAM decoder (isometric platformer).
+
+    Slow can plan tile-traversal sequence; fast handles jump timing.
+    AtariARI conventions, score via passthrough.
+    """
+    return {
+        "score": None,
+        "lives": int(ram[88]) & 0xF,
+        "level": int(ram[60]),
+        "entities": {
+            "qbert_x": int(ram[43]),
+            "qbert_y": int(ram[67]),
+            "qbert_on_tile_row": int(ram[26]),     # 0-5 (top to bottom)
+            "qbert_on_tile_col": int(ram[27]),
+            "coily_x": int(ram[44]),
+            "coily_y": int(ram[68]),
+            "purple_ball_y": int(ram[40]),
+            "green_enemy_y": int(ram[36]),
+        },
+    }
+
+
 def _decode_roadrunner_ram(ram: np.ndarray) -> dict:
     """Road Runner RAM decoder (Looney Tunes coyote chase).
 
@@ -411,6 +455,8 @@ _RAM_DECODERS = {
     "Berzerk": _decode_berzerk_ram,
     "RoadRunner": _decode_roadrunner_ram,
     "Roadrunner": _decode_roadrunner_ram,
+    "Enduro": _decode_enduro_ram,
+    "Qbert": _decode_qbert_ram,
 }
 
 
