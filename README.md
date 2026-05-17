@@ -1,5 +1,11 @@
 # Latent Bridge: Fast-Slow Model Coupling for Real-Time Agents
 
+> 🎬 **Project goal: a working demo.** The fast/slow architecture is the means; the
+> deliverable is a real-time agent you can watch play and replay. Recorded MP4 + live
+> web playback + interactive website are the primary outputs; the experiments in
+> `docs/06_results.md` ground the demo's claims. Roadmap: `docs/07_next_steps.md`.
+
+
 A research project investigating whether continuous-valued **latent bridges** between a
 frozen real-time multimodal model (MiniCPM-o 4.5, 9B) and a frozen reasoning model
 (Qwen3-VL-8B-Thinking, 8B) can outperform **text-channel** splits for tasks requiring both
@@ -176,7 +182,11 @@ A single scaling ablation with Qwen3-30B-A3B-Thinking (~60GB) fits at inference 
       on SpaceInvaders — consistent with score outcomes)
 - [x] True bandwidth ablation N=4/8/16 (Goldilocks at N=8)
 - [x] Vision-token cache (latency option)
-- [ ] Stage D PPO (online RL with bridge in loop) — future work
-- [ ] SpaceInvaders revisit with expert-policy T-trajectories — future work
-- [ ] Demo video — future work
+- [ ] **Demo: recorded MP4 + live web playback (top priority)** — see `docs/07_next_steps.md`
+- [ ] Stage A robustness ablation (validates SI diagnosis)
+- [ ] Slow-only S + Oracle O baselines (paper completeness)
+- [ ] Tier-1 game (Pong/Breakout) — H2 direction check
+- [ ] Scaling ablation with `Qwen3-VL-30B-A3B-Thinking-FP8` (tests bandwidth mechanism)
+- [ ] Stage D PPO (online RL; will it recover SI?)
+- [ ] Interactive website with demos and side-by-side comparisons
 ```
