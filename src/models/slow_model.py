@@ -154,12 +154,22 @@ class SlowModel(nn.Module):
         self.tokenizer = AutoProcessor.from_pretrained(
             self.cfg.hf_repo, local_files_only=local_only
         )
-        # Quantized checkpoints (FP8, INT8) are loaded with meta tensors and require
-        # device_map="auto" (which dispatches via accelerate) rather than a literal
-        # device string. Detect via config.quantization_config.
+        # Quantized checkpoints: device_map strategy depends on quant method.
+        #   - AWQ: requires single-device {"": 0} (NOT "auto", which can place
+        #     CPU/disk shards and trip a validate_environment check)
+        #   - FP8 / compressed-tensors: still uses "auto" via accelerate dispatch
         cfg = AutoConfig.from_pretrained(self.cfg.hf_repo, local_files_only=local_only)
-        is_quantized = getattr(cfg, "quantization_config", None) is not None
-        device_map = "auto" if is_quantized else self.cfg.device
+        qcfg = getattr(cfg, "quantization_config", None)
+        is_quantized = qcfg is not None
+        quant_method = (qcfg.get("quant_method") if isinstance(qcfg, dict)
+                        else getattr(qcfg, "quant_method", None)) if qcfg else None
+        if is_quantized:
+            if quant_method in ("awq", "gptq"):
+                device_map = {"": 0}
+            else:
+                device_map = "auto"
+        else:
+            device_map = self.cfg.device
         load_kwargs = dict(
             attn_implementation="sdpa",
             device_map=device_map,
