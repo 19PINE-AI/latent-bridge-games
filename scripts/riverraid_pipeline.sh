@@ -1,0 +1,86 @@
+#!/bin/bash
+# River Raid end-to-end pipeline (Tier-3 game, multi-objective bandwidth test).
+# Tests the bandwidth claim: with 4 interacting objectives (fuel / dodging /
+# shooting / path) and fuel as a continuous long-horizon state variable, L − T
+# should be at least as large as MsPacman's +54 %.
+
+set +e
+REPO=/home/ubuntu/latent-bridge-games
+cd "$REPO"
+
+ts() { date '+%Y-%m-%d %H:%M:%S'; }
+kill_vllm() {
+    local pids=$(pgrep -f "VLLM::EngineCore" || true)
+    if [ -n "$pids" ]; then
+        echo "[$(ts)] killing vLLM workers: $pids"
+        kill $pids 2>/dev/null || true
+        sleep 5
+    fi
+}
+
+EXPERT_REPO="qgallouedec/ppo-RiverraidNoFrameskip-v4-3987763893"
+EXPERT_FILE="ppo-RiverraidNoFrameskip-v4.zip"
+EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE 2>/dev/null | head -1)
+if [ -z "$EXPERT" ]; then
+    echo "[$(ts)] downloading PPO Riverraid expert..."
+    python3 -c "from huggingface_hub import hf_hub_download; \
+                p=hf_hub_download('$EXPERT_REPO', '$EXPERT_FILE'); print(p)" \
+                > /tmp/rr_dl.log 2>&1
+    EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE | head -1)
+fi
+echo "[$(ts)] PPO expert: $EXPERT"
+
+echo "[$(ts)] === RIVERRAID PIPELINE START ==="
+
+# Steps follow the established 7-step recipe (SB3 collect → Stage A → T-collect →
+# Stage C v2 → eval → MI)
+echo "[$(ts)] === Step 1: SB3 expert collection ==="
+CUDA_VISIBLE_DEVICES="" python3 scripts/collect_trajectories.py \
+    --game Riverraid --episodes 10 \
+    --expert-policy "$EXPERT" --epsilon 0.1 --max-ticks 2500 \
+    --out results/trajectories_Riverraid_sb3_dqn.pt \
+    > /tmp/rr_sb3_collect.log 2>&1
+
+echo "[$(ts)] === Step 2: Stage A ==="
+kill_vllm
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m src.training.stage_a_behavioral \
+    --traj results/trajectories_Riverraid_sb3_dqn.pt \
+    --epochs 3 --batch-size 1 --grad-accum 8 --lr 1e-4 --val-fraction 0.1 \
+    --out checkpoints/stage_a/riverraid_sb3dqn.pt \
+    > /tmp/rr_stage_a.log 2>&1
+
+echo "[$(ts)] === Step 3: T-trajectory collection ==="
+kill_vllm
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 scripts/run_text_bridge_baseline.py \
+    --game Riverraid --episodes 10 --ticks 750 --slow-max-tokens 96 --seed 0 \
+    --out-dir results/t_trajectories_v2 \
+    > /tmp/rr_t_collect.log 2>&1
+
+echo "[$(ts)] === Step 4: Stage C v2 ==="
+kill_vllm
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m src.training.stage_c_v2 \
+    --trace 'results/t_trajectories_v2/Riverraid_seed*.pt' \
+    --epochs 1 --grad-accum 4 --lr 5e-5 \
+    --stage-a-ckpt checkpoints/stage_a/riverraid_sb3dqn.pt \
+    --out checkpoints/stage_c/v2_riverraid.pt \
+    > /tmp/rr_stage_c.log 2>&1
+
+echo "[$(ts)] === Step 5: F/T/L eval ==="
+kill_vllm
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m src.eval.benchmark \
+    --strategies F T L --games Riverraid --seeds 0 1 2 --episodes 4 \
+    --max-ticks 750 \
+    --fast-ckpt checkpoints/stage_a/riverraid_sb3dqn.pt \
+    --bridge-ckpt checkpoints/stage_c/v2_riverraid.pt \
+    --max-slow-tokens 64 \
+    --out results/eval_v2_riverraid.json \
+    > /tmp/rr_eval.log 2>&1
+
+echo "[$(ts)] === Step 6: MI diagnostic ==="
+CUDA_VISIBLE_DEVICES="" python3 -m src.eval.mi_diagnostic \
+    --trace 'results/t_trajectories_v2/Riverraid_seed*.pt' \
+    --bridge-ckpt checkpoints/stage_c/v2_riverraid.pt \
+    --out results/mi_diagnostic_riverraid.json \
+    > /tmp/rr_mi.log 2>&1
+
+echo "[$(ts)] === RIVERRAID PIPELINE COMPLETE ==="

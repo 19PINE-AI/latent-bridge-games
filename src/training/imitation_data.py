@@ -52,6 +52,11 @@ _GAME_ACTION_NAMES = {
     "Qbert": ("NOOP", "FIRE", "UP", "RIGHT", "LEFT", "DOWN"),
     "Pitfall": GLOBAL_ACTION_NAMES,
     "PrivateEye": GLOBAL_ACTION_NAMES,
+    "Riverraid": GLOBAL_ACTION_NAMES,    # 18-action ALE-canonical space
+    "RiverRaid": GLOBAL_ACTION_NAMES,
+    "Berzerk": GLOBAL_ACTION_NAMES,       # 18-action ALE-canonical space
+    "RoadRunner": GLOBAL_ACTION_NAMES,    # 18-action ALE-canonical space
+    "Roadrunner": GLOBAL_ACTION_NAMES,
 }
 
 _NAME_TO_GLOBAL = {name: i for i, name in enumerate(GLOBAL_ACTION_NAMES)}

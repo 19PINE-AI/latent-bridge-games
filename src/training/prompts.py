@@ -182,12 +182,91 @@ Score-difference matters more than per-rally win rate. Provide guidance for the
 next ~5 seconds."""
 
 
+def _riverraid_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    fuel = e["fuel"]
+    fuel_status = ("CRITICAL" if e["fuel_critical"] else
+                   ("LOW" if e["fuel_low"] else "OK"))
+    enemies_str = "\n".join(
+        f"  - craft at ({x}, {y})" for x, y in zip(e["enemy_xs"], e["enemy_ys"])
+        if (x, y) != (0, 0)
+    ) or "  - no enemies visible"
+    return f"""[River Raid — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}
+- Player x={e['player_x']} (jet position, scrolling river)
+- Fuel: {fuel}/255 — status: {fuel_status}
+- Enemy craft visible:
+{enemies_str}
+
+Strategic considerations: fuel depletion ends the run — refueling stations (fuel
+gauge ramps) are scattered along the river; prioritize reaching one when fuel is
+LOW or CRITICAL even at the cost of skipping enemies. Bridges block forward
+progress until shot. Enemies score points (jets > helicopters > ships) but the
+kill economy is secondary to fuel survival. Provide guidance for the next ~10
+seconds; lead with fuel priority if relevant."""
+
+
+def _berzerk_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    px, py = e["player_xy"]
+    robots_str = "\n".join(
+        f"  - robot {i} at ({r['x']}, {r['y']})  Δ=({r['x']-px:+d}, {r['y']-py:+d})"
+        for i, r in enumerate(e["robots"])
+    ) or "  - no robots in this room"
+    otto = ""
+    if e["evil_otto_active"]:
+        ox, oy = e["evil_otto_xy"]
+        otto = (f"\n- ⚠ EVIL OTTO active at ({ox}, {oy}); Δ=({ox-px:+d}, {oy-py:+d}) "
+                f"— bouncing toward player, can pass through walls and enemies")
+    return f"""[Berzerk — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}    Room: {e['level']}
+- Player at ({px}, {py})
+- Robots in room ({e['n_robots']}):
+{robots_str}{otto}
+
+Strategic considerations: rooms are bounded mazes with exits on each side.
+Killing all robots clears the room for bonus points but is risky; staying still
+draws Evil Otto. Lead with: which exit to head for, which robots to shoot first
+vs which to dodge, and whether the time budget allows full clearing before Otto
+arrives. The map of the current room and the relative positions of multiple
+robots is the kind of joint spatial state that demands rich strategic guidance.
+Provide guidance for the next ~10 seconds."""
+
+
+def _roadrunner_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    rx, ry = e["roadrunner_x"], e["roadrunner_y"]
+    cx, cy = e["coyote_x"], e["coyote_y"]
+    dx = e["coyote_distance_x"]
+    coyote_warn = ("⚠ COYOTE close!" if abs(dx) < 30 else "")
+    obs_lines = "\n".join(
+        f"  - obstacle at ({x}, {y})" for x, y in zip(e["obstacle_xs"], e["obstacle_ys"])
+        if (x, y) != (0, 0)
+    ) or "  - none visible"
+    return f"""[Road Runner — game state at frame {ts.frame_idx}]
+- Score: {ts.score}    Lives: {ts.lives}
+- Road Runner (player) at ({rx}, {ry}); Coyote at ({cx}, {cy}); Δ_x={dx:+d} {coyote_warn}
+- Nearest birdseed pellet at x={e['pellet_x']}
+- Obstacles (trucks/landmines) ahead:
+{obs_lines}
+
+Strategic considerations: collect birdseed pellets for points (~100 each); stay
+ahead of Coyote; dodge trucks (above road) and landmines (on road). Speed and
+position trade-off: pellets reward but slow you; obstacles require quick lateral
+dodges. Provide guidance for the next ~10 seconds."""
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
     "Seaquest": _seaquest_user_prompt,
     "SpaceInvaders": _spaceinvaders_user_prompt,
     "Pong": _pong_user_prompt,
+    "Riverraid": _riverraid_user_prompt,
+    "RiverRaid": _riverraid_user_prompt,
+    "Berzerk": _berzerk_user_prompt,
+    "RoadRunner": _roadrunner_user_prompt,
+    "Roadrunner": _roadrunner_user_prompt,
 }
 
 

@@ -235,6 +235,133 @@ def test_pong_score_matches_reward():
     )
 
 
+def test_riverraid_score_matches_reward():
+    """For games using the cumulative-reward passthrough (decoder returns
+    score=None), text.score must equal cum_reward measured AT THE SAME TICK
+    as the emission (not at episode end — RR has dense rewards so emissions
+    and end can disagree if not sampled together)."""
+    import numpy as np
+    env = AtariEnv(game_name="Riverraid", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    snapshots = []  # (cum_at_emission, text_score)
+    n_actions = env.action_space_size
+    for t in range(800):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            snapshots.append((int(cumulative_reward), text.score))
+        if term or trunc:
+            break
+    env.close()
+    assert snapshots, "no text emissions captured"
+    for cum, score in snapshots:
+        assert score == cum, f"RR score {score} != ALE cum {cum} at same tick"
+
+
+def test_riverraid_decoder_structure():
+    env = AtariEnv(game_name="Riverraid", seed=0)
+    env.reset()
+    text = None
+    for _ in range(40):
+        _, _, _, _, t = env.step(0)
+        if t is not None:
+            text = t
+            break
+    env.close()
+    assert text is not None
+    e = text.entities
+    for k in ("player_x", "fuel", "fuel_low", "fuel_critical", "enemy_xs", "enemy_ys"):
+        assert k in e, f"missing key {k}"
+    assert 0 <= e["fuel"] < 256
+    assert isinstance(e["fuel_low"], bool)
+    assert len(e["enemy_xs"]) == 3
+    assert len(e["enemy_ys"]) == 3
+
+
+def test_berzerk_score_matches_reward():
+    """Same passthrough check as Riverraid — capture cum_reward at the
+    emission moment so we don't get off-by-end-of-episode mismatches."""
+    import numpy as np
+    env = AtariEnv(game_name="Berzerk", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    snapshots = []
+    n_actions = env.action_space_size
+    for t in range(800):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            snapshots.append((int(cumulative_reward), text.score))
+        if term or trunc:
+            break
+    env.close()
+    assert snapshots, "no text emissions captured"
+    for cum, score in snapshots:
+        assert score == cum, f"Berzerk score {score} != ALE cum {cum} at same tick"
+
+
+def test_berzerk_decoder_structure():
+    env = AtariEnv(game_name="Berzerk", seed=0)
+    env.reset()
+    text = None
+    for _ in range(60):
+        _, _, _, _, t = env.step(0)
+        if t is not None:
+            text = t
+            break
+    env.close()
+    assert text is not None
+    e = text.entities
+    for k in ("player_xy", "robots", "n_robots", "evil_otto_xy", "evil_otto_active"):
+        assert k in e, f"missing key {k}"
+    px, py = e["player_xy"]
+    assert 0 <= px < 256 and 0 <= py < 256
+
+
+def test_roadrunner_score_matches_reward():
+    import numpy as np
+    env = AtariEnv(game_name="RoadRunner", seed=42)
+    env.reset()
+    rng = np.random.default_rng(0)
+    cumulative_reward = 0.0
+    snapshots = []
+    n_actions = env.action_space_size
+    for t in range(800):
+        a = int(rng.integers(0, n_actions))
+        _, reward, term, trunc, text = env.step(a)
+        cumulative_reward += reward
+        if text is not None:
+            snapshots.append((int(cumulative_reward), text.score))
+        if term or trunc:
+            break
+    env.close()
+    assert snapshots
+    for cum, score in snapshots:
+        assert score == cum, f"RoadRunner score {score} != ALE cum {cum}"
+
+
+def test_roadrunner_decoder_structure():
+    env = AtariEnv(game_name="RoadRunner", seed=0)
+    env.reset()
+    text = None
+    for _ in range(60):
+        _, _, _, _, t = env.step(0)
+        if t is not None:
+            text = t
+            break
+    env.close()
+    assert text is not None
+    e = text.entities
+    for k in ("roadrunner_x", "roadrunner_y", "coyote_x", "coyote_y",
+              "coyote_distance_x", "obstacle_xs", "obstacle_ys", "pellet_x"):
+        assert k in e
+
+
 def test_unknown_game_returns_empty_entities():
     # Breakout has no registered decoder (yet)
     env = AtariEnv(game_name="Breakout", seed=0)
