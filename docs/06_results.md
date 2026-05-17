@@ -98,6 +98,32 @@ suffix-augmented prompts so the action head is in-distribution for T/L; or (b) u
 Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
+### RoadRunner (Tier 3; bandwidth-claim test — 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Best |
+|---|---|---|---|
+| F (fast only) | **0 ± 0** | 0 | 0 |
+| T (text bridge) | 608 ± 240 | 650 | — |
+| **L (latent bridge)** | **967 ± 47** | 1000 | — |
+
+**L > T by +59 %** (vs MsPacman's +54 %, Seaquest's +26 %) — the largest L-T gap we
+have on any reward-symmetric game. And the inverse pattern of SI/RR: F can't play
+(score=0) but the slow's contextual guidance unlocks the policy. This is **the
+cleanest example yet** of fast/slow collaboration: the fast model has the reflex
+machinery but lacks the direction-bias to use it; the slow tells it "head right
+to escape the Coyote" and the agent suddenly plays at high score.
+
+Stage A val_acc on RoadRunner was the highest of any game (58.5 %), so the
+action head is competent — it just needs the slow's directional context to break
+out of a stationary failure mode. This is the bandwidth thesis in its purest
+visible form on Atari: continuous strategic context (Coyote distance + pellet
+priority + obstacle layout) unlocks behavior that neither model alone can
+produce.
+
+MI diagnostic: I(b;a) − baseline = −0.05 (negative on the training trajectory)
+yet deployed L = 967 — interesting discrepancy. The bridge's value at deployment
+isn't captured by static action-prediction on the bare training distribution; it
+emerges from the joint slow-fast computation.
+
 ### River Raid (Tier 3; bandwidth-claim test — 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Bridge MI minus baseline |
 |---|---|---|---|

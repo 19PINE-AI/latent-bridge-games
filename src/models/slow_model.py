@@ -49,7 +49,11 @@ def _default_hf_repo() -> str:
     96GB GPU alongside the 18GB MiniCPM-o fast model.
     """
     if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
-        return "Qwen/Qwen3-VL-30B-A3B-Thinking"
+        # AWQ 4-bit (~15-18GB) — picked over FP8 (which transformers 4.57 can't
+        # load correctly: weight_scale_inv tensors dropped) and bf16 (60GB,
+        # doesn't fit alongside user's other GPU workloads which currently
+        # occupy ~40GB).
+        return "QuantTrio/Qwen3-VL-30B-A3B-Thinking-AWQ"
     return "Qwen/Qwen3-VL-8B-Thinking"
 
 

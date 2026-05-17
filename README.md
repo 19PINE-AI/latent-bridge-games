@@ -31,6 +31,18 @@ planning (Ms. Pac-Man, Seaquest, Space Invaders).
 | T (text bridge)         | 63.3 ± 11.1 | 60 | 12 |
 | **L (v2 latent bridge)** | **80.0 ± 0.0** | **80** | 12 |
 
+### RoadRunner (Tier 3; largest L-T gap so far)
+| Strategy | Mean ± Std | Median | n |
+|---|---|---|---|
+| F (fast only)           | **0 ± 0**     | 0    | 12 |
+| T (text bridge)         | 608 ± 240     | 650  | 12 |
+| **L (v2 latent bridge)** | **967 ± 47** | **1000** | 12 |
+
+The cleanest example yet of fast/slow collaboration: F cannot score at all,
+but L scores 967 (T scores 608). The slow model's directional context unlocks
+behavior the action head has the machinery for but not the inclination to use.
+L > T by **+59 %** — largest gap on any reward-symmetric game.
+
 ### SpaceInvaders (Tier 2; reward-asymmetric — diagnosis confirmed)
 | Strategy | bare Stage A | robust Stage A (suffix-prob 0.5) |
 |---|---|---|
