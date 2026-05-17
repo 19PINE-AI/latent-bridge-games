@@ -39,11 +39,17 @@ except ImportError:  # PIL is a transformers dependency; guarded for type-only c
 def _default_hf_repo() -> str:
     """Default slow-model repo, overridable by env var for the scaling ablation.
 
-    Set LB_USE_SCALING_SLOW=1 in the environment to switch to the 30B-A3B-FP8 VL
+    Set LB_USE_SCALING_SLOW=1 in the environment to switch to the 30B-A3B VL
     variant without having to pass a config flag through every entry point.
+
+    Initially we tried Qwen/Qwen3-VL-30B-A3B-Thinking-FP8 but transformers
+    4.57.6 + compressed_tensors 0.14.0 silently drop the expert
+    weight_scale_inv tensors during load, leaving them on meta and crashing
+    at dispatch. We fall back to the bf16 checkpoint (60GB) which fits in
+    96GB GPU alongside the 18GB MiniCPM-o fast model.
     """
     if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
-        return "Qwen/Qwen3-VL-30B-A3B-Thinking-FP8"
+        return "Qwen/Qwen3-VL-30B-A3B-Thinking"
     return "Qwen/Qwen3-VL-8B-Thinking"
 
 
