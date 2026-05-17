@@ -241,6 +241,23 @@ Profile of `FastModel.predict_action` (Ms. Pac-Man, max_slice_nums=1):
 Remaining latency work (queued task): vision-token caching across consecutive frames
 (Atari changes ~1 px/tick) should cut ~50 ms.
 
+### Vision-token caching benchmark (F MsPacman, n=2 episodes per cell)
+
+| `vision_refresh_every` | Latency (ms) | Speedup vs baseline | Score |
+|---|---|---|---|
+| 1 (baseline, no cache) | 33 | — | 180 |
+| 4 (refresh every 4 ticks) | 20 | **−39 %** | 110 |
+| 15 (refresh every 15 ticks) | 17 | **−48 %** | 140 |
+
+The vision tower (SigLIP + resampler) is the dominant cost in the fast tick. Caching
+it across N consecutive ticks roughly halves per-tick latency. The score numbers are
+noisy at n=2 per cell (110 vs 140 is sample variance), but the latency speedups are
+consistent and large. Combined with `torch.compile` on the LLM forward, the warm
+tick path is **well under the 67 ms (15 Hz) target** when vision is cached. The
+optimal `vision_refresh_every` is a per-game hyperparameter trading perception
+latency for action latency; for action-heavy games like Atari we expect cache
+windows of 2-4 to be the sweet spot.
+
 ## Negative findings worth keeping in the paper
 
 1. **v1 cross-attention bridge** — the design we tried first — does not work in

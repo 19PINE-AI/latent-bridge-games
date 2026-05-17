@@ -55,6 +55,7 @@ def _run_episode(strategy: str,
                  fast_checkpoint: Optional[str],
                  stop_action_policy: str = "argmax",
                  max_slow_tokens: int = 64,
+                 vision_refresh_every: int = 1,
                  ) -> dict:
     """Run one episode under one strategy on one (game, seed) cell. Returns metrics."""
     legal = legal_action_mask(game)
@@ -63,6 +64,8 @@ def _run_episode(strategy: str,
 
     env = AtariEnv(game_name=game, seed=seed)
     obs, _ = env.reset()
+    if vision_refresh_every > 1:
+        fast.reset_vision_cache()
     latest_slow_text: Optional[str] = None
     # v2: bridge tokens from the most-recent slow emission (no long buffer)
     latest_bridge_tokens: Optional[torch.Tensor] = None
@@ -80,6 +83,7 @@ def _run_episode(strategy: str,
                 logits = fast.predict_action(
                     obs, thought_tokens=None,
                     legal_action_mask=legal,
+                    vision_refresh_every=vision_refresh_every,
                 )
         elif strategy == "T":
             with torch.no_grad():
@@ -87,6 +91,7 @@ def _run_episode(strategy: str,
                     obs, thought_tokens=None,
                     legal_action_mask=legal,
                     slow_text_suffix=latest_slow_text,
+                    vision_refresh_every=vision_refresh_every,
                 )
         elif strategy == "L":
             with torch.no_grad():
@@ -94,6 +99,7 @@ def _run_episode(strategy: str,
                     obs, thought_tokens=latest_bridge_tokens,
                     legal_action_mask=legal,
                     slow_text_suffix=None,  # v2 L mode uses latents only
+                    vision_refresh_every=vision_refresh_every,
                 )
         else:
             raise ValueError(f"unsupported strategy {strategy!r}")
@@ -187,6 +193,10 @@ def main():
     ap.add_argument("--bridge-ckpt", default=None,
                     help="Stage C bridge checkpoint (.pt) to load before L eval")
     ap.add_argument("--max-slow-tokens", type=int, default=64)
+    ap.add_argument("--vision-refresh-every", type=int, default=1,
+                    help="Refresh the vision tower (SigLIP + resampler) every N "
+                         "fast ticks; 1 = every tick (default). Higher = faster but "
+                         "the model sees stale visual context.")
     ap.add_argument("--out", default="results/eval_main.json")
     args = ap.parse_args()
 
@@ -269,6 +279,7 @@ def main():
                         fast_checkpoint=args.fast_ckpt,
                         stop_action_policy="argmax",
                         max_slow_tokens=args.max_slow_tokens,
+                        vision_refresh_every=args.vision_refresh_every,
                     )
                     cells.append(result)
                     print(f"    score={result['score']:.0f} ticks={result['ticks']} "
