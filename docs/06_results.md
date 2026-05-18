@@ -98,6 +98,24 @@ suffix-augmented prompts so the action head is in-distribution for T/L; or (b) u
 Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
+### Enduro (Tier 2; scrolling racing — 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Comment |
+|---|---|---|---|
+| F (fast only) | 3.2 ± 2.5 | 3.5 | Stage A val_acc 49.2 % |
+| T (text bridge) | **0 ± 0** | 0 | Suffix collapses policy |
+| L (latent bridge) | **7.8 ± 8.7** | 3.5 | +144 % over F, infinity over T |
+
+Enduro was queued as a RoadRunner-similar candidate (scrolling environment +
+long-horizon day-quota + directional context). The SB3 PPO expert was weak
+(0 avg reward on collection — Enduro is a notoriously hard exploration game)
+but Stage A still trained to 49.2 % val_acc on the partial trajectories.
+
+**Pattern matches expectations only partially**: F can barely score, T fully
+collapses (Stage A OOD case), L recovers above F by 2.4×. Absolute scores
+are tiny (the SB3 expert never learned to play well, so our action head's
+ceiling is correspondingly low). The L > T direction is consistent with the
+RoadRunner pattern; absolute scores would need a stronger Enduro expert.
+
 ### RoadRunner (Tier 3; bandwidth-claim test — 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Best |
 |---|---|---|---|

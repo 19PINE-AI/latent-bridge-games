@@ -279,7 +279,7 @@ weather/visibility changes throughout the day. Lead with: steer direction
 def _qbert_user_prompt(ts: TextState) -> str:
     e = ts.entities
     return f"""[Q*bert — game state at frame {ts.frame_idx}]
-- Score: {ts.score}    Lives: {ts.lives}    Level: {e['level']}
+- Score: {ts.score}    Lives: {ts.lives}    Level: {ts.level}
 - Q*bert on tile row={e['qbert_on_tile_row']}, col={e['qbert_on_tile_col']}
 - Q*bert pixel position: ({e['qbert_x']}, {e['qbert_y']})
 - Coily (snake) at ({e['coily_x']}, {e['coily_y']})
