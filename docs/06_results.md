@@ -182,6 +182,20 @@ honest reading: the bandwidth thesis can only be tested *after* the Stage A
 distribution mismatch is fixed (via Stage A robustness training, à la the SI
 fix, or Stage D PPO under deployment).
 
+**Update (robust Stage A retry, 2026-05-18):** retraining Stage A with
+`--suffix-prob=0.5` (the same fix that broke SI's L=0 collapse) recovers River
+Raid dramatically:
+
+| Variant | F | T | L | L vs T |
+|---|---|---|---|---|
+| RR bare Stage A | 1067 ± 84 | 383 ± 57 | 360 ± 0 | collapse |
+| **RR robust Stage A** | 1033 ± 19 | **337 ± 77** | **612 ± 297** | **+82 %** |
+
+L over T by **+82 %** — the largest L−T gap on any game we've tested. The
+OOD-brittleness diagnosis is now confirmed *with the same fix recipe* on two
+distinct games (SI + RR). The bandwidth-claim test was indeed bottlenecked
+by Stage A; once unblocked, L > T is recovered exactly as predicted.
+
 ### Pong (Tier 1; reactive-only — 12 episodes per cell)
 | Strategy | Mean | Median | Comment |
 |---|---|---|---|

@@ -31,7 +31,7 @@ planning (Ms. Pac-Man, Seaquest, Space Invaders).
 | T (text bridge)         | 63.3 ± 11.1 | 60 | 12 |
 | **L (v2 latent bridge)** | **80.0 ± 0.0** | **80** | 12 |
 
-### RoadRunner (Tier 3; largest L-T gap so far)
+### RoadRunner (Tier 3)
 | Strategy | Mean ± Std | Median | n |
 |---|---|---|---|
 | F (fast only)           | **0 ± 0**     | 0    | 12 |
@@ -41,7 +41,17 @@ planning (Ms. Pac-Man, Seaquest, Space Invaders).
 The cleanest example yet of fast/slow collaboration: F cannot score at all,
 but L scores 967 (T scores 608). The slow model's directional context unlocks
 behavior the action head has the machinery for but not the inclination to use.
-L > T by **+59 %** — largest gap on any reward-symmetric game.
+L > T by **+59 %**.
+
+### River Raid (Tier 3; **largest L-T gap after robust Stage A**)
+| Variant | F | T | L | L vs T |
+|---|---|---|---|---|
+| Bare Stage A | 1067 ± 84 | 383 ± 57 | 360 ± 0 | collapse |
+| **Robust Stage A (suffix-prob=0.5)** | 1033 ± 19 | 337 ± 77 | **612 ± 297** | **+82 %** |
+
+The biggest L-T gap on any game. Validates the OOD-brittleness diagnosis a
+second time (after SI): retraining Stage A with mixed-prompt augmentation
+breaks the T/L collapse and recovers L well above T.
 
 ### SpaceInvaders (Tier 2; reward-asymmetric — diagnosis confirmed)
 | Strategy | bare Stage A | robust Stage A (suffix-prob 0.5) |
