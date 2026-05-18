@@ -98,6 +98,20 @@ suffix-augmented prompts so the action head is in-distribution for T/L; or (b) u
 Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
+### Q*bert (Tier 2-3; isometric platformer — 12 episodes per cell)
+| Strategy | Mean ± Std | Median | Comment |
+|---|---|---|---|
+| F (fast only) | 25 ± 0 | 25 | Just the first-tile-jump bonus |
+| T (text bridge) | 0 ± 0 | 0 | Stage A OOD collapse |
+| L (latent bridge) | 0 ± 0 | 0 | Same collapse |
+
+Another Stage A OOD case. Stage A trained to 33.8 % val_acc but the action
+head collapses entirely when T/L attach the slow's prompt context. F at 25
+is essentially the "first jump bonus" the agent gets for moving once before
+dying. The Q*bert puzzle structure (plan a tile-jump sequence) was the
+hypothesized slow advantage; the underlying head's brittleness pre-empts
+the test.
+
 ### Enduro (Tier 2; scrolling racing — 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Comment |
 |---|---|---|---|
