@@ -406,6 +406,38 @@ optimal `vision_refresh_every` is a per-game hyperparameter trading perception
 latency for action latency; for action-heavy games like Atari we expect cache
 windows of 2-4 to be the sweet spot.
 
+## Stage D PPO on SpaceInvaders — mode collapse (driver works; tuning needed)
+
+Ran 20 PPO updates from the robust Stage A + Stage C v2 SI checkpoints
+(starting baseline: F=107, T=18, L=15). PPO driver started cleanly:
+
+| Update | Rollout score | Entropy | KL anchor | Note |
+|---|---|---|---|---|
+| 0 | 0 | 0.796 | 3.28 | Warm start; large KL deviation as expected |
+| 6 | **50** | 0.789 | 0.43 | First positive rollout |
+| 7-19 | 0 | → 0.000 | → 0.000 | **Policy collapsed to single deterministic action** |
+
+Final eval: F = T = L = 0 across 12 episodes. The PPO checkpoint is worse
+than the robust-Stage-A baseline it started from.
+
+**Diagnosis**: classic PPO collapse on sparse-reward games. The entropy
+coefficient (0.01, standard Atari PPO default) was too small to prevent the
+policy from collapsing onto a low-variance attractor once it found one. SI's
+reward structure (rare FIRE-hit events) amplifies this: a few updates with
+slightly more probability mass on NOOP-like actions get rewarded by the value
+loss (lower variance prediction), and the policy implodes onto that action.
+
+The driver itself works: gradients flow through `slow.projection` +
+`action_head` + `value_head`; the KL anchor against the Stage C reference
+fires; the rollout buffer + GAE compute correct advantages. Future PPO runs
+should:
+1. Raise `entropy_coef` from 0.01 → 0.05-0.1 for sparse-reward games
+2. Add reward shaping (intrinsic motivation or step-bonus) for SI
+3. Smaller LR on `action_head` (currently 2.5e-4) to slow the collapse mode
+
+Not run; PPO is engineering-heavy enough that one calibrated re-run is
+worth more than three uncalibrated ones.
+
 ## Negative findings worth keeping in the paper
 
 1. **v1 cross-attention bridge** — the design we tried first — does not work in
