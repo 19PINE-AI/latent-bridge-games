@@ -99,18 +99,37 @@ Stage D PPO to fine-tune the action head on game reward under the deployment
 prompt distribution. Either should recover SI.
 
 ### Q*bert (Tier 2-3; isometric platformer — 12 episodes per cell)
-| Strategy | Mean ± Std | Median | Comment |
+| Variant | F | T | L |
 |---|---|---|---|
-| F (fast only) | 25 ± 0 | 25 | Just the first-tile-jump bonus |
-| T (text bridge) | 0 ± 0 | 0 | Stage A OOD collapse |
-| L (latent bridge) | 0 ± 0 | 0 | Same collapse |
+| Bare Stage A | 25 ± 0 | 0 ± 0 | 0 ± 0 |
+| **Robust Stage A (suffix-prob=0.5)** | 25 ± 0 | **125 ± 0** | **50 ± 0** |
 
-Another Stage A OOD case. Stage A trained to 33.8 % val_acc but the action
-head collapses entirely when T/L attach the slow's prompt context. F at 25
-is essentially the "first jump bonus" the agent gets for moving once before
-dying. The Q*bert puzzle structure (plan a tile-jump sequence) was the
-hypothesized slow advantage; the underlying head's brittleness pre-empts
-the test.
+Robust Stage A broke the T/L collapse, but **T beats L** on Q*bert (T=125 vs
+L=50). This is the first game in our sweep where text bridge wins over latent.
+
+**Why?** Plausible: Q*bert's slow-model guidance is highly *categorical* — "jump
+UP-RIGHT to color tile at row 3, col 2." That kind of guidance compresses
+losslessly into the 200-character text channel. The latent channel's
+compression introduces noise that hurts a discrete-decision game more than it
+helps a continuous-strategy game like MsPacman or RoadRunner.
+
+**Implication for the bandwidth thesis:** the latent advantage manifests when
+the slow's reasoning has *continuous* structure (fuel levels, spatial
+distances, multi-entity coordinates) that compresses *lossy* through text.
+Games with purely categorical strategic content show text > latent. This
+refines the framing from "L always > T" to "L > T when slow content is
+continuous-rich; L ≈ T or L < T when content is discrete-and-text-friendly."
+
+### Enduro (Tier 2; scrolling racing — 12 episodes per cell)
+| Variant | F | T | L |
+|---|---|---|---|
+| Bare Stage A | 3.2 ± 2.5 | 0 ± 0 | 7.8 ± 8.7 |
+| Robust Stage A | 0.8 ± 1.0 | 4.9 ± 5.6 | **5.8 ± 2.5** |
+
+Robust Stage A on Enduro modestly recovers T from 0 to 5; L holds at ~6
+with **+18 % L > T**. Absolute scores are tiny because the SB3 PPO expert
+never learned to play well (avg_reward=0 on collection), bounding Stage A's
+ceiling.
 
 ### Enduro (Tier 2; scrolling racing — 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Comment |
@@ -119,16 +138,11 @@ the test.
 | T (text bridge) | **0 ± 0** | 0 | Suffix collapses policy |
 | L (latent bridge) | **7.8 ± 8.7** | 3.5 | +144 % over F, infinity over T |
 
-Enduro was queued as a RoadRunner-similar candidate (scrolling environment +
-long-horizon day-quota + directional context). The SB3 PPO expert was weak
-(0 avg reward on collection — Enduro is a notoriously hard exploration game)
-but Stage A still trained to 49.2 % val_acc on the partial trajectories.
-
-**Pattern matches expectations only partially**: F can barely score, T fully
-collapses (Stage A OOD case), L recovers above F by 2.4×. Absolute scores
-are tiny (the SB3 expert never learned to play well, so our action head's
-ceiling is correspondingly low). The L > T direction is consistent with the
-RoadRunner pattern; absolute scores would need a stronger Enduro expert.
+Enduro was queued as a RoadRunner-similar candidate. SB3 PPO expert was weak
+(0 avg reward on collection); Stage A still trained to 49.2 % val_acc on
+the partial trajectories. The L > T direction is consistent with RoadRunner
+but absolute scores are tiny. The robust-Stage-A retry (in the Q*bert
+section above) gave a modest +18 % L over T.
 
 ### RoadRunner (Tier 3; bandwidth-claim test — 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Best |
