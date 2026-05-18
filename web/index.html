@@ -87,6 +87,14 @@
   model's reasoning through the latent bridge.</p>
 
   <div class="sidebyside">
+    <h3>🏆 Road Runner — F = 0, L = 967 (the headline demo)</h3>
+    <video src="../demos/roadrunner_F_vs_L.mp4" controls playsinline></video>
+    <p style="color: var(--muted); margin: 8px 0 0;">The fast-only agent
+    cannot score; the latent bridge unlocks coherent rightward escape from
+    the Coyote. This is fast/slow coupling in its purest visible form.</p>
+  </div>
+
+  <div class="sidebyside">
     <h3>Ms. Pac-Man — F = 250, L = 550 (+120 %)</h3>
     <video src="../demos/mspacman_F_vs_L.mp4" controls playsinline></video>
   </div>
@@ -97,11 +105,31 @@
   </div>
 
   <div class="sidebyside">
-    <h3>Space Invaders — F = 105, L = 0 (negative finding)</h3>
+    <h3>River Raid — F = 1130, L = 360 (Stage A OOD case)</h3>
+    <video src="../demos/riverraid_F_vs_L.mp4" controls playsinline></video>
+    <p style="color: var(--muted); margin: 8px 0 0;">Honest negative: F plays
+    well but the slow's prompt suffix breaks the policy. Diagnosis: action
+    head was trained on bare prompts; mixed-prompt Stage A is the fix
+    (validated separately on Space Invaders).</p>
+  </div>
+
+  <div class="sidebyside">
+    <h3>Space Invaders — F = 105, L = 0 (Stage A OOD; diagnosis confirmed)</h3>
     <video src="../demos/spaceinvaders_F_vs_L.mp4" controls playsinline></video>
     <p style="color: var(--muted); margin: 8px 0 0;">An honest result. Three
-    interventions failed to recover L here; we diagnose the issue as Stage A
-    OOD-brittleness of the action head, not a bridge problem.</p>
+    interventions failed to recover L; we diagnose the issue as Stage A
+    OOD-brittleness of the action head, not a bridge problem. Mixed-prompt
+    Stage A retrain partially recovered T and L to nonzero scores.</p>
+  </div>
+
+  <div class="sidebyside">
+    <h3>Enduro — F = 3, L = 0 (single-episode noisy)</h3>
+    <video src="../demos/enduro_F_vs_L.mp4" controls playsinline></video>
+  </div>
+
+  <div class="sidebyside">
+    <h3>Q*bert — F = 25, L = 0 (Stage A OOD case)</h3>
+    <video src="../demos/qbert_F_vs_L.mp4" controls playsinline></video>
   </div>
 </section>
 
