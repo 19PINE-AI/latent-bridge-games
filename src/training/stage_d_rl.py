@@ -414,6 +414,7 @@ def main():
 
         # Checkpoint every update
         torch.save({
+            "v2": True,  # benchmark.py loader recognises this as LLaVA-style
             "update": upd,
             "slow_projection_state": slow.projection.state_dict(),
             "action_head_state": fast.action_head.state_dict(),

@@ -301,6 +301,12 @@ def main():
             ck = torch.load(args.bridge_ckpt, map_location="cuda", weights_only=False)
             slow.projection.load_state_dict(ck["slow_projection_state"])
             print(f"  loaded v2 slow.projection from {args.bridge_ckpt}")
+            # Stage D PPO checkpoints ALSO include action_head_state because
+            # PPO trains it under the deployment distribution. If present in
+            # the bridge ckpt, override the fast-ckpt action_head (more recent).
+            if "action_head_state" in ck:
+                fast.action_head.load_state_dict(ck["action_head_state"])
+                print(f"  loaded action_head from {args.bridge_ckpt} (Stage D PPO; overrides fast-ckpt)")
 
     # ---- Run all cells ----
     cells = []
