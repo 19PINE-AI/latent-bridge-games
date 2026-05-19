@@ -27,8 +27,9 @@ export default function Footer() {
           <FootLink href="https://github.com/bojieli/latent-bridge-games/tree/main/scripts">Pipeline scripts</FootLink>
         </Col>
         <Col title="Highlights">
-          <li className="text-xs text-muted">9 games, 60+ commits</li>
-          <li className="text-xs text-muted">Largest gap: <span className="text-good">+82 %</span> (RR robust)</li>
+          <li className="text-xs text-muted">8 games · 12 episodes/cell · 95 % bootstrap CIs</li>
+          <li className="text-xs text-muted">L &gt; T on 4 of 7 evaluable games (Welch <em>p</em> &lt; 0.05 on 3, p = 0.06 on the 4th)</li>
+          <li className="text-xs text-muted">Largest gap: <span className="text-good">+82 %</span> (River Raid robust SA, Cohen's d = 1.21)</li>
           <li className="text-xs text-muted">Single RTX Pro 6000 96 GB</li>
         </Col>
       </div>

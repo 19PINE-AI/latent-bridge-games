@@ -13,7 +13,9 @@ export default function BandwidthChart() {
     <div className="bg-panel rounded-2xl border border-border p-5">
       <h3 className="font-semibold text-ink mb-1">Bridge bandwidth ablation (MsPacman)</h3>
       <p className="text-xs text-muted mb-3">
-        Latent score is <strong>non-monotonic</strong> in N. Sweet spot at N = 8.
+        <strong>True sweep</strong> (train and deploy both at the same N).
+        Goldilocks shape with N = 8 as the sweet spot. Three points fit any U-shape; we
+        present this as consistent with — not a sharp identification of — a peak.
       </p>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">

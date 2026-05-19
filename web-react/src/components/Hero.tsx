@@ -1,4 +1,5 @@
 import { ArrowDownCircle } from "lucide-react";
+import { SUMMARY } from "../data/games";
 
 export default function Hero() {
   return (
@@ -10,14 +11,14 @@ export default function Hero() {
                             rounded-full bg-panel border border-border text-xs uppercase
                             tracking-wider text-muted">
               <span className="w-1.5 h-1.5 rounded-full bg-good animate-pulse" />
-              9-game empirical sweep · 60+ commits
+              {SUMMARY.totalGames}-game empirical sweep · 12 episodes per cell · 95 % bootstrap CIs
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
               Latent Bridge
             </h1>
             <h2 className="text-xl md:text-2xl text-muted font-medium mt-3 leading-snug">
               A continuous-valued bridge between a frozen 9 B reactive model and a frozen 8 B
-              reasoning model — beating text-channel coupling on 6 of 7 Atari games.
+              reasoning model — beating text-channel coupling by 26–82 % on 4 of {SUMMARY.evaluable} evaluable Atari games.
             </h2>
             <p className="mt-6 text-ink/90 leading-relaxed">
               Real-time interactive AI is structurally torn: reasoning models tick too slowly
@@ -29,12 +30,14 @@ export default function Hero() {
             <p className="mt-3 text-ink/90 leading-relaxed">
               We test this on Atari: MiniCPM-o 4.5 at 15 Hz, Qwen3-VL-8B-Thinking at 1 Hz,
               coupled via a trainable <strong>33 M-param latent bridge</strong> prepended
-              LLaVA-style to the fast model's input embedding.
+              LLaVA-style to the fast model's input embedding. On Q*bert — where the slow's
+              guidance is categorical (&ldquo;jump UP-RIGHT to tile 3, 2&rdquo;) — text wins by 2.5×.
+              The refined claim is falsifiable from slow-emission diversity alone.
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <Stat label="L > T on" value="6 / 7" sub="games (continuous-content)" />
-              <Stat label="Largest gap" value="+82 %" sub="River Raid (robust SA)" />
+              <Stat label="L > T at p<0.05" value={`${SUMMARY.L_wins_significant} / ${SUMMARY.evaluable}`} sub="continuous-rich slow content" />
+              <Stat label="Largest gap" value={`+${SUMMARY.largestGapPct} %`} sub={`${SUMMARY.largestGapGame}, d=1.21`} />
               <Stat label="Total trainable" value="33 M" sub="of ~17 B params" />
             </div>
 
@@ -59,9 +62,9 @@ export default function Hero() {
                      preload="metadata"
                      className="w-full rounded-lg bg-black aspect-[16/6.24]" />
               <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
-                All 7 games with title cards, headline numbers, and gTTS narration.
-                Tells the story in order: Road Runner → Ms. Pac-Man → River Raid (+82 % win)
-                → Seaquest → Q*bert (the categorical exception) → Space Invaders (the
+                All games with title cards, headline numbers, and gTTS narration.
+                Tells the story in order: Road Runner → Ms. Pac-Man → River Raid (+82 % L over T)
+                → Seaquest → Q*bert (the categorical counter-example) → Space Invaders (the
                 diagnosis) → Enduro.
               </p>
             </div>

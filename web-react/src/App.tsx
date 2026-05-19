@@ -6,6 +6,9 @@ import BandwidthChart from "./components/BandwidthChart";
 import GameGrid from "./components/GameGrid";
 import ArchitectureSection from "./components/ArchitectureSection";
 import DiagnosisSection from "./components/DiagnosisSection";
+import ContinuousVsCategorical from "./components/ContinuousVsCategorical";
+import SlowEmissionSamples from "./components/SlowEmissionSamples";
+import ReproSection from "./components/ReproSection";
 import StrategiesTable from "./components/StrategiesTable";
 import FiguresGallery from "./components/FiguresGallery";
 import Footer from "./components/Footer";
@@ -18,8 +21,8 @@ export default function App() {
         <Hero />
 
         <Section id="results"
-                 title="Results across 9 game-conditions"
-                 subtitle="Sortable table + chart. Click column headers to re-sort.">
+                 title="Results across 10 game/variant cells"
+                 subtitle="Sortable table with 95 % bootstrap CIs and Welch's-t / Mann-Whitney significance. Click column headers to re-sort.">
           <ResultsTable />
           <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 mt-6">
             <ScoresChart />
@@ -29,13 +32,25 @@ export default function App() {
 
         <Section id="diagnosis"
                  title="The Stage A OOD-brittleness diagnosis"
-                 subtitle="One sub-finding that turned negative results into evidence and revealed a categorical exception.">
+                 subtitle="One sub-finding that turned negative results into evidence — and a fix that helps some games and destroys others.">
           <DiagnosisSection />
+        </Section>
+
+        <Section id="continuous-vs-categorical"
+                 title="When does latent beat text?"
+                 subtitle="A quantitative axis: lexical diversity of slow-model emissions predicts the sign of L − T a priori, no Stage C training required.">
+          <ContinuousVsCategorical />
+        </Section>
+
+        <Section id="emissions"
+                 title="What the slow model actually says"
+                 subtitle="Raw post-thinking text on RoadRunner (continuous-rich, L wins) vs Q*bert (categorical, T wins).">
+          <SlowEmissionSamples />
         </Section>
 
         <Section id="strategies"
                  title="Four-strategy comparison & latency"
-                 subtitle="The full S < F < T < L story plus the vision-token cache that hits 15 Hz.">
+                 subtitle="The full S < F < T < L story plus the vision-token cache that hits the 15 Hz target.">
           <StrategiesTable />
         </Section>
 
@@ -45,9 +60,15 @@ export default function App() {
           <ArchitectureSection />
         </Section>
 
+        <Section id="reproducibility"
+                 title="Reproducibility &amp; implementation"
+                 subtitle="Stage A/C hyperparameters, prompt templates, fairness analysis for the text baseline.">
+          <ReproSection />
+        </Section>
+
         <Section id="figures"
                  title="Paper figures"
-                 subtitle="From the 9-page arXiv-style PDF in paper/main.pdf. Click any to enlarge.">
+                 subtitle="From the arXiv-style PDF. Click any to enlarge.">
           <FiguresGallery />
         </Section>
 

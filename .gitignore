@@ -18,7 +18,9 @@ checkpoints/*
 !checkpoints/.gitkeep
 results/*
 !results/.gitkeep
-data/
+# Top-level "data/" only (training datasets). Leading slash anchors to repo root
+# so web-react/src/data/ (source TypeScript) stays tracked.
+/data/
 *.safetensors
 *.bin
 *.pt

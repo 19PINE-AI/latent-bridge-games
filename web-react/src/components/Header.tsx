@@ -1,10 +1,12 @@
-import { Code2, FileText, PlayCircle, Activity, Cpu } from "lucide-react";
+import { Code2, FileText, PlayCircle, Activity, Cpu, Scale, MessageSquareText } from "lucide-react";
 
 const NAV = [
   { id: "hero", label: "Demo", icon: PlayCircle },
   { id: "results", label: "Results", icon: Activity },
-  { id: "architecture", label: "Architecture", icon: Cpu },
   { id: "diagnosis", label: "Diagnosis", icon: FileText },
+  { id: "continuous-vs-categorical", label: "L vs T axis", icon: Scale },
+  { id: "emissions", label: "Emissions", icon: MessageSquareText },
+  { id: "architecture", label: "Architecture", icon: Cpu },
   { id: "games", label: "All Games", icon: PlayCircle },
 ];
 
