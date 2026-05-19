@@ -1,0 +1,62 @@
+% neurips_arxiv.sty — arXiv-friendly NeurIPS-style for the Latent Bridge paper.
+% Single-column, US letter, 11pt-feeling layout via 10pt + slightly looser leading.
+% Avoids dependencies on the official neurips_*.sty so the paper builds with
+% only the LaTeX packages bundled in TeX Live.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{neurips_arxiv}[2026/05/19 Lightweight NeurIPS-style arXiv class]
+
+\RequirePackage[letterpaper,top=1in,bottom=1in,left=1.25in,right=1.25in]{geometry}
+\RequirePackage{microtype}
+\RequirePackage{lmodern}
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{amsmath,amssymb,amsthm}
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{xcolor}
+\RequirePackage{hyperref}
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\RequirePackage{enumitem}
+\RequirePackage{titlesec}
+\RequirePackage{float}
+\RequirePackage{authblk}
+
+\definecolor{accent}{HTML}{1f6feb}
+\definecolor{good}{HTML}{2da44e}
+\definecolor{bad}{HTML}{cf222e}
+\definecolor{ink}{HTML}{1f2328}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  citecolor=accent,
+}
+
+% Section headers — sharper, more compact than default.
+\titleformat{\section}{\normalfont\fontsize{12}{14}\bfseries\color{ink}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\fontsize{11}{13}\bfseries\color{ink}}{\thesubsection}{1em}{}
+\titlespacing*{\section}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{0.8ex plus 0.2ex}
+\titlespacing*{\subsection}{0pt}{1.2ex plus 0.3ex minus 0.2ex}{0.5ex plus 0.2ex}
+
+% Caption styling — bold label, smaller font.
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+
+% Tighter paragraph spacing.
+\setlength{\parskip}{2pt plus 1pt}
+\setlength{\parindent}{0pt}
+
+% Define a one-line key-finding callout box.
+\RequirePackage{tcolorbox}
+\newtcolorbox{finding}{
+  colback=accent!8,
+  colframe=accent,
+  boxrule=0.5pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=4pt,bottom=4pt,
+  before skip=6pt,after skip=6pt,
+}
+
+\endinput

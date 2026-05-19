@@ -31,6 +31,15 @@ figs/
 # compiled MP4s which are the actual deliverable)
 traces/
 
+# LaTeX build artifacts (keep main.tex, main.pdf, .bib, .sty)
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+
 # Logs
 logs/
 *.log
