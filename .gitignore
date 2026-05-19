@@ -62,3 +62,13 @@ Thumbs.db
 # Notebooks
 .ipynb_checkpoints/
 *.ipynb
+
+# React site build artifacts
+web-react/node_modules/
+web-react/dist/
+web-dist/assets/
+# (web-dist/index.html and the copied static media at web-dist/demos|paper|figs
+#  are intentionally not committed; they are reproducible via `npm run build`
+#  in web-react/. Keep the directory ignored entirely.)
+web-dist/
+.vite/

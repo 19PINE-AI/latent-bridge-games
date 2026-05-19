@@ -35,7 +35,8 @@ except ImportError:
     raise
 
 REPO_ROOT = Path(__file__).parent.parent
-WEB_DIR = REPO_ROOT / "web"
+# Prefer the React build (web-dist) when present; fall back to the static HTML.
+WEB_DIR = (REPO_ROOT / "web-dist") if (REPO_ROOT / "web-dist" / "index.html").exists() else (REPO_ROOT / "web")
 DEMOS_DIR = REPO_ROOT / "demos"
 TRACES_DIR = REPO_ROOT / "traces" / "demo"
 
