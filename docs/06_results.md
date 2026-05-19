@@ -406,6 +406,45 @@ optimal `vision_refresh_every` is a per-game hyperparameter trading perception
 latency for action latency; for action-heavy games like Atari we expect cache
 windows of 2-4 to be the sweet spot.
 
+## Robust Stage A on winning games — Phase 8 (2026-05-19)
+
+We applied the `--suffix-prob=0.5` Stage A retraining to the three games where
+L > T already worked, to test whether robust SA is **universally beneficial**
+or **targeted to OOD-collapsed games**.
+
+| Game | Bare F / T / L | Robust F / T / L | Direction |
+|---|---|---|---|
+| RoadRunner | 0 / 608 / **967** | 958 / **1000** / 925 | F recovered; T slightly > L |
+| MsPacman | 256 / 408 / **628** | 325 / 61 / 60 | **L collapsed** |
+| Seaquest | 42 / 63 / **80** | 20 / 0 / 0 | **L collapsed** |
+
+**Outcome: robust SA hurts the winners.** MsPacman and Seaquest lost their
+L > T results entirely — Stage A val_acc dropped (32 % → 33 %; 24 % → 19 %),
+Stage C KL rose, and the resulting L is no longer above F. The recipe that
+recovered SpaceInvaders and River Raid (where T/L had collapsed to 0)
+**hurts games where T/L was already winning**.
+
+**Lesson**: robust SA is *targeted*, not universal. Use it when:
+- T/L collapse to 0 or near-zero (the Stage A OOD-brittleness diagnosis)
+- F's bare-prompt accuracy is robustly above the random floor
+
+Don't use it when:
+- T/L already works with bare Stage A
+- The slight bare-prompt accuracy drop dominates the suffix-robustness gain
+
+**Surprise on RoadRunner**: F jumped from 0 to 958 under robust SA. This
+implies the original "F = 0" wasn't a fundamental policy-stuckness — it was
+Stage A overfitting to the exact bare-prompt structure. The robust head's
+prompt-augmentation regularization fixed F. L stayed similar (~925-967),
+suggesting the slow's contribution was bounded by the same regularization
+effect.
+
+The RoadRunner robust headline becomes: **F = 958, T = 1000, L = 925** — T
+beats L slightly, and the F = 0 → L = 967 inversion is no longer the
+demo's centerpiece. The bare-Stage-A RoadRunner remains the most visually
+striking result in the demos directory (and is honest — that *is* what
+happens with bare Stage A on RoadRunner).
+
 ## Stage D PPO on SpaceInvaders — mode collapse (driver works; tuning needed)
 
 Ran 20 PPO updates from the robust Stage A + Stage C v2 SI checkpoints
