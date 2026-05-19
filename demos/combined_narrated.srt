@@ -1,0 +1,54 @@
+1
+00:00:00,000 --> 00:00:13,608
+This is the Latent Bridge demo.
+We test whether a learned continuous latent connection between a fast
+reactive model and a slow reasoning model beats text-based coupling on
+
+2
+00:00:17,108 --> 00:00:39,932
+Road Runner: our cleanest result.
+The fast model alone cannot score — it has the reflexes but doesn't
+know which direction to commit.
+
+3
+00:00:53,442 --> 00:01:19,170
+Ms.
+Pacman: our original headline.
+Fast scores 256.
+
+4
+00:01:29,776 --> 00:01:53,848
+River Raid: the largest latent-text gap in our entire sweep — 82
+percent.
+Initial training showed the bridges collapsing.
+
+5
+00:02:04,910 --> 00:02:21,374
+Seaquest: 80 versus 63 — a 26 percent latent advantage.
+The latent policy is fully deterministic, locked into an eight-kill
+exploit pattern.
+
+6
+00:02:41,244 --> 00:03:14,532
+Q*bert reveals an exception to the bandwidth claim.
+Q*bert's strategy is fundamentally categorical — jump up-right to tile
+three-two.
+
+7
+00:03:17,578 --> 00:03:50,912
+Space Invaders gave us our most important methodology finding.
+All three knob-tuning attempts — random data, expert data, aggressive
+prompts — produced text and latent scores of zero, while fast alone
+
+8
+00:03:53,912 --> 00:04:09,296
+Enduro: smaller absolute scores because the underlying SB3 expert was
+weak, but the latent-over-text pattern still holds.
+Latent 5.8, text 4.9 — an 18 percent gap.
+
+9
+00:04:27,246 --> 00:04:50,262
+Across seven games, the latent bridge beats the text bridge by 18 to
+82 percent on continuous-content games, and loses to text only on the
+categorical exception, Q*bert.
+
