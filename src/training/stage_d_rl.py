@@ -355,9 +355,26 @@ def main():
     ap.add_argument("--out", default="checkpoints/stage_d/ppo.pt")
     ap.add_argument("--smoke-test", action="store_true",
                     help="single short rollout; verifies gradients flow")
+    ap.add_argument("--entropy-coef", type=float, default=None,
+                    help="Override PPOHyperparams.entropy_coef (default 0.01). "
+                         "Raise to 0.05-0.1 to prevent mode collapse on sparse-reward games.")
+    ap.add_argument("--lr-projection", type=float, default=None,
+                    help="Override LR for slow.projection")
+    ap.add_argument("--lr-action-head", type=float, default=None,
+                    help="Override LR for fast.action_head (smaller = slower collapse)")
+    ap.add_argument("--clip-range", type=float, default=None,
+                    help="Override PPO clip_range (default 0.1)")
     args = ap.parse_args()
 
     hp = PPOHyperparams(rollout_len=args.rollout_len)
+    if args.entropy_coef is not None:
+        hp.entropy_coef = args.entropy_coef
+    if args.lr_projection is not None:
+        hp.lr_projection = args.lr_projection
+    if args.lr_action_head is not None:
+        hp.lr_action_head = args.lr_action_head
+    if args.clip_range is not None:
+        hp.clip_range = args.clip_range
     if args.smoke_test:
         hp.rollout_len = 16
         hp.minibatch_size = 4
