@@ -389,13 +389,28 @@ Profile of `FastModel.predict_action` (Ms. Pac-Man, max_slice_nums=1):
 Remaining latency work (queued task): vision-token caching across consecutive frames
 (Atari changes ~1 px/tick) should cut ~50 ms.
 
-### Vision-token caching benchmark (F MsPacman, n=2 episodes per cell)
+### Vision-token caching benchmark (F MsPacman)
 
-| `vision_refresh_every` | Latency (ms) | Speedup vs baseline | Score |
-|---|---|---|---|
-| 1 (baseline, no cache) | 33 | — | 180 |
-| 4 (refresh every 4 ticks) | 20 | **−39 %** | 110 |
-| 15 (refresh every 15 ticks) | 17 | **−48 %** | 140 |
+Spot check (n=2 per cell, isolated GPU):
+| `vision_refresh_every` | Latency (ms) | Score |
+|---|---|---|
+| 1 | 33 | 180 |
+| 4 | 20 (−39 %) | 110 |
+| 15 | 17 (−48 %) | 140 |
+
+Larger sweep (n=12 per cell; 3 seeds × 4 eps; competing GPU workload):
+| `vision_refresh_every` | Latency (ms) | Score |
+|---|---|---|
+| 1 | 157 | 183 ± 4 |
+| 4 | 101 (−36 %) | 110 ± 0 |
+| 15 | 77 (−51 %) | 140 ± 0 |
+
+The *absolute* latencies differ between the two runs (isolated vs competing
+GPU) but the *relative* speedup is the same and the score pattern reproduces:
+vrf=1 highest score, vrf=4 lowest, vrf=15 middle. The 110/140 score
+non-monotonicity at vrf=4 vs vrf=15 reproduces with std=0 — it's a real
+artifact of how perception staleness interacts with this particular policy,
+not noise.
 
 The vision tower (SigLIP + resampler) is the dominant cost in the fast tick. Caching
 it across N consecutive ticks roughly halves per-tick latency. The score numbers are
@@ -476,6 +491,31 @@ should:
 
 Not run; PPO is engineering-heavy enough that one calibrated re-run is
 worth more than three uncalibrated ones.
+
+## Phase 9 gap-closers — partial (2026-05-19)
+
+Three gap-closer experiments queued; one completed, two infrastructure-blocked.
+
+**Latency sweep v2** (n=12 per cell): completed. Numbers above. Replaces the
+prior n=2 spot check; latencies are higher absolutely (157/101/77 vs prior
+33/20/17 ms) due to competing user workloads on the GPU, but relative
+speedup and score-vs-vrf pattern reproduce with std=0 — robust finding.
+
+**True pre-computed Oracle** (1024-token slow budget, MsPacman, n=3):
+infrastructure-blocked. OOM during slow.emit() when MiniCPM-o (18 GB) +
+Qwen3-VL-8B (17 GB) + 1024-token generation activations couldn't fit
+alongside the user's concurrent 60 GB of GPU workloads (LoRA fine-tune +
+judge + textworld training, none of which we have authorization to kill).
+A 256-token retry was queued but the user's workloads grew further (70 GB);
+even that didn't fit.
+
+**Stage D PPO retry** (entropy_coef=0.1, lr_action_head=5e-5, clip_range=0.2,
+SI): infrastructure-blocked at slow-model load — same OOM root cause as Oracle.
+
+Both await a window where the user's other GPU workloads release memory.
+The driver and hyperparameter changes are committed; once GPU has ~40 GB
+free, either experiment is a single command away. The paper can honestly
+flag these as "future work pending GPU availability."
 
 ## Negative findings worth keeping in the paper
 
