@@ -226,9 +226,10 @@ bridge-replacement control is the diagnostic that separates a genuinely informat
 \caption{\textbf{The latent bridge helps if and only if the slow model helps the task.}
 \emph{Left:} per-game latent benefit $L\!-\!F$ vs.\ text benefit $T\!-\!F$ across 7 Atari games
 and MetaDrive (driving), on a signed-$\sqrt{\cdot}$ axis (true reward deltas on the ticks).
-Points cluster on the $y\!=\!x$ diagonal (Pearson $r=0.97$, $n=8$); the bridge helps only in the
-upper-right quadrant ($T\!>\!F$ and $L\!>\!F$). MetaDrive (blue diamond) sits at the origin: neither
-channel beats fast-only. \emph{Right:} MetaDrive in both regimes---reactive lane-keeping and
+Points cluster on the $y\!=\!x$ diagonal (Pearson $r=0.97$, $n=8$; leave-one-out
+$r\!\in\![0.96,0.99]$, bootstrap 95\,\% CI $[0.81,1.0]$, Appendix~\ref{app:metadrive}); the
+bridge helps only in the upper-right quadrant ($T\!>\!F$ and $L\!>\!F$). MetaDrive (blue diamond)
+sits at the origin: neither channel beats fast-only. \emph{Right:} MetaDrive in both regimes---reactive lane-keeping and
 planning-heavy intersections---slow reasoning ($T$, $L$) never exceeds fast-only ($F$), even when
 the task demands route planning.}
 \label{fig:predictor}
@@ -776,5 +777,14 @@ to $0.004$) makes the distillation \emph{clean}---$L=T$ to the decimal under gre
 raise a ceiling set by a teacher that does not beat fast-only. The slow model's frame-grounded,
 $\sim$1.5\,s reasoning simply does not produce better driving decisions than the reactive policy,
 even when the task demands route planning.
+
+\paragraph{Robustness of the $r=0.97$ predictor.}
+The $(T\!-\!F, L\!-\!F)$ correlation (Figure~\ref{fig:predictor}) is not driven by any single
+game. Leave-one-out Pearson $r$ stays in $[0.963, 0.985]$ for all 8 deletions (dropping the
+RoadRunner high-leverage point gives $r=0.963$); the rank correlation is Spearman
+$\rho=0.95$; and a game-level bootstrap (10{,}000 resamples) gives a 95\,\% CI of
+$[0.81, 0.9995]$. Excluding both dynamic-range extremes (RoadRunner and River~Raid) still
+gives $r=0.85$ ($n=6$). The relationship is therefore not an artifact of the two
+large-magnitude points.
 
 \end{document}
