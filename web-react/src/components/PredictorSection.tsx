@@ -141,9 +141,12 @@ export default function PredictorSection() {
           L<sub>zero</sub> = {METADRIVE.control.Lzero} ·
           L<sub>random</sub> = {METADRIVE.control.Lrandom}.
           Replacing the trained latent with zeros or random vectors does <strong>not</strong>
-          lower the score — the latent is <strong>inert</strong>. Contrast MsPacman, where
-          L<sub>trained</sub>=628 ≫ L<sub>random</sub>=387. This is the diagnostic that
-          separates a real latent channel from a hollow one.
+          lower the score — the latent is <strong>inert</strong>. Run on all 7 Atari games, this
+          control shows the trained latent carries real learned content (L<sub>trained</sub> ≫
+          L<sub>random</sub>) on exactly the games where slow reasoning helps (RoadRunner 967 vs 8,
+          Seaquest 100 vs 5, MsPacman 666 vs 410) and is inert/harmful where it does not
+          (River Raid, Space Invaders) — so even <em>how much of L is learned</em> is governed
+          by the T &gt; F predictor.
         </div>
       </div>
     </div>

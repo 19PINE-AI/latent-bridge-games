@@ -79,7 +79,13 @@ def _run_episode(strategy: str,
         env = MetaDriveWrapper(seed=seed)
     else:
         env = AtariEnv(game_name=game, seed=seed)
-    obs, _ = env.reset(seed=seed)
+    # AtariEnv.reset() takes no seed (seeded via constructor); the MetaDrive/Highway/
+    # MiniGrid wrappers accept reset(seed=...). Dispatch by signature so both work.
+    import inspect
+    if "seed" in inspect.signature(env.reset).parameters:
+        obs, _ = env.reset(seed=seed)
+    else:
+        obs, _ = env.reset()
     if vision_refresh_every > 1:
         fast.reset_vision_cache()
 
