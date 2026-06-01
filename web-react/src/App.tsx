@@ -7,6 +7,7 @@ import GameGrid from "./components/GameGrid";
 import ArchitectureSection from "./components/ArchitectureSection";
 import DiagnosisSection from "./components/DiagnosisSection";
 import ContinuousVsCategorical from "./components/ContinuousVsCategorical";
+import PredictorSection from "./components/PredictorSection";
 import SlowEmissionSamples from "./components/SlowEmissionSamples";
 import ReproSection from "./components/ReproSection";
 import StrategiesTable from "./components/StrategiesTable";
@@ -37,9 +38,15 @@ export default function App() {
         </Section>
 
         <Section id="continuous-vs-categorical"
-                 title="When does latent beat text?"
-                 subtitle="A quantitative axis: lexical diversity of slow-model emissions predicts the sign of L − T a priori, no Stage C training required.">
+                 title="A predictor that fails: lexical diversity"
+                 subtitle="We hoped lexical diversity of slow-model emissions would predict the sign of L − T a priori. It does not (Pearson r ≈ 0.05) — reported as an honest negative.">
           <ContinuousVsCategorical />
+        </Section>
+
+        <Section id="predictor"
+                 title="When is a latent bridge worth it? (incl. a non-Atari domain)"
+                 subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.97. MetaDrive is a controlled negative.">
+          <PredictorSection />
         </Section>
 
         <Section id="emissions"

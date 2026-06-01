@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import time
+from collections import deque
 from pathlib import Path
 from typing import Optional
 
@@ -54,17 +55,31 @@ def _run_episode(strategy: str,
                  slow: Optional[SlowModel],
                  fast_checkpoint: Optional[str],
                  stop_action_policy: str = "argmax",
+                 action_temperature: float = 1.0,
                  max_slow_tokens: int = 64,
                  vision_refresh_every: int = 1,
                  trace_dir: Optional[str] = None,
+                 text_suffix_window: int = 1,
+                 bridge_replace: str = "none",
                  ) -> dict:
     """Run one episode under one strategy on one (game, seed) cell. Returns metrics."""
     legal = legal_action_mask(game)
     legal_indices = legal.nonzero(as_tuple=True)[0].tolist()
     rng = np.random.default_rng(seed)
 
-    env = AtariEnv(game_name=game, seed=seed)
-    obs, _ = env.reset()
+    if game.startswith("MiniGrid"):
+        from src.env.minigrid_wrapper import MiniGridEnv
+        env_id = game if game != "MiniGrid" else "MiniGrid-FourRooms-v0"
+        env = MiniGridEnv(game_name=env_id, seed=seed)
+    elif game == "Highway":
+        from src.env.highway_wrapper import HighwayEnv
+        env = HighwayEnv(seed=seed)
+    elif game == "MetaDrive":
+        from src.env.metadrive_wrapper import MetaDriveWrapper
+        env = MetaDriveWrapper(seed=seed)
+    else:
+        env = AtariEnv(game_name=game, seed=seed)
+    obs, _ = env.reset(seed=seed)
     if vision_refresh_every > 1:
         fast.reset_vision_cache()
 
@@ -78,6 +93,8 @@ def _run_episode(strategy: str,
     latest_slow_text: Optional[str] = None
     # v2: bridge tokens from the most-recent slow emission (no long buffer)
     latest_bridge_tokens: Optional[torch.Tensor] = None
+    # Rolling window of the last N slow emissions (for --text-suffix-window > 1)
+    recent_slow_texts: deque[str] = deque(maxlen=max(1, text_suffix_window))
     tick_latencies_ms = []
     cumulative_reward = 0.0
     n_slow_emissions = 0
@@ -95,11 +112,17 @@ def _run_episode(strategy: str,
                     vision_refresh_every=vision_refresh_every,
                 )
         elif strategy == "T":
+            # If text_suffix_window > 1, concatenate the last N emissions
+            # (oldest first → newest last) so the head sees a longer T budget.
+            if text_suffix_window > 1 and len(recent_slow_texts) > 1:
+                suffix = " ".join(recent_slow_texts)
+            else:
+                suffix = latest_slow_text
             with torch.no_grad():
                 logits = fast.predict_action(
                     obs, thought_tokens=None,
                     legal_action_mask=legal,
-                    slow_text_suffix=latest_slow_text,
+                    slow_text_suffix=suffix,
                     vision_refresh_every=vision_refresh_every,
                 )
         elif strategy == "L":
@@ -116,7 +139,9 @@ def _run_episode(strategy: str,
         if stop_action_policy == "argmax":
             global_action = int(logits.argmax(dim=-1).item())
         elif stop_action_policy == "sample":
-            probs = torch.softmax(logits, dim=-1).squeeze(0)
+            # Temperature-scaled sampling: lower T = sharper, higher T = more diffuse
+            scaled = logits / max(action_temperature, 1e-6)
+            probs = torch.softmax(scaled, dim=-1).squeeze(0)
             global_action = int(torch.multinomial(probs, 1).item())
         else:
             global_action = int(rng.choice(legal_indices))
@@ -141,9 +166,20 @@ def _run_episode(strategy: str,
                 return_raw_residuals=False,
             )
             latest_slow_text = emit_text
+            recent_slow_texts.append(emit_text)
             emit_text_this_tick = emit_text
             if emit_bridge.numel() > 0:
-                latest_bridge_tokens = emit_bridge.unsqueeze(0)  # [1, N, D]
+                bridge = emit_bridge.unsqueeze(0)  # [1, N, D]
+                if bridge_replace == "random":
+                    # Replace with random tokens at matched per-position L2 norm.
+                    norms = bridge.norm(dim=-1, keepdim=True)  # [1, N, 1]
+                    rand = torch.randn_like(bridge)
+                    rand = rand * (norms / (rand.norm(dim=-1, keepdim=True) + 1e-9))
+                    bridge = rand
+                elif bridge_replace == "zero":
+                    bridge = torch.zeros_like(bridge)
+                # "none" → use trained bridge as is
+                latest_bridge_tokens = bridge
             n_slow_emissions += 1
 
         # --- Trace logging ---
@@ -231,6 +267,26 @@ def main():
                     help="Refresh the vision tower (SigLIP + resampler) every N "
                          "fast ticks; 1 = every tick (default). Higher = faster but "
                          "the model sees stale visual context.")
+    ap.add_argument("--text-suffix-window", type=int, default=1,
+                    help="For strategy T: how many of the most-recent slow "
+                         "emissions to concatenate as the text suffix. "
+                         "Default 1 (paper baseline). Higher gives T more text "
+                         "budget for the bandwidth-thesis falsifier.")
+    ap.add_argument("--action-policy", choices=("argmax", "sample"),
+                    default="argmax",
+                    help="Action selection: 'argmax' (paper default; "
+                         "deterministic given env seed) or 'sample' (multinomial "
+                         "from softmax(logits/temperature)).")
+    ap.add_argument("--action-temperature", type=float, default=1.0,
+                    help="Temperature for sampling (only used when "
+                         "--action-policy=sample). Default 1.0.")
+    ap.add_argument("--bridge-replace", choices=("none", "random", "zero"),
+                    default="none",
+                    help="L strategy control: 'none' (paper default), "
+                         "'random' replaces trained bridge tokens with random "
+                         "embeddings at the same per-position L2 norm, 'zero' "
+                         "replaces with zeros. Tests whether trained bridge "
+                         "tokens carry information.")
     ap.add_argument("--save-trace-dir", default=None,
                     help="If set, per-episode subdirectories are created under this "
                          "path containing per-tick frame_XXXXX.npz files and an "
@@ -322,10 +378,13 @@ def main():
                         max_ticks=args.max_ticks,
                         fast=fast, slow=slow,
                         fast_checkpoint=args.fast_ckpt,
-                        stop_action_policy="argmax",
+                        stop_action_policy=args.action_policy,
+                        action_temperature=args.action_temperature,
                         max_slow_tokens=args.max_slow_tokens,
                         vision_refresh_every=args.vision_refresh_every,
                         trace_dir=args.save_trace_dir,
+                        text_suffix_window=args.text_suffix_window,
+                        bridge_replace=args.bridge_replace,
                     )
                     cells.append(result)
                     print(f"    score={result['score']:.0f} ticks={result['ticks']} "

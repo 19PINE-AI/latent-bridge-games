@@ -205,6 +205,42 @@ export const SUMMARY = {
   largestGapGame: "River Raid (robust SA)",
 } as const;
 
+// The behavioural predictor: latent benefit (L−F) vs text benefit (T−F) across
+// 7 Atari games + a non-Atari driving domain (MetaDrive). Numbers read from the
+// eval JSONs; canonical per-game variant. MetaDrive uses the planning-heavy regime.
+// Pearson r(T−F, L−F) = 0.97 (n=8).
+export interface PredictorPoint {
+  game: string;
+  domain: "atari" | "driving";
+  F: number; T: number; L: number;
+  TmF: number;  // T − F : does slow reasoning beat fast-only?
+  LmF: number;  // L − F : does the latent bridge beat fast-only?
+}
+
+export const PREDICTOR: PredictorPoint[] = [
+  { game: "RoadRunner",    domain: "atari",   F: 0.0,    T: 608.3, L: 966.7, TmF: 608.3, LmF: 966.7 },
+  { game: "MsPacman",      domain: "atari",   F: 255.8,  T: 407.5, L: 628.3, TmF: 151.7, LmF: 372.5 },
+  { game: "Qbert",         domain: "atari",   F: 25.0,   T: 125.0, L: 50.0,  TmF: 100.0, LmF: 25.0  },
+  { game: "Seaquest",      domain: "atari",   F: 41.7,   T: 63.3,  L: 80.0,  TmF: 21.7,  LmF: 38.3  },
+  { game: "Enduro",        domain: "atari",   F: 3.2,    T: 0.0,   L: 7.8,   TmF: -3.2,  LmF: 4.5   },
+  { game: "MetaDrive",     domain: "driving", F: 87.8,   T: 85.1,  L: 85.1,  TmF: -2.7,  LmF: -2.7  },
+  { game: "SpaceInvaders", domain: "atari",   F: 105.0,  T: 0.0,   L: 0.0,   TmF: -105.0, LmF: -105.0 },
+  { game: "Riverraid",     domain: "atari",   F: 1066.7, T: 383.3, L: 360.0, TmF: -683.3, LmF: -706.7 },
+];
+
+export const PREDICTOR_R = 0.97;
+
+// MetaDrive (non-Atari driving) — the controlled negative. Numbers from the
+// eval JSONs (n=8, robust head). The bridge-replacement control shows the latent
+// is inert: zeroing/randomising it does not lower the score.
+export const METADRIVE = {
+  reactive: { F: 71.2, T: 69.5, L: 69.5 },        // greedy, default lane-keeping map (matched teacher)
+  planningGreedy: { F: 87.8, T: 85.1, L: 85.1 },  // SXSXSX map, greedy
+  planningSample: { F: 123.2, T: 43.5, L: 36.7 }, // SXSXSX map, sample τ=1
+  control: { L: 85.1, Lzero: 89.5, Lrandom: 97.2 }, // planning greedy bridge-replace
+  expertReward: 211, randomReward: 8,
+} as const;
+
 // Per-game slow-emission statistics (seed-0 T-trajectory) — the
 // quantitative axis for the continuous-vs-categorical claim.
 export interface EmissionStats {

@@ -259,7 +259,8 @@ def fig_headline():
 
     ax.set_xticks(x); ax.set_xticklabels(games, fontsize=8)
     ax.set_ylabel("Mean episode score  (95% bootstrap CI; n=12)")
-    ax.set_title("Cross-game F/T/L. L > T on 4 games (***/**); Q*bert inverts (T > L, ***).  "
+    ax.set_title("Cross-game F/T/L (reported variant per game).  "
+                 "L beats T on 4 games; Q*bert inverts; 2 games are ties.  "
                  "Asterisks (*) tag robust-SA variants.",
                  fontsize=9.5)
     ax.legend(loc="upper right", frameon=False, ncol=3, fontsize=7.5)
@@ -371,13 +372,20 @@ def fig_bandwidth():
     ax.axhline(256, color=C_F, ls="--", lw=1, label="F baseline (256)")
     ax.axhline(408, color=C_T, ls="--", lw=1, label="T baseline (408)")
     ax.set_xscale("log", base=2)
+    # Deploy-only series: train at N=8, deploy at N
+    L_deploy_means = [232, 628, 720]
+    L_deploy_errs  = [52,  341, 123]
+    ax.errorbar(Ns, L_deploy_means, yerr=L_deploy_errs, fmt="s--", color=C_ACC,
+                capsize=4, lw=1.2, markersize=7, alpha=0.85,
+                label="L score (deploy-only: train=8, deploy=N)")
     ax.set_xticks(Ns)
     ax.set_xticklabels(Ns)
     ax.set_xlabel("Bridge bandwidth N (latent tokens per emission)")
     ax.set_ylabel("L score (mean ± std)")
-    ax.set_title("Bandwidth is Goldilocks: N=4 too few, N=16 too many",
-                 fontsize=10)
-    ax.legend(loc="upper right", frameon=False)
+    ax.set_title("Matched-N suggests Goldilocks at N=8;\n"
+                 "deploy-only series inverts it (best at N=16). 3 points fit either story.",
+                 fontsize=9.5)
+    ax.legend(loc="upper right", frameon=False, fontsize=7.5)
     fig.tight_layout()
     fig.savefig(OUT / "fig_bandwidth.pdf")
     fig.savefig(OUT / "fig_bandwidth.png", dpi=200)
@@ -454,10 +462,12 @@ def fig_continuous_vs_categorical():
     ax.set_xlabel("Lexical diversity of slow emissions  "
                   "(unique whitespace tokens / emission)")
     ax.set_ylabel("(L − T) / T")
-    ax.set_title("Refined bandwidth claim, quantitative axis:\n"
-                 "L > T when slow's content is lexically diverse (continuous-rich).",
+    # Compute Pearson r for honest annotation
+    r = float(np.corrcoef(xs, ys)[0, 1]) if len(xs) >= 2 else float("nan")
+    ax.set_title(f"No quantitative predictor at n={len(xs)}: Pearson r = {r:+.2f}.\n"
+                 "Q*bert inverts, but Enduro and River Raid (lower diversity) do not.",
                  fontsize=9.5)
-    ax.legend(loc="lower right", frameon=False, fontsize=7.5)
+    ax.legend(loc="upper left", frameon=False, fontsize=7.5)
     fig.tight_layout()
     fig.savefig(OUT / "fig_continuous_vs_categorical.pdf")
     fig.savefig(OUT / "fig_continuous_vs_categorical.png", dpi=200)
@@ -495,6 +505,99 @@ def fig_latency():
     print("wrote fig_latency.{pdf,png}")
 
 
+# ---------------------------------------------------------------------------
+# Figure 8 — The L>T predictor: latent helps iff slow guidance helps (T>F),
+#            with MetaDrive (driving) as the controlled negative.
+# ---------------------------------------------------------------------------
+def fig_predictor():
+    data_path = OUT / "predictor_data.json"
+    if not data_path.exists():
+        print("fig_predictor: no predictor_data.json, skipping"); return
+    d = json.loads(data_path.read_text())
+    rows = d["rows"]; r = d["pearson"]; n = d["n"]
+
+    fig, (ax, axb) = plt.subplots(
+        1, 2, figsize=(7.4, 3.4), gridspec_kw={"width_ratios": [2.05, 1.0]})
+
+    # ---- left: scatter L-F vs T-F ----
+    xs = np.array([row["TmF"] for row in rows], float)
+    ys = np.array([row["LmF"] for row in rows], float)
+    # symmetric log-ish scaling: use signed-sqrt so the huge RoadRunner point
+    # doesn't crush the cluster near zero, while keeping sign + ordering honest.
+    def sst(v):
+        return np.sign(v) * np.sqrt(np.abs(v))
+    X, Y = sst(xs), sst(ys)
+
+    lim = max(np.abs(X).max(), np.abs(Y).max()) * 1.18
+    # quadrant shading: upper-right = bridge helps (T>F and L>F)
+    ax.axhspan(0, lim, xmin=0.5, xmax=1.0, color=C_GOOD, alpha=0.06, zorder=0)
+    ax.axhline(0, color="0.5", lw=0.8, zorder=1)
+    ax.axvline(0, color="0.5", lw=0.8, zorder=1)
+    # y=x reference (L tracks T)
+    ax.plot([-lim, lim], [-lim, lim], ls=":", color="0.55", lw=1.0,
+            zorder=1, label="$L\\!-\\!F = T\\!-\\!F$")
+
+    for row in rows:
+        x, y = sst(row["TmF"]), sst(row["LmF"])
+        is_md = row["game"] == "MetaDrive"
+        col = C_L if (row["LmF"] > 0 and row["TmF"] > 0) else (
+              C_BAD if row["LmF"] < -1 else C_F)
+        if is_md:
+            ax.scatter([x], [y], s=120, marker="D", facecolor="white",
+                       edgecolor=C_ACC, linewidth=1.8, zorder=5)
+        else:
+            ax.scatter([x], [y], s=70, color=col, edgecolor="white",
+                       linewidth=0.8, zorder=4)
+        # label placement
+        dx, dy = 0.06 * lim, 0.06 * lim
+        ha = "left"
+        if row["game"] in ("SpaceInvaders", "Riverraid"):
+            dy = -0.12 * lim
+        if row["game"] == "RoadRunner":
+            dx = -0.06 * lim; ha = "right"
+        lab = row["game"] + ("  (driving)" if is_md else "")
+        ax.annotate(lab, (x, y), (x + dx, y + dy), fontsize=7.0,
+                    ha=ha, color=(C_ACC if is_md else "0.2"),
+                    fontweight=("bold" if is_md else "normal"), zorder=6)
+
+    ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim)
+    # honest tick labels: ticks live in signed-sqrt space, but show TRUE reward deltas
+    true_ticks = [-700, -100, -10, 0, 10, 100, 700]
+    tk = [sst(v) for v in true_ticks]
+    lab = [("0" if v == 0 else f"{v:+d}") for v in true_ticks]
+    ax.set_xticks(tk); ax.set_xticklabels(lab, fontsize=7)
+    ax.set_yticks(tk); ax.set_yticklabels(lab, fontsize=7)
+    ax.set_xlabel("Text bridge benefit  $T-F$   (signed-$\\sqrt{\\cdot}$ axis)")
+    ax.set_ylabel("Latent bridge benefit  $L-F$")
+    ax.set_title(f"Latent helps iff slow reasoning helps  ($r={r:.2f}$, $n={n}$)")
+    # annotate quadrant
+    ax.text(0.97 * lim, 0.10 * lim, "bridge\nhelps", fontsize=7.5,
+            color=C_GOOD, ha="right", va="bottom", style="italic")
+    ax.text(-0.97 * lim, -0.10 * lim, "bridge\nhurts", fontsize=7.5,
+            color=C_BAD, ha="left", va="top", style="italic")
+    ax.legend(loc="upper left", frameon=False, fontsize=7.0)
+
+    # ---- right: MetaDrive reactive vs planning, F/T/L ----
+    # both MetaDrive regimes: slow never beats F regardless of planning demand.
+    groups = ["Reactive\nlane-keep", "Planning\nintersections"]
+    F_vals = [71.2, 87.8]; T_vals = [69.5, 85.1]; L_vals = [69.5, 85.1]
+    x = np.arange(len(groups)); w = 0.26
+    axb.bar(x - w, F_vals, w, color=C_F, label="F (fast)")
+    axb.bar(x,     T_vals, w, color=C_T, label="T (text)")
+    axb.bar(x + w, L_vals, w, color=C_L, label="L (latent)")
+    axb.set_xticks(x); axb.set_xticklabels(groups, fontsize=7.2)
+    axb.set_ylabel("Driving reward")
+    axb.set_title("MetaDrive: slow adds\nnothing, even with planning", fontsize=8.6)
+    axb.legend(loc="upper left", frameon=False, fontsize=6.8, ncol=1)
+    axb.set_ylim(0, 118)
+
+    fig.tight_layout()
+    fig.savefig(OUT / "fig_predictor.pdf")
+    fig.savefig(OUT / "fig_predictor.png", dpi=200)
+    plt.close(fig)
+    print("wrote fig_predictor.{pdf,png}")
+
+
 if __name__ == "__main__":
     fig_architecture()
     fig_headline()
@@ -503,4 +606,5 @@ if __name__ == "__main__":
     fig_bandwidth()
     fig_continuous_vs_categorical()
     fig_latency()
+    fig_predictor()
     print("\nall figures written to:", OUT)

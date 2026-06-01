@@ -77,10 +77,10 @@ export default function ContinuousVsCategorical() {
           </ResponsiveContainer>
         </div>
         <p className="text-[11px] text-muted mt-2 leading-snug">
-          n = 7 points (one per evaluable game variant); linear fit slope ≈ +0.08 per
-          diversity unit, Pearson r ≈ 0.36. With this few points the trend is suggestive,
-          not conclusive — but Q*bert (lowest diversity, only T-win) and RoadRunner (highest
-          diversity, +59 % L-win) are the predicted endpoints.
+          n = 7 points (one per evaluable game variant); Pearson r ≈ 0.05 (slope ≈ +0.008 per
+          diversity unit, not significant). We report this as a <em>negative</em> result: lexical
+          diversity does <strong>not</strong> predict the sign of L − T a priori. The predictor
+          that <em>does</em> hold is behavioural (next section): L helps iff T &gt; F.
         </p>
       </div>
 

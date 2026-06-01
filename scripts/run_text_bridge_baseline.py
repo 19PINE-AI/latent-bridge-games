@@ -61,7 +61,7 @@ def main():
     ap.add_argument("--slow-max-tokens", type=int, default=128,
                     help="max tokens per slow emission")
     ap.add_argument("--out", default=None, help="trajectory .pt output path")
-    ap.add_argument("--action-policy", choices=("zero-head", "random-legal", "sb3-expert"),
+    ap.add_argument("--action-policy", choices=("zero-head", "random-legal", "sb3-expert", "md-expert"),
                     default="random-legal",
                     help="At init the fast action_head outputs zeros; 'random-legal' "
                          "samples from legal actions for varied demo data. "
@@ -120,8 +120,19 @@ def main():
             capacity=16, dim=bridge_dim, device="cuda", dtype=torch.bfloat16,
         )
 
-        env = AtariEnv(game_name=args.game, seed=ep_seed)
-        obs, _ = env.reset()
+        if args.game.startswith("MiniGrid"):
+            from src.env.minigrid_wrapper import MiniGridEnv
+            env_id = args.game if args.game != "MiniGrid" else "MiniGrid-FourRooms-v0"
+            env = MiniGridEnv(game_name=env_id, seed=ep_seed)
+        elif args.game == "Highway":
+            from src.env.highway_wrapper import HighwayEnv
+            env = HighwayEnv(seed=ep_seed)
+        elif args.game == "MetaDrive":
+            from src.env.metadrive_wrapper import MetaDriveWrapper
+            env = MetaDriveWrapper(seed=ep_seed)
+        else:
+            env = AtariEnv(game_name=args.game, seed=ep_seed)
+        obs, _ = env.reset(seed=ep_seed)
 
         sb3_view_env = None
         sb3_obs = None
@@ -155,6 +166,16 @@ def main():
                 # We track global actions in the trace for consistency with the
                 # global action head. Reverse-map local→global via legal_indices.
                 from src.training.imitation_data import GAME_ACTION_TO_GLOBAL
+                global_action = GAME_ACTION_TO_GLOBAL[args.game][local_action]
+            elif args.action_policy == "md-expert":
+                # MetaDrive's built-in PPO expert -> nearest discrete local action,
+                # with epsilon exploration so the bridge sees off-expert states too.
+                from src.env.metadrive_wrapper import expert_action_idx
+                from src.training.imitation_data import GAME_ACTION_TO_GLOBAL
+                if rng.random() < args.epsilon:
+                    local_action = int(rng.integers(0, env.action_space_size))
+                else:
+                    local_action = expert_action_idx(env)
                 global_action = GAME_ACTION_TO_GLOBAL[args.game][local_action]
             else:
                 global_action = int(rng.choice(legal_indices))

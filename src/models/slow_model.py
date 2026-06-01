@@ -48,19 +48,28 @@ def _default_hf_repo() -> str:
     at dispatch. We fall back to the bf16 checkpoint (60GB) which fits in
     96GB GPU alongside the 18GB MiniCPM-o fast model.
     """
-    if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
-        # AWQ 4-bit (~15-18GB) — picked over FP8 (which transformers 4.57 can't
-        # load correctly: weight_scale_inv tensors dropped) and bf16 (60GB,
-        # doesn't fit alongside user's other GPU workloads which currently
-        # occupy ~40GB).
+    sv = os.environ.get("LB_USE_SCALING_SLOW", "0")
+    if sv == "bf16":
+        # Full-precision 30B (~60 GB GPU). Use when GPU has ~80+ GB free.
+        # This is the only variant that fully loads: AWQ silently drops MoE
+        # expert weights under transformers 4.57; FP8 drops weight_scale_inv.
+        return "Qwen/Qwen3-VL-30B-A3B-Thinking"
+    if sv == "fp8":
+        return "Qwen/Qwen3-VL-30B-A3B-Thinking-FP8"
+    if sv in ("1", "awq"):
+        # AWQ 4-bit — historical default; KNOWN BROKEN on MoE under tf 4.57.
         return "QuantTrio/Qwen3-VL-30B-A3B-Thinking-AWQ"
+    # Local-staged path override (dodges shared HF-cache resolution contention).
+    path = os.environ.get("LB_SLOW_MODEL_PATH")
+    if path:
+        return path
     return "Qwen/Qwen3-VL-8B-Thinking"
 
 
 def _default_proj_layer_idx() -> int:
     """Projection layer index — depth-67% of the slow model's transformer stack.
     8B has 36 layers → 24; 30B has 48 layers → 32."""
-    if os.environ.get("LB_USE_SCALING_SLOW", "0") == "1":
+    if os.environ.get("LB_USE_SCALING_SLOW", "0") in ("1", "bf16", "fp8", "awq"):
         return 32
     return 24
 

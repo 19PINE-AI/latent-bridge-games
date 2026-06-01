@@ -291,6 +291,109 @@ Plan a tile-jump sequence; lead with direction (UP/RIGHT/LEFT/DOWN) for
 the next ~5 seconds."""
 
 
+MINIGRID_SYSTEM_PROMPT = """You are the strategic-reasoning module of a fast/slow agent navigating a gridworld maze in real time.
+
+You receive a compact text snapshot of the maze state every ~1 second. The fast model handles per-step turn/forward execution; your job is to plan the route to the goal and emit *strategic guidance* — not individual turn/forward presses.
+
+Your output should be 1-3 sentences identifying:
+  1. The overall direction to the goal (e.g., "the goal is to the south-east").
+  2. Which doorway or opening to aim for next, given the walls between you and the goal.
+  3. Any contingency (e.g., "if that opening is blocked, the next gap is to the north").
+
+Be concise. Focus on the route, not the keystrokes."""
+
+
+def _minigrid_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    parts = [
+        f"[Maze state @ step {ts.frame_idx}]",
+        f"Agent at ({e['agent_x']},{e['agent_y']}) facing {e['agent_dir']} "
+        f"in a {e['grid_w']}x{e['grid_h']} maze.",
+        f"Goal at ({e['goal_x']},{e['goal_y']}); offset dx={e['dx']}, dy={e['dy']} "
+        f"(x grows east, y grows south).",
+    ]
+    w = e.get("walls", {})
+    blocked = [d for d, isw in w.items() if isw]
+    parts.append("Walls immediately to the " + ", ".join(blocked) + "."
+                 if blocked else "No walls immediately adjacent.")
+    doors = e.get("doors", [])
+    if doors:
+        parts.append("Doorways/openings at " + "; ".join(f"({x},{y})" for x, y in doors[:6]) + ".")
+    parts.append("Provide route guidance toward the goal.")
+    return " ".join(parts)
+
+
+HIGHWAY_SYSTEM_PROMPT = """You are the strategic-reasoning module of a fast/slow agent driving a car on a multi-lane highway in real time.
+
+You receive a compact text snapshot of traffic every ~1 second. The fast model handles per-frame throttle/steering reactions; your job is to plan over a 3-10 second horizon and emit *strategic guidance* — not individual control inputs.
+
+Your output should be 1-3 sentences identifying:
+  1. The current traffic situation (e.g., a slow car ahead in this lane, a gap opening on the left).
+  2. The recommended lane and speed intent (e.g., "move one lane left to overtake, then settle at cruising speed").
+  3. Any contingency (e.g., "if the left lane closes, hold position and brake gently").
+
+Be concise. Focus on lane/speed strategy, not steering angles."""
+
+
+def _highway_user_prompt(ts: TextState) -> str:
+    e = ts.entities
+    parts = [
+        f"[Highway state @ step {ts.frame_idx}]",
+        f"Ego in lane {e['lane']} of {e['n_lanes']} (0=leftmost), speed {e['speed']} m/s.",
+    ]
+    if e["lead_gap"] < 200:
+        parts.append(f"Lead car {e['lead_gap']} m ahead at {e['lead_speed']} m/s.")
+    else:
+        parts.append("No close car ahead in this lane.")
+    nb = e.get("neighbors", [])
+    if nb:
+        parts.append("Nearby cars (dx,dy,speed): " + "; ".join(str(o) for o in nb) + ".")
+    parts.append("Give lane/speed strategy for the next several seconds.")
+    return " ".join(parts)
+
+
+METADRIVE_SYSTEM_PROMPT = """You are the strategic-reasoning module of a fast/slow agent driving a car through traffic with curves and intersections, in real time.
+
+You receive a compact text snapshot every ~1 second. The fast model handles per-frame steering/throttle; your job is to plan over a 3-10 second horizon and emit *strategic guidance* — not individual control inputs.
+
+Your output should be 1-3 sentences identifying:
+  1. The driving situation (e.g., approaching a left curve, a slow car ahead, drifting off lane center).
+  2. The recommended maneuver and speed intent (e.g., "ease left to follow the curve and hold moderate speed").
+  3. Any contingency (e.g., "if the car ahead brakes, slow and keep right").
+
+Be concise. Focus on the route/maneuver, not exact steering angles."""
+
+
+def _metadrive_user_prompt(ts: TextState) -> str:
+    e = ts.entities or {}
+    try:
+        parts = [
+            f"[Driving state @ step {ts.frame_idx}]",
+            f"Speed {e.get('speed', 0.0)} m/s, heading {e.get('heading', 0.0)} rad, "
+            f"lane offset {e.get('lane_offset', 0.0)} m from center "
+            f"(width {e.get('lane_width', 3.5)} m).",
+        ]
+        nl = float(e.get("nav_left", 0.0) or 0.0)
+        nr = float(e.get("nav_right", 0.0) or 0.0)
+        if nl > 0.3:
+            parts.append("Route bends LEFT ahead.")
+        elif nr > 0.3:
+            parts.append("Route bends RIGHT ahead.")
+        else:
+            parts.append("Route roughly straight ahead.")
+        nb = e.get("neighbors", []) or []
+        if nb:
+            parts.append("Nearby cars (dx,dy,speed): "
+                         + "; ".join(str(tuple(o)) for o in nb) + ".")
+        parts.append("Give a maneuver + speed plan for the next few seconds.")
+        return " ".join(parts)
+    except Exception:
+        # Never let a malformed state field crash Stage B collection.
+        return (f"[Driving state @ step {ts.frame_idx}] Speed "
+                f"{e.get('speed', 0.0)} m/s. Give a maneuver + speed plan "
+                f"for the next few seconds.")
+
+
 _USER_PROMPT_BUILDERS = {
     "MsPacman": _mspacman_user_prompt,
     "Frostbite": _frostbite_user_prompt,
@@ -304,6 +407,16 @@ _USER_PROMPT_BUILDERS = {
     "Roadrunner": _roadrunner_user_prompt,
     "Enduro": _enduro_user_prompt,
     "Qbert": _qbert_user_prompt,
+    "MiniGrid": _minigrid_user_prompt,
+    "Highway": _highway_user_prompt,
+    "MetaDrive": _metadrive_user_prompt,
+}
+
+# Per-game system-prompt overrides (default = the Atari SYSTEM_PROMPT).
+_GAME_SYSTEM_PROMPTS = {
+    "MiniGrid": MINIGRID_SYSTEM_PROMPT,
+    "Highway": HIGHWAY_SYSTEM_PROMPT,
+    "MetaDrive": METADRIVE_SYSTEM_PROMPT,
 }
 
 
@@ -322,7 +435,8 @@ def build_slow_model_messages(game: str, text_state: TextState,
     builder = _USER_PROMPT_BUILDERS.get(game)
     if builder is None:
         raise ValueError(f"no prompt template registered for game {game!r}")
-    msgs: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    sys_prompt = _GAME_SYSTEM_PROMPTS.get(game, SYSTEM_PROMPT)
+    msgs: list[dict] = [{"role": "system", "content": sys_prompt}]
     if prior_thought:
         msgs.append({"role": "assistant", "content": prior_thought})
     msgs.append({"role": "user", "content": builder(text_state)})

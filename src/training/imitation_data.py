@@ -59,6 +59,25 @@ _GAME_ACTION_NAMES = {
     "Roadrunner": GLOBAL_ACTION_NAMES,
     "Enduro": ("NOOP", "FIRE", "RIGHT", "LEFT", "DOWN",
                "DOWNRIGHT", "DOWNLEFT", "RIGHTFIRE", "LEFTFIRE"),
+    # Non-Atari cross-domain. MiniGrid native nav actions in order
+    # {0:turn_left, 1:turn_right, 2:forward} mapped to 3 distinct global slots
+    # (UP/RIGHT/LEFT chosen only as free indices; semantics are irrelevant — the
+    # model learns frame->index. Avoids NOOP(0)/FIRE(1) so the illegal-fallback
+    # to 0 never collides with a real action).
+    "MiniGrid": ("UP", "RIGHT", "LEFT"),
+    # highway-env: 9 discrete (throttle x steer) combos in DISCRETE_ACTIONS order
+    # (brake/coast/accel x left/straight/right). Mapped to a directional analog:
+    # accel=UP, brake=DOWN, steer=LEFT/RIGHT. Order must match
+    # src/env/highway_wrapper.py DISCRETE_ACTIONS (t_i*3 + s_i).
+    "Highway": ("DOWNLEFT", "DOWN", "DOWNRIGHT",
+                "LEFT", "NOOP", "RIGHT",
+                "UPLEFT", "UP", "UPRIGHT"),
+    # MetaDrive: 9 discrete (steer x throttle) in DISCRETE_ACTIONS order
+    # (steer left/straight/right x throttle brake/coast/accel). Distinct global
+    # slots; order must match src/env/metadrive_wrapper.py (s_i*3 + t_i).
+    "MetaDrive": ("DOWNLEFT", "LEFT", "UPLEFT",
+                  "DOWN", "NOOP", "UP",
+                  "DOWNRIGHT", "RIGHT", "UPRIGHT"),
 }
 
 _NAME_TO_GLOBAL = {name: i for i, name in enumerate(GLOBAL_ACTION_NAMES)}

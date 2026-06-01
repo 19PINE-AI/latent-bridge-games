@@ -16,7 +16,8 @@ zero-initialised so the model behaves identically to base at init.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass, field, field
 from typing import Optional
 import numpy as np
 import torch
@@ -36,7 +37,8 @@ ACTION_PROMPT = (
 
 @dataclass
 class FastModelConfig:
-    hf_repo: str = "openbmb/MiniCPM-o-4_5"
+    hf_repo: str = field(default_factory=lambda: os.environ.get(
+        "LB_FAST_MODEL_PATH", "openbmb/MiniCPM-o-4_5"))
     dtype: str = "bfloat16"
     device: str = "cuda"
     lora_rank: int = 16
