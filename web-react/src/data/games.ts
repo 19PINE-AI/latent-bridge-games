@@ -237,6 +237,25 @@ export const GAMES: GameResult[] = [
 
 export const HEADLINE = GAMES.filter(g => g.isHeadline);
 
+// Bridge-replacement control across all 7 Atari games (canonical decoder per game).
+// L with the trained latent vs zeroed vs random-at-matched-norm. "Learned" = trained
+// meaningfully exceeds both controls. Numbers read from results/br_*.json.
+export interface BridgeReplacePoint {
+  game: string;
+  trained: number; zero: number; random: number;
+  tmf: number;       // T − F for this game (predictor x-axis)
+  verdict: "learned" | "inert" | "harmful";
+}
+export const BRIDGE_REPLACE: BridgeReplacePoint[] = [
+  { game: "RoadRunner",    trained: 967, zero: 0,    random: 8,    tmf: 608,  verdict: "learned" },
+  { game: "MsPacman",      trained: 666, zero: 408,  random: 410,  tmf: 152,  verdict: "learned" },
+  { game: "Seaquest",      trained: 100, zero: 28,   random: 5,    tmf: 22,   verdict: "learned" },
+  { game: "Qbert",         trained: 123, zero: 63,   random: 117,  tmf: 100,  verdict: "inert" },
+  { game: "Enduro",        trained: 8,   zero: 1,    random: 5,    tmf: -3,   verdict: "inert" },
+  { game: "SpaceInvaders", trained: 0,   zero: 148,  random: 90,   tmf: -105, verdict: "harmful" },
+  { game: "Riverraid",     trained: 360, zero: 1013, random: 1003, tmf: -683, verdict: "harmful" },
+];
+
 // Aggregate stats for landing-page numbers.
 export const SUMMARY = {
   totalGames: 8,         // (Frostbite excluded — Stage A at random)

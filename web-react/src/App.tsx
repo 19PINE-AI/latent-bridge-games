@@ -7,6 +7,7 @@ import ArchitectureSection from "./components/ArchitectureSection";
 import DiagnosisSection from "./components/DiagnosisSection";
 import ContinuousVsCategorical from "./components/ContinuousVsCategorical";
 import PredictorSection from "./components/PredictorSection";
+import BridgeReplaceChart from "./components/BridgeReplaceChart";
 import ReplayTheater from "./components/ReplayTheater";
 import PromptLibrary from "./components/PromptLibrary";
 import ReproSection from "./components/ReproSection";
@@ -31,6 +32,12 @@ export default function App() {
                  title="When is a latent bridge worth it?"
                  subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.92 (0.94 over all 16 game/variant cells). MetaDrive is a controlled negative.">
           <PredictorSection />
+        </Section>
+
+        <Section id="bridge-replace"
+                 title="Is the latent real? The bridge-replacement control"
+                 subtitle="Replacing the trained latent with zeros or random vectors (matched norm) on every game. The trained latent carries genuine learned content exactly where slow reasoning helps (T > F), and is inert or harmful where it does not.">
+          <BridgeReplaceChart />
         </Section>
 
         <Section id="results"

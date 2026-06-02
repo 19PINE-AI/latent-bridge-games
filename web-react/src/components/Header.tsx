@@ -3,6 +3,7 @@ import { Code2, FileText, PlayCircle, Activity, Cpu, Scale, MessageSquareText } 
 const NAV = [
   { id: "replay", label: "Replay", icon: PlayCircle },
   { id: "predictor", label: "Predictor", icon: Scale },
+  { id: "bridge-replace", label: "Control", icon: Activity },
   { id: "results", label: "Results", icon: Activity },
   { id: "prompts", label: "Prompts", icon: MessageSquareText },
   { id: "diagnosis", label: "Diagnosis", icon: FileText },

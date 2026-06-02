@@ -10,7 +10,7 @@ const FIGURES = [
     desc: "Lexical diversity of slow emissions (unique tokens/em) on x; ΔL−T on y. Q*bert is the only T-win and sits at the low-diversity end." },
   { src: "paper/figures/fig_predictor.png",
     title: "The behavioural predictor (L helps iff slow helps)",
-    desc: "L−F vs T−F across 7 Atari games + MetaDrive (driving), Pearson r = 0.97. The bridge helps only when slow reasoning beats fast-only; MetaDrive sits at the origin — a controlled negative." },
+    desc: "L−F vs T−F across 7 Atari games + MetaDrive (driving), Pearson r = 0.92 (0.94 over all 16 game/variant cells). The bridge helps only when slow reasoning beats fast-only; MetaDrive sits at the origin — a controlled negative." },
   { src: "paper/figures/fig_stage_a_ood.png",
     title: "Stage A OOD-brittleness recovery",
     desc: "Bare vs robust Stage A on SpaceInvaders and River Raid. RR recovers to +82 % L−T; SI breaks the zero floor but F still dominates." },

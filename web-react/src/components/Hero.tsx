@@ -64,10 +64,12 @@ export default function Hero() {
                      preload="metadata"
                      className="w-full rounded-lg bg-black aspect-[16/6.24]" />
               <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
-                All games with title cards, headline numbers, and gTTS narration.
-                Tells the story in order: Road Runner → Ms. Pac-Man → River Raid (+82 % L over T)
-                → Seaquest → Q*bert (the categorical counter-example) → Space Invaders (the
-                diagnosis) → Enduro.
+                Narrated tour of the 7 Atari games with title cards and headline numbers:
+                Road Runner → Ms. Pac-Man → River Raid (+82 % L over T) → Seaquest → Q*bert
+                (the text-wins counter-example) → Space Invaders → Enduro. For the newer
+                work — the T &gt; F predictor, MetaDrive, and 3-way F/T/L replays —
+                see <a href="#replay" className="text-link hover:underline">Replay</a> and
+                {" "}<a href="#predictor" className="text-link hover:underline">Predictor</a> below.
               </p>
             </div>
           </div>
