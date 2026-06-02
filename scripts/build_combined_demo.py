@@ -34,12 +34,18 @@ except ImportError:
     HAS_GTTS = False
 
 
-VIDEO_W = 2248
+# Canvas sized for the 3-panel F/T/L clips (~3376x876). All clips/cards are scaled
+# to fit inside this box with aspect ratio preserved (letterbox/pillarbox), never stretched.
+VIDEO_W = 3376
 VIDEO_H = 876
 FPS = 15
+# aspect-preserving fit-and-pad filter
+FIT = (f"scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=decrease:flags=neighbor,"
+       f"pad={VIDEO_W}:{VIDEO_H}:(ow-iw)/2:(oh-ih)/2:color=0x0e0f13,format=yuv420p")
 
 # Per-game segment configuration. The order is chosen to tell a story:
 # headline wins first, then the categorical exception, then the diagnosis games.
+# Each game segment uses the 3-way F / T / L clip so the text bridge is visible too.
 SEGMENTS = [
     {
         "id": "intro",
@@ -49,140 +55,178 @@ SEGMENTS = [
         "body": [
             "Frozen 9B reactive model + frozen 8B reasoning model",
             "Coupled via a 33M-param latent token bridge",
-            "Tested on 7 Atari games",
+            "7 Atari games + a driving sim (MetaDrive)",
         ],
         "narration": (
-            "This is the Latent Bridge demo. "
-            "We test whether a learned continuous latent connection "
-            "between a fast reactive model and a slow reasoning model "
-            "beats text-based coupling on Atari games."
+            "This is the Latent Bridge. "
+            "A fast reactive model acts every frame; a slow reasoning model thinks once a second. "
+            "We compare three ways to couple them: fast-only, a text bridge that passes the slow "
+            "model's words, and a learned latent bridge that passes its continuous residuals. "
+            "Each clip shows fast, text, and latent side by side."
         ),
-        "card_duration": 5,
+        "card_duration": 6,
     },
     {
         "id": "roadrunner",
         "kind": "game",
         "title": "Road Runner",
-        "subtitle": "F = 0    L = 967    +infinite",
-        "headline": "The fast model alone scores zero — the slow's directional context unlocks the policy",
-        "video": "demos/roadrunner_F_vs_L.mp4",
+        "subtitle": "F = 0    T = 608    L = 967",
+        "headline": "Fast alone scores zero; the latent bridge unlocks the policy",
+        "video": "demos/roadrunner_F_T_L.mp4",
         "narration": (
-            "Road Runner: our cleanest result. "
-            "The fast model alone cannot score — it has the reflexes but doesn't know which direction to commit. "
-            "When the slow model tells it to run right to escape the Coyote, "
-            "the latent bridge unlocks coherent scoring behavior. "
-            "Fast: zero. Latent: 967."
+            "Road Runner: our cleanest win. "
+            "The fast model alone scores zero — it has the reflexes but won't commit a direction. "
+            "The text bridge reaches 608; the latent bridge, 967. "
+            "Watch all three play side by side."
         ),
     },
     {
         "id": "mspacman",
         "kind": "game",
         "title": "Ms. Pac-Man",
-        "subtitle": "F = 256    T = 408    L = 628    +54%",
-        "headline": "Latent bridge beats text bridge by 54% on the original headline game",
-        "video": "demos/mspacman_F_vs_L.mp4",
+        "subtitle": "F = 256    T = 408    L = 628",
+        "headline": "Latent beats text by 54% on the original headline game",
+        "video": "demos/mspacman_F_T_L.mp4",
         "narration": (
-            "Ms. Pacman: our original headline. "
-            "Fast scores 256. Text bridge: 408. Latent bridge: 628. "
-            "The latent channel transmits richer strategic state per slow-model emission — "
-            "continuous coordinates of ghosts, pellets, and movement priorities "
-            "that text serialization cannot compactly express."
+            "Ms. Pac-Man, our original headline. "
+            "Fast 256, text 408, latent 628. "
+            "The latent channel carries richer joint state per emission — "
+            "ghost and pellet positions together — than text serializes compactly."
         ),
     },
     {
         "id": "riverraid",
         "kind": "game",
         "title": "River Raid",
-        "subtitle": "Robust Stage A: T = 337    L = 612    +82%",
-        "headline": "The largest L-T gap in our sweep, after fixing Stage A out-of-distribution brittleness",
-        "video": "demos/riverraid_F_vs_L.mp4",
+        "subtitle": "Robust Stage A: F = 1033    T = 337    L = 612",
+        "headline": "Largest L-over-T gap after fixing Stage A OOD brittleness",
+        "video": "demos/riverraid_F_T_L.mp4",
         "narration": (
-            "River Raid: the largest latent-text gap in our entire sweep — 82 percent. "
-            "Initial training showed the bridges collapsing. "
-            "We diagnosed this as Stage A out-of-distribution brittleness — "
-            "the action head was trained on bare prompts and broke when any context was added. "
-            "Retraining with mixed-prompt augmentation recovered the latent advantage."
+            "River Raid: the largest latent-over-text gap in the sweep, 82 percent. "
+            "But notice fast-only still leads at 1033 — the bridges help relative to each other, "
+            "not over fast here. The recovery came from fixing Stage A out-of-distribution brittleness."
         ),
     },
     {
         "id": "seaquest",
         "kind": "game",
         "title": "Seaquest",
-        "subtitle": "F = 42    T = 63    L = 80    +26%",
-        "headline": "Latent is fully deterministic — locked into an 8-kill exploit",
-        "video": "demos/seaquest_F_vs_L.mp4",
+        "subtitle": "F = 42    T = 63    L = 80",
+        "headline": "Both bridges beat fast; latent leads",
+        "video": "demos/seaquest_F_T_L.mp4",
         "narration": (
-            "Seaquest: 80 versus 63 — a 26 percent latent advantage. "
-            "The latent policy is fully deterministic, locked into an eight-kill exploit pattern. "
-            "Zero variance across twelve evaluation seeds."
+            "Seaquest: both bridges beat fast-only, and latent leads at 80 versus 63. "
+            "The latent policy locks into a stable surfacing and kill pattern."
         ),
     },
     {
         "id": "qbert",
         "kind": "game",
-        "title": "Q*bert — The Exception",
-        "subtitle": "Robust Stage A: T = 125    L = 50",
-        "headline": "Text BEATS latent on categorical-strategy games",
-        "video": "demos/qbert_F_vs_L.mp4",
+        "title": "Q*bert — Text Wins",
+        "subtitle": "F = 25    T = 125    L = 50",
+        "headline": "The counter-example: text beats latent here",
+        "video": "demos/qbert_F_T_L.mp4",
         "narration": (
-            "Q*bert reveals an exception to the bandwidth claim. "
-            "Q*bert's strategy is fundamentally categorical — "
-            "jump up-right to tile three-two. "
-            "Categorical decisions compress losslessly into text, "
-            "but the latent channel's continuous compression introduces noise. "
-            "Text wins: 125 versus latent's 50. "
-            "This refines our headline: latent dominates when slow content is continuous-rich; "
-            "text dominates when content is purely categorical."
+            "Q*bert is the honest counter-example. "
+            "Its guidance is categorical — jump up-right to a target tile — "
+            "which fits losslessly into text. Here text wins: 125 versus latent's 50. "
+            "The bridge is not always better; it depends on the task."
         ),
     },
     {
         "id": "spaceinvaders",
         "kind": "game",
         "title": "Space Invaders — The Diagnosis",
-        "subtitle": "Bare: T=L=0    Robust: T=18 L=15",
-        "headline": "A clean negative finding that taught us about Stage A OOD brittleness",
-        "video": "demos/spaceinvaders_F_vs_L.mp4",
+        "subtitle": "F = 107    T = 18    L = 15",
+        "headline": "Fast dominates; both bridges fail — a controlled negative",
+        "video": "demos/spaceinvaders_F_T_L.mp4",
         "narration": (
-            "Space Invaders gave us our most important methodology finding. "
-            "All three knob-tuning attempts — random data, expert data, aggressive prompts — "
-            "produced text and latent scores of zero, while fast alone scored 105. "
-            "The diagnosis: when the action space concentrates reward on specific actions, "
-            "Stage A out-of-distribution brittleness collapses the policy. "
-            "The fix — mixed-prompt Stage A training — partially recovers both bridges, "
-            "validating the diagnosis end-to-end."
+            "Space Invaders: fast-only dominates at 107, and both bridges sit near 18. "
+            "Slow reasoning does not help this reactive task, so the bridge has nothing useful to carry. "
+            "This negative is a clue to the general rule."
         ),
     },
     {
         "id": "enduro",
         "kind": "game",
         "title": "Enduro",
-        "subtitle": "Robust: T = 4.9    L = 5.8    +18%",
-        "headline": "Smaller scores but the L > T pattern still holds",
-        "video": "demos/enduro_F_vs_L.mp4",
+        "subtitle": "Robust: F = 1    T = 5    L = 8",
+        "headline": "Small absolute scores; reported for completeness",
+        "video": "demos/enduro_F_T_L.mp4",
         "narration": (
-            "Enduro: smaller absolute scores because the underlying SB3 expert was weak, "
-            "but the latent-over-text pattern still holds. "
-            "Latent 5.8, text 4.9 — an 18 percent gap."
+            "Enduro: scores are tiny because the expert was weak, "
+            "so we report it for completeness rather than as a confident win."
         ),
+    },
+    {
+        "id": "metadrive",
+        "kind": "game",
+        "title": "MetaDrive — Beyond Atari",
+        "subtitle": "Driving sim:  F = 88    T = 85    L = 85",
+        "headline": "A non-Atari domain, and a controlled negative",
+        "video": "demos/metadrive_F_T_L.mp4",
+        "narration": (
+            "We also leave Atari for MetaDrive, a real-time driving simulator. "
+            "Even on a route that requires planning, slow reasoning never beats the fast reactive policy — "
+            "fast 88, text and latent both 85. "
+            "Driving is a tight perception-action loop, so the bridge stays inert. "
+            "This controlled negative is the key to the general rule."
+        ),
+    },
+    {
+        "id": "predictor",
+        "kind": "card",
+        "title": "The Predictor",
+        "subtitle": "L − F tracks T − F at  r = 0.92",
+        "body": [
+            "The latent bridge helps if and only if slow reasoning helps the task (T > F)",
+            "r = 0.92 over 8 best-variant tasks; r = 0.94 over all 16 game/variant cells",
+            "Bridge pays off where the bottleneck is deliberation, not perception-action",
+        ],
+        "narration": (
+            "Pulling it together: across seven Atari games and MetaDrive, "
+            "the latent bridge's benefit tracks the text bridge's benefit at correlation zero point nine two. "
+            "The bridge helps if and only if slow reasoning beats fast reaction on the task. "
+            "Whether a latent bridge is worth it is a property of the task, not the channel."
+        ),
+        "card_duration": 9,
+    },
+    {
+        "id": "bridgereplace",
+        "kind": "card",
+        "title": "Is the latent real?",
+        "subtitle": "Bridge-replacement control on every game",
+        "body": [
+            "Replace the trained latent with zeros or random vectors at matched norm",
+            "Trained >> controls only where slow helps: RoadRunner 967 vs 0, Seaquest, MsPacman",
+            "Inert or harmful where it doesn't — same as MetaDrive",
+        ],
+        "narration": (
+            "To prove the latent carries real learned content, we replace it with zeros or random vectors. "
+            "On the games where slow reasoning helps, the trained latent far exceeds both controls — "
+            "Road Runner drops from 967 to zero when the latent is removed. "
+            "Where slow reasoning doesn't help, the trained latent is no better, or even harmful. "
+            "How much of the latent is learned is itself predicted by whether slow beats fast."
+        ),
+        "card_duration": 9,
     },
     {
         "id": "outro",
         "kind": "card",
         "title": "Summary",
-        "subtitle": "9 games, 6 phases, 60+ commits",
+        "subtitle": "7 Atari games + MetaDrive · the T > F predictor",
         "body": [
-            "L > T on 6 games (+18% to +82%) when content is continuous-rich",
-            "T > L on Q*bert (categorical strategies)",
-            "Stage A OOD brittleness diagnosed and fixed",
-            "Bandwidth thesis: text loses bits the latent channel preserves",
+            "Latent helps iff slow reasoning helps the task (T > F), r = 0.92",
+            "Bridge-replacement control: learned content exactly where it helps",
+            "MetaDrive: the controlled negative; Q*bert: text wins (categorical)",
+            "Stage A OOD brittleness diagnosed and fixed; bandwidth thesis retired",
         ],
         "narration": (
-            "Across seven games, the latent bridge beats the text bridge by 18 to 82 percent "
-            "on continuous-content games, "
-            "and loses to text only on the categorical exception, Q*bert. "
-            "Code, paper, and full results at github dot com slash bojieli slash latent dash bridge dash games."
+            "In summary: the latent bridge helps if and only if slow reasoning helps the task, "
+            "shown across Atari and a driving domain, with a bridge-replacement control and a clean negative. "
+            "Code, paper, and interactive replays at github dot com slash bojieli slash latent dash bridge dash games."
         ),
-        "card_duration": 8,
+        "card_duration": 9,
     },
 ]
 
@@ -270,7 +314,7 @@ def make_card_video(card_png: Path, audio_mp3: Path, out_mp4: Path,
         "-i", str(audio_mp3),
         "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k",
-        "-vf", f"scale={VIDEO_W}:{VIDEO_H}:flags=neighbor,format=yuv420p",
+        "-vf", FIT,
         "-r", str(FPS),
         "-t", f"{duration:.2f}",
         "-shortest", str(out_mp4),
@@ -288,12 +332,40 @@ def make_game_video(video_in: Path, audio_mp3: Path, out_mp4: Path) -> None:
         "-i", str(audio_mp3),
         "-map", "0:v:0", "-map", "1:a:0",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-vf", f"scale={VIDEO_W}:{VIDEO_H}:flags=neighbor,format=yuv420p",
+        "-vf", FIT,
         "-r", str(FPS),
         "-c:a", "aac", "-b:a", "128k",
         "-shortest", str(out_mp4),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
+
+
+def _probe_dur(path: Path) -> float:
+    res = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        capture_output=True, text=True)
+    try:
+        return float(res.stdout.strip() or "0")
+    except ValueError:
+        return 0.0
+
+
+def _srt_ts(t: float) -> str:
+    h = int(t // 3600); m = int((t % 3600) // 60); s = int(t % 60)
+    ms = int(round((t - int(t)) * 1000))
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def write_srt(entries: list[tuple[float, float, str]], out_path: Path) -> None:
+    """entries: list of (start_sec, end_sec, text)."""
+    lines = []
+    for i, (st, en, text) in enumerate(entries, 1):
+        lines.append(str(i))
+        lines.append(f"{_srt_ts(st)} --> {_srt_ts(en)}")
+        lines.append(text.strip())
+        lines.append("")
+    out_path.write_text("\n".join(lines))
 
 
 def main():
@@ -307,6 +379,8 @@ def main():
     workdir.mkdir(parents=True, exist_ok=True)
 
     parts: list[Path] = []
+    # (timeline_clip_index_start, segment) so we can place subtitles on the right span
+    seg_spans: list[tuple[Path, str]] = []  # (clip that carries the narration, narration text)
     for i, seg in enumerate(SEGMENTS):
         seg_id = seg["id"]
         narr_mp3 = workdir / f"{i:02d}_{seg_id}.mp3"
@@ -320,6 +394,7 @@ def main():
             make_card_video(card_png, narr_mp3, clip_mp4,
                              min_duration=seg.get("card_duration", 5))
             parts.append(clip_mp4)
+            seg_spans.append((clip_mp4, seg["narration"]))
         else:
             # Title card BEFORE the gameplay
             card_png = workdir / f"{i:02d}_{seg_id}_card.png"
@@ -330,7 +405,7 @@ def main():
                 ["ffmpeg", "-y", "-loop", "1", "-i", str(card_png),
                  "-f", "lavfi", "-i", "anullsrc=cl=stereo:r=24000",
                  "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-                 "-vf", f"scale={VIDEO_W}:{VIDEO_H},format=yuv420p",
+                 "-vf", FIT,
                  "-r", str(FPS), "-c:a", "aac", "-b:a", "128k",
                  "-t", "3", "-shortest", str(title_clip)],
                 check=True, capture_output=True,
@@ -340,6 +415,7 @@ def main():
             game_clip = workdir / f"{i:02d}_{seg_id}_play.mp4"
             make_game_video(Path(seg["video"]), narr_mp3, game_clip)
             parts.append(game_clip)
+            seg_spans.append((game_clip, seg["narration"]))
 
     # Concatenate
     concat_list = workdir / "concat.txt"
@@ -353,6 +429,20 @@ def main():
         check=True, capture_output=True,
     )
     print(f"Wrote {out_path} ({out_path.stat().st_size / 1e6:.1f} MB)")
+
+    # ---- Build a matching SRT from real per-clip durations ----
+    narr_for = {p: txt for p, txt in seg_spans}
+    entries: list[tuple[float, float, str]] = []
+    t0 = 0.0
+    for p in parts:
+        d = _probe_dur(p)
+        if p in narr_for:
+            # subtitle spans this clip (clamped a hair inside its bounds)
+            entries.append((t0, t0 + max(d - 0.1, 0.5), narr_for[p]))
+        t0 += d
+    srt_path = out_path.with_suffix(".srt")
+    write_srt(entries, srt_path)
+    print(f"Wrote {srt_path} ({len(entries)} cues)")
 
     if not args.keep_tmp:
         import shutil
