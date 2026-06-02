@@ -207,28 +207,31 @@ export const SUMMARY = {
 
 // The behavioural predictor: latent benefit (L−F) vs text benefit (T−F) across
 // 7 Atari games + a non-Atari driving domain (MetaDrive). Numbers read from the
-// eval JSONs; canonical per-game variant. MetaDrive uses the planning-heavy regime.
-// Pearson r(T−F, L−F) = 0.97 (n=8).
+// eval JSONs; canonical = best-L Stage-A variant per game (a tuned hyperparameter).
+// MetaDrive uses the planning-heavy regime.
+// Pearson r(T−F, L−F) = 0.92 (n=8 best-variant); 0.94 over all 16 game/variant cells.
 export interface PredictorPoint {
   game: string;
   domain: "atari" | "driving";
+  variant: "bare" | "robust" | "driving";
   F: number; T: number; L: number;
   TmF: number;  // T − F : does slow reasoning beat fast-only?
   LmF: number;  // L − F : does the latent bridge beat fast-only?
 }
 
 export const PREDICTOR: PredictorPoint[] = [
-  { game: "RoadRunner",    domain: "atari",   F: 0.0,    T: 608.3, L: 966.7, TmF: 608.3, LmF: 966.7 },
-  { game: "MsPacman",      domain: "atari",   F: 255.8,  T: 407.5, L: 628.3, TmF: 151.7, LmF: 372.5 },
-  { game: "Qbert",         domain: "atari",   F: 25.0,   T: 125.0, L: 50.0,  TmF: 100.0, LmF: 25.0  },
-  { game: "Seaquest",      domain: "atari",   F: 41.7,   T: 63.3,  L: 80.0,  TmF: 21.7,  LmF: 38.3  },
-  { game: "Enduro",        domain: "atari",   F: 3.2,    T: 0.0,   L: 7.8,   TmF: -3.2,  LmF: 4.5   },
-  { game: "MetaDrive",     domain: "driving", F: 87.8,   T: 85.1,  L: 85.1,  TmF: -2.7,  LmF: -2.7  },
-  { game: "SpaceInvaders", domain: "atari",   F: 105.0,  T: 0.0,   L: 0.0,   TmF: -105.0, LmF: -105.0 },
-  { game: "Riverraid",     domain: "atari",   F: 1066.7, T: 383.3, L: 360.0, TmF: -683.3, LmF: -706.7 },
+  { game: "RoadRunner",    domain: "atari",   variant: "bare",   F: 0.0,    T: 608.3, L: 966.7, TmF: 608.3, LmF: 966.7 },
+  { game: "MsPacman",      domain: "atari",   variant: "bare",   F: 255.8,  T: 407.5, L: 628.3, TmF: 151.7, LmF: 372.5 },
+  { game: "Qbert",         domain: "atari",   variant: "robust", F: 25.0,   T: 125.0, L: 50.0,  TmF: 100.0, LmF: 25.0  },
+  { game: "Seaquest",      domain: "atari",   variant: "bare",   F: 41.7,   T: 63.3,  L: 80.0,  TmF: 21.7,  LmF: 38.3  },
+  { game: "Enduro",        domain: "atari",   variant: "bare",   F: 3.2,    T: 0.0,   L: 7.8,   TmF: -3.2,  LmF: 4.5   },
+  { game: "MetaDrive",     domain: "driving", variant: "driving",F: 87.8,   T: 85.1,  L: 85.1,  TmF: -2.7,  LmF: -2.7  },
+  { game: "SpaceInvaders", domain: "atari",   variant: "robust", F: 107.1,  T: 18.3,  L: 15.0,  TmF: -88.8, LmF: -92.1 },
+  { game: "Riverraid",     domain: "atari",   variant: "robust", F: 1032.5, T: 336.7, L: 611.7, TmF: -695.8, LmF: -420.8 },
 ];
 
-export const PREDICTOR_R = 0.97;
+export const PREDICTOR_R = 0.92;
+export const PREDICTOR_R_ALL = 0.94;  // all 16 game/variant cells, no selection
 
 // MetaDrive (non-Atari driving) — the controlled negative. Numbers from the
 // eval JSONs (n=8, robust head). The bridge-replacement control shows the latent

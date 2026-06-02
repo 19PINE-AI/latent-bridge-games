@@ -1,6 +1,6 @@
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, ResponsiveContainer, Tooltip,
          ReferenceLine, ReferenceArea, Label, Cell } from "recharts";
-import { PREDICTOR, PREDICTOR_R, METADRIVE } from "../data/games";
+import { PREDICTOR, PREDICTOR_R, PREDICTOR_R_ALL, METADRIVE } from "../data/games";
 
 /** Signed-sqrt transform so RoadRunner (+967) doesn't crush the cluster near 0,
  * while keeping sign and ordering honest. Ticks are relabelled to true deltas. */
@@ -23,7 +23,7 @@ export default function PredictorSection() {
       <div className="bg-panel rounded-2xl border border-border p-5">
         <h3 className="font-semibold text-ink mb-1">
           Latent helps iff slow reasoning helps&nbsp;
-          <span className="text-muted font-normal">(Pearson r = {PREDICTOR_R}, n = 8)</span>
+          <span className="text-muted font-normal">(Pearson r = {PREDICTOR_R}, n = 8; r = {PREDICTOR_R_ALL} over all 16 cells)</span>
         </h3>
         <p className="text-xs text-muted mb-3">
           Each point is one game. <strong>x</strong> = text-bridge benefit (T − F);
@@ -93,7 +93,10 @@ export default function PredictorSection() {
           Upper-right (green) = the bridge helps (T &gt; F and L &gt; F): RoadRunner, MsPacman,
           Seaquest, Q*bert. Lower-left = it hurts: River Raid, Space Invaders. The latent
           tracks the text teacher because Stage C distils it (KL(πL‖πT)) — so the bridge is a
-          property of the <em>task</em>, not the channel.
+          property of the <em>task</em>, not the channel. Bold points use each game's best
+          Stage-A variant (bare vs robust — a tuned hyperparameter); the same correlation holds
+          (r = {PREDICTOR_R_ALL}) over <em>all</em> 16 game/variant cells, so it is not an
+          artifact of variant selection.
         </p>
       </div>
 

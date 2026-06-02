@@ -514,7 +514,8 @@ def fig_predictor():
     if not data_path.exists():
         print("fig_predictor: no predictor_data.json, skipping"); return
     d = json.loads(data_path.read_text())
-    rows = d["rows"]; r = d["pearson"]; n = d["n"]
+    rows = d["canonical"]["rows"]; r = d["canonical"]["pearson"]; n = d["canonical"]["n"]
+    all_rows = d["all_cells"]["rows"]; r_all = d["all_cells"]["pearson"]; n_all = d["all_cells"]["n"]
 
     fig, (ax, axb) = plt.subplots(
         1, 2, figsize=(7.4, 3.4), gridspec_kw={"width_ratios": [2.05, 1.0]})
@@ -522,13 +523,14 @@ def fig_predictor():
     # ---- left: scatter L-F vs T-F ----
     xs = np.array([row["TmF"] for row in rows], float)
     ys = np.array([row["LmF"] for row in rows], float)
+    ax_all = np.array([row["TmF"] for row in all_rows], float)
+    ay_all = np.array([row["LmF"] for row in all_rows], float)
     # symmetric log-ish scaling: use signed-sqrt so the huge RoadRunner point
     # doesn't crush the cluster near zero, while keeping sign + ordering honest.
     def sst(v):
         return np.sign(v) * np.sqrt(np.abs(v))
-    X, Y = sst(xs), sst(ys)
 
-    lim = max(np.abs(X).max(), np.abs(Y).max()) * 1.18
+    lim = max(np.abs(sst(ax_all)).max(), np.abs(sst(ay_all)).max()) * 1.18
     # quadrant shading: upper-right = bridge helps (T>F and L>F)
     ax.axhspan(0, lim, xmin=0.5, xmax=1.0, color=C_GOOD, alpha=0.06, zorder=0)
     ax.axhline(0, color="0.5", lw=0.8, zorder=1)
@@ -536,6 +538,11 @@ def fig_predictor():
     # y=x reference (L tracks T)
     ax.plot([-lim, lim], [-lim, lim], ls=":", color="0.55", lw=1.0,
             zorder=1, label="$L\\!-\\!F = T\\!-\\!F$")
+    # faint: ALL 16 (game,variant) cells — shows the correlation is not an artifact
+    # of variant selection.
+    ax.scatter(sst(ax_all), sst(ay_all), s=22, color="0.6", alpha=0.45,
+               edgecolor="none", zorder=2,
+               label=f"all {n_all} cells ($r={r_all:.2f}$)")
 
     for row in rows:
         x, y = sst(row["TmF"]), sst(row["LmF"])
@@ -569,7 +576,7 @@ def fig_predictor():
     ax.set_yticks(tk); ax.set_yticklabels(lab, fontsize=7)
     ax.set_xlabel("Text bridge benefit  $T-F$   (signed-$\\sqrt{\\cdot}$ axis)")
     ax.set_ylabel("Latent bridge benefit  $L-F$")
-    ax.set_title(f"Latent helps iff slow reasoning helps  ($r={r:.2f}$, $n={n}$)")
+    ax.set_title(f"Latent helps iff slow reasoning helps  (best-variant $r={r:.2f}$, $n={n}$)")
     # annotate quadrant
     ax.text(0.97 * lim, 0.10 * lim, "bridge\nhelps", fontsize=7.5,
             color=C_GOOD, ha="right", va="bottom", style="italic")

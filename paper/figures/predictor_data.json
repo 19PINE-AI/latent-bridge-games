@@ -1,70 +1,174 @@
 {
- "rows": [
-  {
-   "game": "MsPacman",
-   "F": 255.8,
-   "T": 407.5,
-   "L": 628.3,
-   "TmF": 151.7,
-   "LmF": 372.5
-  },
-  {
-   "game": "RoadRunner",
-   "F": 0.0,
-   "T": 608.3,
-   "L": 966.7,
-   "TmF": 608.3,
-   "LmF": 966.7
-  },
-  {
-   "game": "Seaquest",
-   "F": 41.7,
-   "T": 63.3,
-   "L": 80.0,
-   "TmF": 21.7,
-   "LmF": 38.3
-  },
-  {
-   "game": "Qbert",
-   "F": 25.0,
-   "T": 125.0,
-   "L": 50.0,
-   "TmF": 100.0,
-   "LmF": 25.0
-  },
-  {
-   "game": "Enduro",
-   "F": 3.2,
-   "T": 0.0,
-   "L": 7.8,
-   "TmF": -3.2,
-   "LmF": 4.5
-  },
-  {
-   "game": "Riverraid",
-   "F": 1066.7,
-   "T": 383.3,
-   "L": 360.0,
-   "TmF": -683.3,
-   "LmF": -706.7
-  },
-  {
-   "game": "SpaceInvaders",
-   "F": 105.0,
-   "T": 0.0,
-   "L": 0.0,
-   "TmF": -105.0,
-   "LmF": -105.0
-  },
-  {
-   "game": "MetaDrive",
-   "F": 87.8,
-   "T": 85.1,
-   "L": 85.1,
-   "TmF": -2.7,
-   "LmF": -2.7
-  }
- ],
- "pearson": 0.974,
- "n": 8
+ "canonical": {
+  "rows": [
+   {
+    "game": "MsPacman",
+    "variant": "bare",
+    "F": 255.8,
+    "T": 407.5,
+    "L": 628.3,
+    "TmF": 151.7,
+    "LmF": 372.5,
+    "domain": "atari"
+   },
+   {
+    "game": "RoadRunner",
+    "variant": "bare",
+    "F": 0.0,
+    "T": 608.3,
+    "L": 966.7,
+    "TmF": 608.3,
+    "LmF": 966.7,
+    "domain": "atari"
+   },
+   {
+    "game": "Seaquest",
+    "variant": "bare",
+    "F": 41.7,
+    "T": 63.3,
+    "L": 80.0,
+    "TmF": 21.7,
+    "LmF": 38.3,
+    "domain": "atari"
+   },
+   {
+    "game": "Riverraid",
+    "variant": "robust",
+    "F": 1032.5,
+    "T": 336.7,
+    "L": 611.7,
+    "TmF": -695.8,
+    "LmF": -420.8,
+    "domain": "atari"
+   },
+   {
+    "game": "Qbert",
+    "variant": "robust",
+    "F": 25.0,
+    "T": 125.0,
+    "L": 50.0,
+    "TmF": 100.0,
+    "LmF": 25.0,
+    "domain": "atari"
+   },
+   {
+    "game": "SpaceInvaders",
+    "variant": "robust",
+    "F": 107.1,
+    "T": 18.3,
+    "L": 15.0,
+    "TmF": -88.8,
+    "LmF": -92.1,
+    "domain": "atari"
+   },
+   {
+    "game": "Enduro",
+    "variant": "bare",
+    "F": 3.2,
+    "T": 0.0,
+    "L": 7.8,
+    "TmF": -3.2,
+    "LmF": 4.5,
+    "domain": "atari"
+   },
+   {
+    "game": "MetaDrive",
+    "variant": "driving",
+    "F": 87.8,
+    "T": 85.1,
+    "L": 85.1,
+    "TmF": -2.7,
+    "LmF": -2.7,
+    "domain": "driving"
+   }
+  ],
+  "pearson": 0.921,
+  "n": 8
+ },
+ "all_cells": {
+  "rows": [
+   {
+    "cell": "enduro",
+    "TmF": -3.2,
+    "LmF": 4.5
+   },
+   {
+    "cell": "enduro_robust",
+    "TmF": 4.2,
+    "LmF": 5.1
+   },
+   {
+    "cell": "mspacman",
+    "TmF": 151.7,
+    "LmF": 372.5
+   },
+   {
+    "cell": "mspacman_robust",
+    "TmF": -264.2,
+    "LmF": -265.0
+   },
+   {
+    "cell": "qbert",
+    "TmF": -25.0,
+    "LmF": -25.0
+   },
+   {
+    "cell": "qbert_robust",
+    "TmF": 100.0,
+    "LmF": 25.0
+   },
+   {
+    "cell": "riverraid",
+    "TmF": -683.3,
+    "LmF": -706.7
+   },
+   {
+    "cell": "riverraid_robust",
+    "TmF": -695.8,
+    "LmF": -420.8
+   },
+   {
+    "cell": "roadrunner",
+    "TmF": 608.3,
+    "LmF": 966.7
+   },
+   {
+    "cell": "roadrunner_robust",
+    "TmF": 41.7,
+    "LmF": -33.3
+   },
+   {
+    "cell": "seaquest",
+    "TmF": 21.7,
+    "LmF": 38.3
+   },
+   {
+    "cell": "seaquest_robust",
+    "TmF": -20.0,
+    "LmF": -20.0
+   },
+   {
+    "cell": "spaceinvaders",
+    "TmF": -105.0,
+    "LmF": -105.0
+   },
+   {
+    "cell": "spaceinvaders_expert",
+    "TmF": -105.0,
+    "LmF": -105.0
+   },
+   {
+    "cell": "spaceinvaders_robust",
+    "TmF": -88.8,
+    "LmF": -92.1
+   },
+   {
+    "cell": "metadrive",
+    "TmF": -2.7,
+    "LmF": -2.7
+   }
+  ],
+  "pearson": 0.937,
+  "n": 16
+ }
 }

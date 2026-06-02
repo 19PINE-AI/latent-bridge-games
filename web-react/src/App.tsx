@@ -45,7 +45,7 @@ export default function App() {
 
         <Section id="predictor"
                  title="When is a latent bridge worth it? (incl. a non-Atari domain)"
-                 subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.97. MetaDrive is a controlled negative.">
+                 subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.92 (0.94 over all 16 game/variant cells). MetaDrive is a controlled negative.">
           <PredictorSection />
         </Section>
 
