@@ -22,8 +22,8 @@ export default function App() {
         <Hero />
 
         <Section id="replay"
-                 title="Watch it play: fast-only vs latent bridge"
-                 subtitle="Every game, side by side — F (reactive only) against L (latent bridge), with the exact state snapshot and the slow model's reasoning shown alongside. Press “Replay both” to re-run the contrast.">
+                 title="Watch it play: fast vs text vs latent"
+                 subtitle="Every game, three ways side by side — F (reactive only), T (text bridge), and L (latent bridge) — with the exact state snapshot and the slow model's reasoning shown alongside. Press “Replay all three” to re-run the contrast.">
           <ReplayTheater />
         </Section>
 

@@ -27,6 +27,7 @@ export default function ReplayTheater() {
   const [sel, setSel] = useState(0);
   const [mode, setMode] = useState<"sideBySide" | "split">("split");
   const fRef = useRef<HTMLVideoElement>(null);
+  const tRef = useRef<HTMLVideoElement>(null);
   const lRef = useRef<HTMLVideoElement>(null);
 
   const g = REPLAY[sel];
@@ -34,8 +35,8 @@ export default function ReplayTheater() {
   const rdata = RESEARCH.games[rk] ?? {};
   const gap = g.L_vs_T_pct;
 
-  const replayBoth = () => {
-    for (const v of [fRef.current, lRef.current]) {
+  const replayAll = () => {
+    for (const v of [fRef.current, tRef.current, lRef.current]) {
       if (v) { v.currentTime = 0; v.play().catch(() => {}); }
     }
   };
@@ -69,28 +70,32 @@ export default function ReplayTheater() {
         <div className="bg-panel rounded-2xl border border-border p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-ink">{g.name}
-              <span className="text-muted font-normal text-sm"> · F (fast-only) vs L (latent bridge)</span>
+              <span className="text-muted font-normal text-sm"> · F (fast-only) vs T (text bridge) vs L (latent bridge)</span>
             </h3>
             <div className="flex gap-2">
               <button onClick={() => setMode(mode === "split" ? "sideBySide" : "split")}
                 className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded
                            bg-panel-2 border border-border text-muted hover:text-ink transition">
-                <ArrowLeftRight size={13} /> {mode === "split" ? "Pre-rendered" : "Synced split"}
+                <ArrowLeftRight size={13} /> {mode === "split" ? "Pre-rendered 3-up" : "Synced split"}
               </button>
               {mode === "split" && (
-                <button onClick={replayBoth}
+                <button onClick={replayAll}
                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded
                              bg-accent/15 border border-accent/40 text-accent hover:bg-accent/25 transition">
-                  <RotateCcw size={13} /> Replay both
+                  <RotateCcw size={13} /> Replay all three
                 </button>
               )}
             </div>
           </div>
 
           {mode === "split" ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <Panel label="F · fast-only" color="text-muted" score={g.F}>
                 <video ref={fRef} src={g.videoF} playsInline loop muted controls
+                       preload="metadata" className="w-full rounded bg-black" />
+              </Panel>
+              <Panel label="T · text bridge" color="text-link" score={g.T}>
+                <video ref={tRef} src={g.videoT} playsInline loop muted controls
                        preload="metadata" className="w-full rounded bg-black" />
               </Panel>
               <Panel label="L · latent bridge" color="text-accent" score={g.L} highlight>
@@ -99,7 +104,7 @@ export default function ReplayTheater() {
               </Panel>
             </div>
           ) : (
-            <video src={g.videoSideBySide} controls playsInline loop
+            <video src={g.videoFTL ?? g.videoSideBySide} controls playsInline loop
                    preload="metadata" className="w-full rounded-lg bg-black" />
           )}
 
@@ -125,8 +130,10 @@ export default function ReplayTheater() {
           </h3>
           <p className="text-xs text-muted mb-3">
             The exact state snapshot the slow model reads (~1 Hz), and the strategic
-            emission it returns. T sends this <em>text verbatim</em>; L sends its
-            projected <em>latent</em> — same content, different channel.
+            emission it returns. <span className="text-muted">F</span> ignores it (no slow
+            channel); <span className="text-link">T</span> sends this <em>text verbatim</em>;
+            <span className="text-accent"> L</span> sends its projected <em>latent</em> — same
+            content, different channel.
           </p>
 
           <div className="text-[11px] uppercase tracking-wider text-muted mb-1">State snapshot → slow model</div>

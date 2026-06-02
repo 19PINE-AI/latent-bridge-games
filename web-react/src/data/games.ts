@@ -23,8 +23,10 @@ export interface GameResult {
   smallScores?: boolean;
   bridgeMI?: { action: number; reward: number };
   videoF?: string;
+  videoT?: string;
   videoL?: string;
   videoSideBySide?: string;
+  videoFTL?: string;
   isHeadline?: boolean;
 }
 
@@ -44,7 +46,9 @@ export const GAMES: GameResult[] = [
     category: "win-L",
     isHeadline: true,
     videoF: "demos/roadrunner_F.mp4",
+    videoT: "demos/roadrunner_T.mp4",
     videoL: "demos/roadrunner_L.mp4",
+    videoFTL: "demos/roadrunner_F_T_L.mp4",
     videoSideBySide: "demos/roadrunner_F_vs_L.mp4",
   },
   {
@@ -64,7 +68,9 @@ export const GAMES: GameResult[] = [
     isHeadline: true,
     bridgeMI: { action: 0.002, reward: 0.010 },
     videoF: "demos/mspacman_F.mp4",
+    videoT: "demos/mspacman_T.mp4",
     videoL: "demos/mspacman_L.mp4",
+    videoFTL: "demos/mspacman_F_T_L.mp4",
     videoSideBySide: "demos/mspacman_F_vs_L.mp4",
   },
   {
@@ -82,6 +88,10 @@ export const GAMES: GameResult[] = [
     notes: "Largest L−T gap in the sweep. Bare Stage A collapsed both bridges; mixed-prompt training shifted T slightly down (383→337) and L dramatically up (360→612). Same fix recipe as Q*bert; opposite direction.",
     category: "win-L",
     isHeadline: true,
+    videoF: "demos/riverraid_F.mp4",
+    videoT: "demos/riverraid_T.mp4",
+    videoL: "demos/riverraid_L.mp4",
+    videoFTL: "demos/riverraid_F_T_L.mp4",
     videoSideBySide: "demos/riverraid_F_vs_L.mp4",
   },
   {
@@ -98,7 +108,9 @@ export const GAMES: GameResult[] = [
     notes: "Deterministic 8-kill exploit (L std=0) — L locks into a stable surfacing+kill pattern. Effect size large despite small absolute scores.",
     category: "win-L",
     videoF: "demos/seaquest_F.mp4",
+    videoT: "demos/seaquest_T.mp4",
     videoL: "demos/seaquest_L.mp4",
+    videoFTL: "demos/seaquest_F_T_L.mp4",
     videoSideBySide: "demos/seaquest_F_vs_L.mp4",
   },
   {
@@ -115,6 +127,10 @@ export const GAMES: GameResult[] = [
     smallScores: true,
     notes: "L numerically ahead but absolute scores too small to support a confident claim (p=0.63, Cohen's d=0.20). Reported for completeness; we do not count it as a positive case.",
     category: "partial",
+    videoF: "demos/enduro_F.mp4",
+    videoT: "demos/enduro_T.mp4",
+    videoL: "demos/enduro_L.mp4",
+    videoFTL: "demos/enduro_F_T_L.mp4",
     videoSideBySide: "demos/enduro_F_vs_L.mp4",
   },
   {
@@ -131,6 +147,10 @@ export const GAMES: GameResult[] = [
     pvalueIsMWU: true,
     notes: "Text BEATS latent by 2.5×. The slow's emission is essentially (jump_direction, target_colour, threat_actor) — categorical and fits losslessly into ~200 characters. Latent's compression introduces noise that hurts more than the bandwidth helps. The refined-claim counter-example.",
     category: "win-T",
+    videoF: "demos/qbert_F.mp4",
+    videoT: "demos/qbert_T.mp4",
+    videoL: "demos/qbert_L.mp4",
+    videoFTL: "demos/qbert_F_T_L.mp4",
     videoSideBySide: "demos/qbert_F_vs_L.mp4",
   },
   {
@@ -147,6 +167,10 @@ export const GAMES: GameResult[] = [
     pvalueIsMWU: true,
     notes: "Robust SA broke the zero floor, but F=107 still dominates either bridge. The fix recovers L/T from collapse, not to a useful policy. Honest read: SI remains a negative result for fast/slow coupling.",
     category: "partial",
+    videoF: "demos/spaceinvaders_F.mp4",
+    videoT: "demos/spaceinvaders_T.mp4",
+    videoL: "demos/spaceinvaders_L.mp4",
+    videoFTL: "demos/spaceinvaders_F_T_L.mp4",
     videoSideBySide: "demos/spaceinvaders_F_vs_L.mp4",
   },
   {
@@ -162,7 +186,9 @@ export const GAMES: GameResult[] = [
     category: "collapse",
     bridgeMI: { action: 0.024, reward: 0.012 },
     videoF: "demos/spaceinvaders_F.mp4",
+    videoT: "demos/spaceinvaders_T.mp4",
     videoL: "demos/spaceinvaders_L.mp4",
+    videoFTL: "demos/spaceinvaders_F_T_L.mp4",
   },
   {
     id: "riverraid-bare",
@@ -202,7 +228,9 @@ export const GAMES: GameResult[] = [
     notes: "Non-Atari driving domain (planning-heavy map). The controlled NEGATIVE: slow reasoning never beats fast-only (T ≤ F) even when the task requires route planning, so the latent is inert (bridge-replace: L ≈ L_zero ≈ L_random). This is the boundary case that defines the T>F predictor.",
     category: "collapse",
     videoF: "demos/metadrive_F.mp4",
+    videoT: "demos/metadrive_T.mp4",
     videoL: "demos/metadrive_L.mp4",
+    videoFTL: "demos/metadrive_F_T_L.mp4",
     videoSideBySide: "demos/metadrive_F_vs_L.mp4",
   },
 ];
