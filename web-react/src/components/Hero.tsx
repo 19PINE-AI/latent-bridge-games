@@ -18,34 +18,36 @@ export default function Hero() {
             </h1>
             <h2 className="text-xl md:text-2xl text-muted font-medium mt-3 leading-snug">
               A continuous-valued bridge between a frozen 9 B reactive model and a frozen 8 B
-              reasoning model — beating text-channel coupling by 26–82 % on 4 of {SUMMARY.evaluable} evaluable Atari games.
+              reasoning model — and a sharp answer to <em>when</em> it helps.
             </h2>
             <p className="mt-6 text-ink/90 leading-relaxed">
               Real-time interactive AI is structurally torn: reasoning models tick too slowly
               for 60 Hz environments; streaming models lack reasoning depth. Production splits
-              the workload via <em>text prompts</em> — which we argue is bandwidth-limited.
-              Text carries hundreds of bits per call where a continuous latent channel could
-              carry hundreds of thousands.
+              the workload by having the slow model emit <em>text</em> the fast model reads. We
+              test the alternative — a trainable <strong>33 M-param latent bridge</strong>
+              prepended LLaVA-style to the fast model's input embedding, carrying the slow
+              model's residuals instead of its words.
             </p>
             <p className="mt-3 text-ink/90 leading-relaxed">
-              We test this on Atari: MiniCPM-o 4.5 at 15 Hz, Qwen3-VL-8B-Thinking at 1 Hz,
-              coupled via a trainable <strong>33 M-param latent bridge</strong> prepended
-              LLaVA-style to the fast model's input embedding. On Q*bert — where the slow's
-              guidance is categorical (&ldquo;jump UP-RIGHT to tile 3, 2&rdquo;) — text wins by 2.5×.
-              The refined claim is falsifiable from slow-emission diversity alone.
+              Across 7 Atari games and a driving simulator (MetaDrive), the headline is not
+              &ldquo;latent beats text&rdquo; — it is a <strong>predictor</strong>: the latent
+              bridge helps <em>if and only if</em> slow reasoning beats fast reaction on the task
+              (T &gt; F), at Pearson <strong>r = 0.92</strong>. A bridge-replacement control on
+              every game confirms the latent carries real learned content exactly where it helps,
+              and is inert or harmful where it does not — MetaDrive being the controlled negative.
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <Stat label="L > T at p<0.05" value={`${SUMMARY.L_wins_significant} / ${SUMMARY.evaluable}`} sub="continuous-rich slow content" />
-              <Stat label="Largest gap" value={`+${SUMMARY.largestGapPct} %`} sub={`${SUMMARY.largestGapGame}, d=1.21`} />
-              <Stat label="Total trainable" value="33 M" sub="of ~17 B params" />
+              <Stat label="Predictor" value="r = 0.92" sub="L−F tracks T−F across 8 tasks" />
+              <Stat label="Cleanest win" value="L = 967" sub="RoadRunner, vs F = 0 / T = 608" />
+              <Stat label="Total trainable" value="33 M" sub="of ~17 B params, both frozen" />
             </div>
 
-            <a href="#results"
+            <a href="#replay"
                className="inline-flex items-center gap-2 mt-9 px-5 py-2.5 rounded-lg
                           bg-accent text-bg font-semibold hover:bg-accent/90 transition">
               <ArrowDownCircle size={18} />
-              See the data
+              Watch fast vs latent
             </a>
           </div>
 

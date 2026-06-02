@@ -3,12 +3,12 @@ import Hero from "./components/Hero";
 import ResultsTable from "./components/ResultsTable";
 import ScoresChart from "./components/ScoresChart";
 import BandwidthChart from "./components/BandwidthChart";
-import GameGrid from "./components/GameGrid";
 import ArchitectureSection from "./components/ArchitectureSection";
 import DiagnosisSection from "./components/DiagnosisSection";
 import ContinuousVsCategorical from "./components/ContinuousVsCategorical";
 import PredictorSection from "./components/PredictorSection";
-import SlowEmissionSamples from "./components/SlowEmissionSamples";
+import ReplayTheater from "./components/ReplayTheater";
+import PromptLibrary from "./components/PromptLibrary";
 import ReproSection from "./components/ReproSection";
 import StrategiesTable from "./components/StrategiesTable";
 import FiguresGallery from "./components/FiguresGallery";
@@ -21,8 +21,20 @@ export default function App() {
       <main className="flex-1">
         <Hero />
 
+        <Section id="replay"
+                 title="Watch it play: fast-only vs latent bridge"
+                 subtitle="Every game, side by side — F (reactive only) against L (latent bridge), with the exact state snapshot and the slow model's reasoning shown alongside. Press “Replay both” to re-run the contrast.">
+          <ReplayTheater />
+        </Section>
+
+        <Section id="predictor"
+                 title="When is a latent bridge worth it?"
+                 subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.92 (0.94 over all 16 game/variant cells). MetaDrive is a controlled negative.">
+          <PredictorSection />
+        </Section>
+
         <Section id="results"
-                 title="Results across 10 game/variant cells"
+                 title="Full results across all game/variant cells"
                  subtitle="Sortable table with 95 % bootstrap CIs and Welch's-t / Mann-Whitney significance. Click column headers to re-sort.">
           <ResultsTable />
           <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 mt-6">
@@ -31,28 +43,22 @@ export default function App() {
           </div>
         </Section>
 
+        <Section id="prompts"
+                 title="Every prompt in the research"
+                 subtitle="The verbatim system prompts and, for each game, the live state snapshot the slow model reads plus the real strategic emission it returns. This is exactly the content the bridge carries.">
+          <PromptLibrary />
+        </Section>
+
         <Section id="diagnosis"
                  title="The Stage A OOD-brittleness diagnosis"
-                 subtitle="One sub-finding that turned negative results into evidence — and a fix that helps some games and destroys others.">
+                 subtitle="Why some cells collapse — and why “bare vs robust” Stage A is a tuned hyperparameter, not cherry-picking.">
           <DiagnosisSection />
         </Section>
 
         <Section id="continuous-vs-categorical"
                  title="A predictor that fails: lexical diversity"
-                 subtitle="We hoped lexical diversity of slow-model emissions would predict the sign of L − T a priori. It does not (Pearson r ≈ 0.05) — reported as an honest negative.">
+                 subtitle="We hoped lexical diversity of slow-model emissions would predict the sign of L − T a priori. It does not (Pearson r ≈ 0.05) — reported as an honest negative; the behavioural T > F predictor above is what holds.">
           <ContinuousVsCategorical />
-        </Section>
-
-        <Section id="predictor"
-                 title="When is a latent bridge worth it? (incl. a non-Atari domain)"
-                 subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.92 (0.94 over all 16 game/variant cells). MetaDrive is a controlled negative.">
-          <PredictorSection />
-        </Section>
-
-        <Section id="emissions"
-                 title="What the slow model actually says"
-                 subtitle="Raw post-thinking text on RoadRunner (continuous-rich, L wins) vs Q*bert (categorical, T wins).">
-          <SlowEmissionSamples />
         </Section>
 
         <Section id="strategies"
@@ -77,12 +83,6 @@ export default function App() {
                  title="Paper figures"
                  subtitle="From the arXiv-style PDF. Click any to enlarge.">
           <FiguresGallery />
-        </Section>
-
-        <Section id="games"
-                 title="All game playthroughs"
-                 subtitle="Side-by-side F vs L for each game. The slow-model text overlay shows you the reasoning the bridge is transmitting.">
-          <GameGrid />
         </Section>
       </main>
       <Footer />

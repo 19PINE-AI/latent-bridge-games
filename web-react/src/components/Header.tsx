@@ -1,13 +1,12 @@
 import { Code2, FileText, PlayCircle, Activity, Cpu, Scale, MessageSquareText } from "lucide-react";
 
 const NAV = [
-  { id: "hero", label: "Demo", icon: PlayCircle },
+  { id: "replay", label: "Replay", icon: PlayCircle },
+  { id: "predictor", label: "Predictor", icon: Scale },
   { id: "results", label: "Results", icon: Activity },
+  { id: "prompts", label: "Prompts", icon: MessageSquareText },
   { id: "diagnosis", label: "Diagnosis", icon: FileText },
-  { id: "continuous-vs-categorical", label: "L vs T axis", icon: Scale },
-  { id: "emissions", label: "Emissions", icon: MessageSquareText },
   { id: "architecture", label: "Architecture", icon: Cpu },
-  { id: "games", label: "All Games", icon: PlayCircle },
 ];
 
 export default function Header() {
