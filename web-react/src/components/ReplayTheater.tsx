@@ -5,7 +5,7 @@ import research from "../data/research.json";
 
 // Games that have replay videos, ordered by the L-over-T story.
 const ORDER = ["roadrunner", "mspacman", "riverraid", "seaquest", "qbert",
-               "spaceinvaders", "enduro"];
+               "spaceinvaders", "enduro", "metadrive"];
 const REPLAY = ORDER
   .map(id => GAMES.find(g => g.id.startsWith(id) && g.videoSideBySide))
   .filter(Boolean) as GameResult[];
@@ -18,6 +18,7 @@ function researchKey(g: GameResult): string {
     RoadRunner: "RoadRunner", MsPacMan: "MsPacman", MsPacman: "MsPacman",
     RiverRaid: "Riverraid", Seaquest: "Seaquest", Qbert: "Qbert",
     QBert: "Qbert", SpaceInvaders: "SpaceInvaders", Enduro: "Enduro",
+    MetaDrive: "MetaDrive",
   };
   return map[n] ?? n;
 }

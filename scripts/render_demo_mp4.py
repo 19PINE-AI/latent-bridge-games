@@ -70,13 +70,24 @@ def _frame_path(trace_dir: Path, tick: int) -> Path:
 
 def _render_single_panel(trace_dir: Path, tick: int, ev: dict,
                           strategy_label: str, game: str) -> Image.Image:
-    """Render one frame: game (upscaled) over caption + score bar."""
+    """Render one frame: game (upscaled) over caption + score bar.
+
+    Frame geometry is inferred from the array so non-Atari frames (e.g. MetaDrive's
+    84x84 top-down) render at a sensible size rather than being forced to 160x210."""
     frame_npz = np.load(_frame_path(trace_dir, tick))["frame"]
-    game_img = Image.fromarray(frame_npz.astype(np.uint8))
-    game_img = game_img.resize((FRAME_W, FRAME_H), Image.NEAREST)
+    arr = np.asarray(frame_npz).astype(np.uint8)
+    if arr.ndim == 2:
+        arr = np.stack([arr] * 3, axis=-1)
+    game_img = Image.fromarray(arr)
+    src_h, src_w = arr.shape[0], arr.shape[1]
+    # Scale so the longer side reaches ~FRAME_H, preserving aspect ratio.
+    scale = FRAME_H / max(src_h, src_w)
+    FRAME_W = int(round(src_w * scale))
+    FRAME_H_ = int(round(src_h * scale))
+    game_img = game_img.resize((FRAME_W, FRAME_H_), Image.NEAREST)
 
     panel_w = FRAME_W + CAPTION_W
-    panel_h = FRAME_H + SCORE_BAR_H
+    panel_h = max(FRAME_H, FRAME_H_) + SCORE_BAR_H
     out = Image.new("RGB", (panel_w, panel_h), color=(20, 20, 24))
     out.paste(game_img, (0, SCORE_BAR_H))
 

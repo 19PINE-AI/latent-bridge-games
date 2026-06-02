@@ -190,6 +190,21 @@ export const GAMES: GameResult[] = [
     notes: "All three at the −21 loss floor. Stage A val-accuracy is 25.1% (random=16.7% on 6 actions, only 1.5× random vs MsPacman's 2.9×). The action head can barely move the paddle; no slow-model guidance can rescue a reactive policy that does not exist.",
     category: "floor",
   },
+  {
+    id: "metadrive",
+    name: "MetaDrive",
+    tier: 3,
+    variant: "robust",
+    F: 87.8, F_std: 26.3, F_ci: [70, 105],
+    T: 85.1, T_std: 25.4, T_ci: [68, 102],
+    L: 85.1, L_std: 25.4, L_ci: [68, 102],
+    L_vs_T_pct: 0,
+    notes: "Non-Atari driving domain (planning-heavy map). The controlled NEGATIVE: slow reasoning never beats fast-only (T ≤ F) even when the task requires route planning, so the latent is inert (bridge-replace: L ≈ L_zero ≈ L_random). This is the boundary case that defines the T>F predictor.",
+    category: "collapse",
+    videoF: "demos/metadrive_F.mp4",
+    videoL: "demos/metadrive_L.mp4",
+    videoSideBySide: "demos/metadrive_F_vs_L.mp4",
+  },
 ];
 
 export const HEADLINE = GAMES.filter(g => g.isHeadline);
