@@ -13,7 +13,7 @@ A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 2/4 by Welch's $t$; of the other two of those four, MsPacman is marginal under Welch and Seaquest has a zero-variance cell that makes Welch unreliable). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioral predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head failures---chiefly OOD-brittleness under bridge inputs---and give a targeted fix. We release F/T/L replay recordings for all 8 experiments (7 Atari $+$ MetaDrive) and reproducible pipelines.
+Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 2/4 by Welch's $t$; of the other two of those four, MsPacman is marginal under Welch and Seaquest has a zero-variance cell that makes Welch unreliable). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.006$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioral predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head failures---chiefly OOD-brittleness under bridge inputs---and give a targeted fix. We release F/T/L replay recordings for all 8 experiments (7 Atari $+$ MetaDrive) and reproducible pipelines.
 
 \textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
 \end{abstract}
@@ -40,7 +40,7 @@ We do not have an a~priori quantitative predictor for the sign of $L-T$. Our ini
 \centering
 \includegraphics[width=\textwidth]{figures/fig_headline.pdf}
 \caption{\textbf{Cross-game F/T/L scores, reported variant per game; $n=12$ episodes each.}
-Stars on the $L$\,vs\,$T$ comparison: \texttt{*}\,$p<.05$, \texttt{**}\,$p<.01$, \texttt{***}\,$p<.001$ (Welch's $t$ where both cells have non-zero variance, Mann-Whitney $U$ otherwise). Asterisks on game labels mark the robust-Stage-A variant (\S\ref{sec:ood}); other games use bare Stage~A. The reported variant per game is selected by the rule in \S\ref{sec:setup_variant} (higher deployment $L$ among variants with a non-degenerate, $T\!>\!0$, comparison); both variants are tabulated in Appendix~\ref{app:full}.}
+Stars on the $L$\,vs\,$T$ comparison: \texttt{*}\,$p<.05$, \texttt{**}\,$p<.01$, \texttt{***}\,$p<.001$ (Welch's $t$ where both cells have non-zero variance, Mann-Whitney $U$ otherwise); where the two tests disagree (MsPacman: Welch $p\!=\!.06$, MWU $p\!=\!.003$), both are annotated. Asterisks on game labels mark the robust-Stage-A variant (\S\ref{sec:ood}); other games use bare Stage~A. Pong (rightmost) is shown for completeness only and is excluded from the 7-game comparison (\S\ref{sec:setup}). The reported variant per game is selected by the rule in \S\ref{sec:setup_variant} (higher deployment $L$ among variants with a non-degenerate, $T\!>\!0$, comparison); both variants are tabulated in Appendix~\ref{app:full}.}
 \label{fig:headline}
 \end{figure}
 
@@ -73,7 +73,7 @@ We tried two bridge architectures (Figure~\ref{fig:arch}). v1 projected slow-mod
 \textbf{F}: fast only with Stage~A action head.
 \textbf{T}: F with the slow's full text emission appended verbatim (median 302 chars; no truncation; samples in Appendix~\ref{app:emissions}).
 \textbf{L}: F with the slow's projected latent tokens prepended (8 tokens, 4096-d each).
-(A slow-only policy, acting at the slow model's $\sim$0.25\,Hz, misses $\sim$60 frames per decision; this is the speed problem that motivates the coupling, and we do not tabulate it as a strategy.)
+(A slow-only policy must finish a full perception--reasoning--emission cycle synchronously before each action---unlike the deployed bridges, which overlap these steps asynchronously---so at the slow model's measured $\sim$1.5\,s per emission it acts at well under 1\,Hz, missing tens of frames per decision; this is the speed problem that motivates the coupling, and we do not tabulate it as a strategy.)
 
 \paragraph{Training pipeline.}
 \textbf{Stage A}: behavioral cloning from SB3 experts~\cite{sb3zoo} onto the fast model's action head.
@@ -96,8 +96,8 @@ marginally higher $L$ ($7.8$ vs $5.8$) but $T\!=\!0$ (degenerate), so we report 
 $L$. Both variants for all games are reported (Appendix~\ref{app:full});
 the headline uses the selected one. The selection is blind to the $L\!-\!T$ \emph{gap}---it
 maximizes $L$, the deployed quantity---so it does not inflate the text-vs-latent comparison. The
-choice matters and is itself a finding: robustness \emph{rescues} games whose bare head collapses
-under the suffix (River~Raid $L\!:\!360\!\to\!612$, Q*bert $0\!\to\!50$) but \emph{harms} games
+choice matters and is itself a finding: robustness \emph{rescues} games whose bare head the
+suffix degrades or collapses (River~Raid $L\!:\!360\!\to\!612$, Q*bert $0\!\to\!50$) but \emph{harms} games
 whose bare head already works (MsPacman $628\!\to\!60$, Seaquest $80\!\to\!0$)---a direct
 consequence of the Stage~A OOD mechanism (\S\ref{sec:ood}). To show the cross-game predictor
 (\S\ref{sec:metadrive}) does not depend on this selection, we report it both ways: $r=0.92$ over
@@ -144,7 +144,7 @@ RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by
 Enduro/robust has tiny absolute scores ($T\!=\!5$, $L\!=\!6$); both cells are at floor. SpaceInvaders/robust has $T\!=\!18$, $L\!=\!15$, $p\!=\!0.27$. We do not claim these as L wins or T wins.
 
 \paragraph{Q*bert: greedy decoding gives the only inversion; sampling reverses it.}
-Under greedy action selection (paper convention), Q*bert/robust gives $T\!=\!125$, $L\!=\!50$, both cells at zero variance---text wins by $2.5\times$. \emph{Under multinomial sampling at $\tau\!=\!1.0$, $L$ beats $T$ by $2.9\times$ ($250\pm156$ vs $88\pm65$, Welch $p\!\approx\!0.005$).} The headline ``Q*bert inversion'' is therefore a greedy-decoding artifact (\S\ref{sec:qbert}); under sampling Q*bert joins the $L\!>\!T$ side.
+Under greedy action selection (paper convention), Q*bert/robust gives $T\!=\!125$, $L\!=\!50$, both cells at zero variance---text wins by $2.5\times$. \emph{Under multinomial sampling at $\tau\!=\!1.0$, $L$ beats $T$ by $2.9\times$ ($250\pm156$ vs $88\pm65$, Welch $p\!\approx\!0.006$).} The headline ``Q*bert inversion'' is therefore a greedy-decoding artifact (\S\ref{sec:qbert}); under sampling Q*bert joins the $L\!>\!T$ side.
 
 \paragraph{Bridges do not always beat F.}
 On River Raid and SpaceInvaders (both using robust Stage A), $F$ outscores both $T$ and $L$. The latent bridge is an improvement over the text bridge \emph{at matched architecture}; whether the slow-fast architecture beats fast-only is a separate question that depends on the game.
@@ -178,7 +178,7 @@ Sample, $\tau=1.0$         & $66.7\pm71.7$  & $87.5\pm65.0$   & $\mathbf{250.0\p
 \bottomrule
 \end{tabular}\smallskip
 
-At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.55$, $p\!=\!0.59$). At $\tau\!=\!1.0$ \textbf{$L$ beats $T$ by $2.9\times$} (Welch's $t\!\approx\!3.3$, $p\!\approx\!0.005$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation (full per-temperature numbers in Appendix~\ref{app:decoder}).
+At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.51$, $p\!=\!0.61$). At $\tau\!=\!1.0$ \textbf{$L$ beats $T$ by $2.9\times$} (Welch's $t\!\approx\!3.2$, $p\!\approx\!0.006$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation (full per-temperature numbers in Appendix~\ref{app:decoder}).
 
 \paragraph{Mechanistic explanation.} Bridge-token diagnostics (\S\ref{sec:bridge_content}) showed the bridge tokens differ by only 3--8\,\% across emissions of the same game. Under greedy decoding, this small per-emission variance is below the threshold needed to change the argmax---the head picks the same action regardless, producing the std=0 observation that gave $L\!=\!50$ on every episode. Under sampling, the small bridge variance can influence the action distribution; the per-emission strategic content the bridge carries gets exposed. The text channel's per-emission information is also exposed under sampling, but text's signal is apparently more sample-noise-fragile (T \emph{decreases} from $\tau\!=\!0.5$ to $\tau\!=\!1.0$, while $L$ \emph{increases}). At sufficient stochasticity the bridge wins.
 
@@ -223,7 +223,7 @@ healthy ($T\!\approx\!F$) teacher.
 \paragraph{It is also not ``the task had no slow component.''}
 We rebuilt MetaDrive as a \emph{planning-heavy} route (straights punctuated by intersections,
 with off-route termination) where survival genuinely requires deliberate turn decisions---the
-navigation expert beats a naive straight-driving policy by $+218$ reward, and the slow model
+navigation expert beats a naive straight-driving policy by $+118$ reward, and the slow model
 receives explicit turn cues. Even here (Figure~\ref{fig:predictor}, right) the slow model does
 not beat fast-only: greedy $T\!=\!85.1\!\le\!F\!=\!87.8$; under sampling the slow guidance
 actively hurts ($T\!=\!43.5$, $F\!=\!123.2$, paired $t\!=\!-9.8$, $n\!=\!8$), and the latent
@@ -270,13 +270,13 @@ the task demands route planning.}
 \label{fig:ood}
 \end{figure}
 
-Three games---SpaceInvaders, River Raid, Q*bert---collapsed to $T=L=0$ in their initial bare-SA sweeps despite cleanly converging Stage~C training (KL $\sim$0.005); the same robust-SA retraining recovers two distinct collapse modes (Figure~\ref{fig:ood}). Same bridge, same procedure as the games that worked. On SpaceInvaders, three orthogonal interventions all left the collapse intact: (a) random-policy T-trajectories, (b) expert-policy T-trajectories, (c) an aggressive ``FIRE constantly'' slow prompt. This rules out bridge-training failure.
+Three games went wrong in their bare-SA sweeps despite cleanly converging Stage~C training (KL $\sim$0.005): SpaceInvaders and Q*bert collapsed to $T=L=0$, and River Raid fell to a bridge-harmful near-tie far below $F$ ($T\!=\!383$, $L\!=\!360$ vs $F\!=\!1067$). We refer to these three as the \emph{collapsed} group below; the same robust-SA retraining recovers two distinct collapse modes (Figure~\ref{fig:ood}). Same bridge, same procedure as the games that worked. On SpaceInvaders, three orthogonal interventions all left the collapse intact: (a) random-policy T-trajectories, (b) expert-policy T-trajectories, (c) an aggressive ``FIRE constantly'' slow prompt. This rules out bridge-training failure.
 
 \paragraph{Diagnosis, and a direct measurement.} Stage A trains the action head on the \emph{bare} game-state prompt; at deployment, T appends a text suffix and L prepends bridge tokens, both OOD inputs. We measure the OOD effect directly (Appendix~\ref{app:ood_kl}): on bare Stage A, adding the slow's text suffix \textbf{flips the action head's argmax on 77\,\% of non-collapsed-game emissions and 80\,\% of collapsed-game emissions}---the drift is large and uniform. The mass on the bare-argmax action drops sharply on every game (group means: $0.45\!\to\!0.17$ on non-collapsed games, $0.38\!\to\!0.18$ on collapsed ones). So the OOD perturbation is real; what differs across games is \emph{what action the drift moves toward}: on reward-symmetric games (MsPacman, RoadRunner) the new argmax still scores; on precision-required games (SpaceInvaders, River Raid, Q*bert) the drift can land on a bad action and scoring collapses. The bridge mechanism is fine; the frozen action head's suffix-induced argmax flip is the binding constraint.
 
 \paragraph{The fix.} Retrain Stage~A at suffix-probability 0.5: half of training batches receive a randomly-chosen slow-style text suffix appended to the prompt. The head learns suffix-invariance.
 
-\paragraph{The fix is not universal.} On SpaceInvaders, robust SA rescues both bridges from 0 to $\sim$15--18---but $F=107$, so calling this ``recovery'' overstates it. On River Raid, robust shifts $T$ slightly down ($383\!\to\!337$) and $L$ up dramatically ($360\!\to\!612$). On games where bare SA already worked (MsPacman, Seaquest, RoadRunner), the same fix \emph{destroys} performance (MsPacman $L\!:\!628\!\to\!60$; Seaquest $L\!:\!80\!\to\!0$; RoadRunner becomes a tie at $\sim 950$). \textbf{Recommendation}: use robust Stage~A when bare $T$ or $L$ collapses to $\sim 0$; otherwise prefer bare.
+\paragraph{The fix is not universal.} On SpaceInvaders, robust SA rescues both bridges from 0 to $\sim$15--18---but $F=107$, so calling this ``recovery'' overstates it. On River Raid, robust shifts $T$ slightly down ($383\!\to\!337$) and $L$ up dramatically ($360\!\to\!612$). On games where the bare bridges already worked (MsPacman, Seaquest, RoadRunner), the same fix hurts: it \emph{destroys} MsPacman ($L\!:\!628\!\to\!60$) and Seaquest ($L\!:\!80\!\to\!0$), and on RoadRunner it erases the bridge advantage---robust SA lifts $F$ from 0 to $\sim$958 and all three strategies tie at $\sim$925--1000. \textbf{Recommendation}: use robust Stage~A when bare $T$ or $L$ collapses to $\sim 0$; otherwise prefer bare.
 
 \paragraph{Robust SA reduces drift exactly where expected (Appendix~\ref{app:ood_kl}).}
 On two of the three games where bare SA was already non-degenerate, robust SA cuts the suffix-induced argmax-change rate substantially: RoadRunner 75\,\%$\to$12\,\%, MsPacman 85\,\%$\to$30\,\%, KL($p_{\text{bare}}\,\|\,p_{\text{suff}}$) drops 0.39$\to$0.11 on RoadRunner; the exception is Seaquest, whose argmax-change rate \emph{rises} (70\,\%$\to$90\,\%), consistent with robust SA harming Seaquest at deployment (\S\ref{sec:ood}). On games where bare collapsed, robust reduces KL (e.g., Q*bert 0.25$\to$0.11) but the argmax-change rate stays elevated (50--89\,\%); the head learns to be more confident under suffix but the resulting action isn't always recoverable.
@@ -342,7 +342,7 @@ $L_{\text{trained}}$                  & $\mathbf{628 \pm 356}$ \\
 \bottomrule
 \end{tabular}\smallskip
 
-\paragraph{Both effects are real.} Trained vs random: Welch $t\!\approx\!2.21$, $p\!\approx\!0.04$. Random vs $F$: Welch $t\!\approx\!2.80$, $p\!\approx\!0.02$. The 8 prepended ``slots'' alone lift the policy by $\sim$50\,\% over $F$, presumably because they give the LLM additional positions to compute over before action prediction (related to pause-token effects~\cite{pause_tokens}). The trained content adds another $\sim$62\,\% on top. Roughly \textbf{40\,\% of L's advantage over F on MsPacman is architectural} (slots), \textbf{60\,\% is learned bridge content}---and the learned-content portion is what distinguishes L from a generic ``more compute per tick'' baseline.
+\paragraph{Both effects are real.} Trained vs random: Welch $t\!\approx\!2.12$, $p\!\approx\!0.05$ (trained vs zero: $t\!\approx\!2.34$, $p\!\approx\!0.04$). Random vs $F$: Welch $t\!\approx\!2.68$, $p\!\approx\!0.02$. The 8 prepended ``slots'' alone lift the policy by $\sim$50\,\% over $F$, presumably because they give the LLM additional positions to compute over before action prediction (related to pause-token effects~\cite{pause_tokens}). The trained content adds another $\sim$62\,\% on top. Roughly \textbf{40\,\% of L's advantage over F on MsPacman is architectural} (slots), \textbf{60\,\% is learned bridge content}---and the learned-content portion is what distinguishes L from a generic ``more compute per tick'' baseline.
 
 \paragraph{Reading.}
 This control rules out the strongest negative interpretation of L\,>\,T: that the bridge is decorative. It does not, however, rule out the weaker reading that some of the slow-fast architecture's value is just ``8 more tokens to attend over'' rather than ``slow model contributed strategic content.'' Decomposing those two effects is mechanistically important and our number ($\sim$60\,\%) is a single-game estimate; the slow-content fraction may vary across games.
@@ -368,7 +368,7 @@ Cosine between the \emph{mean bridge token} of one emission vs another emission 
 \subsection{Sharpened claims}
 
 \begin{finding}
-At matched 9\,B endpoint scale on 7 evaluable Atari games, a learned latent bridge beats a text bridge by 26--82\% on 4 games (2/4 significant by Welch $p<0.05$---RoadRunner, River Raid; the other two have a marginal or zero-variance cell; 4/4 by Mann-Whitney), and ties on 2 (Enduro, SpaceInvaders). The one apparent counter-example---Q*bert under greedy decoding ($T\!=\!125$, $L\!=\!50$)---inverts under multinomial sampling at $\tau\!=\!1.0$: $L\!=\!250 > T\!=\!88$, Welch $p\!\approx\!0.005$ (\S\ref{sec:qbert}). \textbf{We have a mechanism story for L\,>\,T} (slow-residual joint state survives a continuous channel; text serializes one element at a time); we now lack a credible game where greedy-decoding-corrected $T > L$ is a stable outcome.
+At matched 9\,B endpoint scale on 7 evaluable Atari games, a learned latent bridge beats a text bridge by 26--82\% on 4 games (2/4 significant by Welch $p<0.05$---RoadRunner, River Raid; the other two have a marginal or zero-variance cell; 4/4 by Mann-Whitney), and ties on 2 (Enduro, SpaceInvaders). The one apparent counter-example---Q*bert under greedy decoding ($T\!=\!125$, $L\!=\!50$)---inverts under multinomial sampling at $\tau\!=\!1.0$: $L\!=\!250 > T\!=\!88$, Welch $p\!\approx\!0.006$ (\S\ref{sec:qbert}). \textbf{We have a mechanism story for L\,>\,T} (slow-residual joint state survives a continuous channel; text serializes one element at a time); we now lack a credible game where greedy-decoding-corrected $T > L$ is a stable outcome.
 \end{finding}
 
 \begin{finding}
@@ -415,7 +415,7 @@ For deployments where slow reasoning does not improve on fast reaction ($T\!\le\
 % --------------------------------------------------------------------------
 \section{Conclusion}
 
-A continuous latent bridge between two frozen multimodal LLMs at matched 9\,B scale beats the text bridge by 26--82\% on 4 of 7 evaluable Atari games. We attribute most ``bridge collapsed'' results to Stage A action-head OOD-brittleness, not the bridge itself, and provide a targeted fix that recovers the largest single $L\!-\!T$ gap in the sweep. The greedy-decoding Q*bert ``inversion'' ($T\!=\!125, L\!=\!50$) does not survive a decoder ablation: under multinomial sampling at $\tau\!=\!1.0$, $L\!=\!250 \gg T\!=\!88$ ($p\!\approx\!0.005$); the same decoder switch reveals that bridges on SpaceInvaders and Seaquest/robust were also being under-counted by greedy. A bridge-replacement control run on all 7 games shows the trained latent carries learned, behavior-relevant content ($L_{\text{trained}}\!\gg\!L_{\text{random}}$) on three games where $T\!>\!F$ (RoadRunner, Seaquest, MsPacman) and is inert/harmful where $T\!\le\!F$ (River~Raid, SpaceInvaders), with the two remaining games indeterminate (Q*bert is decoder-fragile, Enduro is at floor)---so ``how much of L is learned'' tracks the predictor. Direct inspection of the trained bridge shows it is non-lexical (cosine $\le 0.09$ to any vocab token), strongly game-conditioned (+0.80--0.89 within-game cosine), and only weakly per-emission-conditioned (+0.92--0.97 between emissions of the same game)---so its \emph{used} capacity is far below its nominal $8\!\times\!4096$, and the per-emission signal needs sampling to surface. We also rule out the obvious objection ``T just needs more text''---giving T a 2- or 3-emission rolling suffix on MsPacman and RoadRunner does not close the gap; it either monotonically lowers T (MsPacman) or collapses it to zero (RoadRunner, $w\!=\!3$). Rather than a ``text is bandwidth-limited'' story---which our own ablations (a 30B slow does not widen the gap; more text does not close it; the latent under-uses its capacity) do not support---we land on a sharper claim: \textbf{the latent bridge helps if and only if slow reasoning helps the task} ($L\!-\!F$ tracks $T\!-\!F$ at $r=0.92$ across 7 Atari games and a driving domain, $r=0.94$ over all 16 game/variant cells), with MetaDrive as a controlled negative where the slow model never beats fast-only and the latent is correspondingly inert. The cleanest remaining follow-ups are (i) an emission-discrimination auxiliary during Stage~C to push more per-tick state into the bridge, and (ii) testing the comparison in the production settings (voice agents, robotics) where the text channel actually lives.
+A continuous latent bridge between two frozen multimodal LLMs at matched 9\,B scale beats the text bridge by 26--82\% on 4 of 7 evaluable Atari games. We attribute most ``bridge collapsed'' results to Stage A action-head OOD-brittleness, not the bridge itself, and provide a targeted fix that recovers the largest single $L\!-\!T$ gap in the sweep. The greedy-decoding Q*bert ``inversion'' ($T\!=\!125, L\!=\!50$) does not survive a decoder ablation: under multinomial sampling at $\tau\!=\!1.0$, $L\!=\!250 \gg T\!=\!88$ ($p\!\approx\!0.006$); the same decoder switch reveals that bridges on SpaceInvaders and Seaquest/robust were also being under-counted by greedy. A bridge-replacement control run on all 7 games shows the trained latent carries learned, behavior-relevant content ($L_{\text{trained}}\!\gg\!L_{\text{random}}$) on three games where $T\!>\!F$ (RoadRunner, Seaquest, MsPacman) and is inert/harmful where $T\!\le\!F$ (River~Raid, SpaceInvaders), with the two remaining games indeterminate (Q*bert is decoder-fragile, Enduro is at floor)---so ``how much of L is learned'' tracks the predictor. Direct inspection of the trained bridge shows it is non-lexical (cosine $\le 0.09$ to any vocab token), strongly game-conditioned (+0.80--0.89 within-game cosine), and only weakly per-emission-conditioned (+0.92--0.97 between emissions of the same game)---so its \emph{used} capacity is far below its nominal $8\!\times\!4096$, and the per-emission signal needs sampling to surface. We also rule out the obvious objection ``T just needs more text''---giving T a 2- or 3-emission rolling suffix on MsPacman and RoadRunner does not close the gap; it either monotonically lowers T (MsPacman) or collapses it to zero (RoadRunner, $w\!=\!3$). Rather than a ``text is bandwidth-limited'' story---which our own ablations (a 30B slow does not widen the gap; more text does not close it; the latent under-uses its capacity) do not support---we land on a sharper claim: \textbf{the latent bridge helps if and only if slow reasoning helps the task} ($L\!-\!F$ tracks $T\!-\!F$ at $r=0.92$ across 7 Atari games and a driving domain, $r=0.94$ over all 16 game/variant cells), with MetaDrive as a controlled negative where the slow model never beats fast-only and the latent is correspondingly inert. The cleanest remaining follow-ups are (i) an emission-discrimination auxiliary during Stage~C to push more per-tick state into the bridge, and (ii) testing the comparison in the production settings (voice agents, robotics) where the text channel actually lives.
 
 \bibliographystyle{plain}
 \bibliography{refs}
@@ -444,6 +444,8 @@ Both bare-SA and robust-SA reported for every game, $n=12$ per cell.
 \item One cell has $\sigma=0$, the other has support: \textbf{Mann-Whitney $U$}.
 \item Both cells have $\sigma=0$: \textbf{we report the comparison but do not claim a $p$-value} (the test is deterministic-trajectory difference, not a population inference).
 \end{itemize}
+
+\paragraph{Test convention.} All Welch's $t$ values use the unbiased sample-variance form, as in \texttt{scipy.stats.ttest\_ind(equal\_var=False)}.
 
 \paragraph{Bootstrap CIs.} $10^4$ resamples for each cell mean.
 
@@ -562,7 +564,7 @@ Within-game per-emission variation is small ($1{-}\bar{c}\approx 3{-}8\%$), sugg
 \section{OOD KL probe: full numbers}
 \label{app:ood_kl}
 
-Per-emission probe: for each (game, Stage A variant), we walk the cached seed-0 T-trajectory, take up to 20 emissions, and at each emission tick compute $\mathrm{KL}\!\left(p_{\text{bare-prompt}} \,\|\, p_{\text{suffixed-prompt}}\right)$ over legal actions, the argmax-change rate $\mathbf{1}\!\left[\mathrm{argmax}\,p_{\text{bare}} \neq \mathrm{argmax}\,p_{\text{suff}}\right]$, and the probability mass on the bare argmax under each prompt.
+Per-emission probe: for each (game, Stage A variant), we walk the cached seed-0 T-trajectory, take up to 20 emissions, and at each emission tick compute $\mathrm{KL}\!\left(p_{\text{bare-prompt}} \,\|\, p_{\text{suffixed-prompt}}\right)$ over legal actions, the argmax-change rate $\mathbf{1}\!\left[\mathrm{argmax}\,p_{\text{bare}} \neq \mathrm{argmax}\,p_{\text{suff}}\right]$, and the probability mass on the bare argmax under each prompt. The \emph{collapse?} column marks the three games whose bare-SA bridges were degraded or zeroed at deployment (SpaceInvaders, Q*bert, River~Raid; the ``collapsed'' group of \S\ref{sec:ood}).
 
 \smallskip\noindent\textbf{Bare Stage A:}
 
@@ -633,8 +635,8 @@ sample, $\tau=1.0$ & L & $\mathbf{250.0\pm155.8}$ & 200.0 & 50  & 650 \\
 
 \paragraph{Significance tests, $L$ vs $T$:}
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
-\item $\tau\!=\!0.5$: Welch $t=0.55$, $p=0.59$ (n.s.). $L\!\approx\!T$.
-\item $\tau\!=\!1.0$: Welch $t\!\approx\!3.3$, $p\!\approx\!0.005$. $L$ beats $T$ by $2.9\times$.
+\item $\tau\!=\!0.5$: Welch $t=0.51$, $p=0.61$ (n.s.). $L\!\approx\!T$.
+\item $\tau\!=\!1.0$: Welch $t\!\approx\!3.2$, $p\!\approx\!0.006$. $L$ beats $T$ by $2.9\times$.
 \end{itemize}
 
 \paragraph{Reading.} Under greedy, every episode is deterministic given the env seed; with a small action space and consistent argmax, all 12 episodes per cell hit the same trajectory (std=0). The bridge's small per-emission variance (cosine 0.92--0.97 between emissions, Appendix~\ref{app:bridge_diag}) is below the threshold needed to flip an argmax. Multinomial sampling exposes this variance: as $\tau$ increases, $L$'s mean grows ($50\!\to\!125\!\to\!250$) while $T$'s plateaus or declines ($125\!\to\!140\!\to\!88$). The bridge's per-tick information advantage over text is therefore real but \emph{not visible} under greedy decoding on Q*bert.
@@ -653,7 +655,7 @@ MsPacman    & $w=1$ (paper) & $407.5\pm92.2$  & 385.0 & 270 & 600  \\
 MsPacman    & $w=2$         & $378.3\pm117.5$ & 375.0 & 130 & 680  \\
 MsPacman    & $w=3$         & $351.7\pm87.7$  & 335.0 & 240 & 560  \\
 \midrule
-RoadRunner  & $w=1$ (paper) & $608.3\pm250.3$ & 700.0 &   0 & 900  \\
+RoadRunner  & $w=1$ (paper) & $608.3\pm250.3$ & 650.0 &   0 & 900  \\
 RoadRunner  & $w=2$         & $8.3\pm27.6$    &   0.0 &   0 & 100  \\
 RoadRunner  & $w=3$         & $0.0\pm0.0$     &   0.0 &   0 &   0  \\
 \bottomrule
@@ -699,14 +701,14 @@ Backing data for \S\ref{sec:bridge_replace}. MsPacman bare, Stage A bare checkpo
 Variant & mean$\pm$std ($n=12$) & median & vs F & p (Welch, vs trained) \\
 \midrule
 $F$ (no bridge)                & $256\pm25$       & 250  & ---     & --- \\
-$L_{\text{zero}}$                & $379\pm95$       & 395  & $+48\%$ & $0.03$ \\
-$L_{\text{random}}$              & $387\pm161$      & 365  & $+51\%$ & $0.04$ \\
+$L_{\text{zero}}$                & $379\pm95$       & 395  & $+48\%$ & $0.04$ \\
+$L_{\text{random}}$              & $387\pm161$      & 365  & $+51\%$ & $0.05$ \\
 $L_{\text{trained}}$             & $\mathbf{628\pm356}$ & 550 & $+145\%$ & --- \\
 \bottomrule
 \end{tabular}\smallskip
 
 \paragraph{Reading.}
-\emph{$L_{\text{zero}}$ vs $L_{\text{random}}$}: Welch $t\!=\!0.15$, $p\!=\!0.88$ (n.s.)---essentially the same. So the architectural lift over $F$ comes from \emph{having 8 prepended slots}, not from the slots having any particular content. \emph{$L_{\text{trained}}$ vs $L_{\text{random}}$}: Welch $t\!\approx\!2.21$, $p\!\approx\!0.04$. The trained content is contributing a real signal, on top of the architectural lift. Decomposition on MsPacman: $\sim$40\,\% of L's advantage over F is architectural; $\sim$60\,\% is learned bridge content.
+\emph{$L_{\text{zero}}$ vs $L_{\text{random}}$}: Welch $t\!=\!0.15$, $p\!=\!0.88$ (n.s.)---essentially the same. So the architectural lift over $F$ comes from \emph{having 8 prepended slots}, not from the slots having any particular content. \emph{$L_{\text{trained}}$ vs $L_{\text{random}}$}: Welch $t\!\approx\!2.12$, $p\!\approx\!0.05$ (vs $L_{\text{zero}}$: $t\!\approx\!2.34$, $p\!\approx\!0.04$). The trained content is contributing a real signal, on top of the architectural lift. Decomposition on MsPacman: $\sim$40\,\% of L's advantage over F is architectural; $\sim$60\,\% is learned bridge content.
 
 \paragraph{All-games sweep (the control run on every Atari game, not just MsPacman).}
 We re-ran the trained/zero/random control on all 7 games using the \emph{bare} Stage~A head
@@ -730,9 +732,9 @@ $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$ by $>\!10
 \toprule
 Game & $L_{\text{train}}$ & $L_{\text{zero}}$ & $L_{\text{rand}}$ & verdict & $T\!-\!F$ \\
 \midrule
-RoadRunner    & $\mathbf{967}$ & 0     & 8     & learned (Welch $t\!=\!61$) & $+608$ \\
-Seaquest      & $\mathbf{100}$ & 28    & 5     & learned ($t\!=\!38$)       & $+22$  \\
-MsPacman      & $\mathbf{666}$ & 408   & 410   & learned ($t\!=\!2.4$)      & $+152$ \\
+RoadRunner    & $\mathbf{967}$ & 0     & 8     & learned (Welch $t\!=\!58$) & $+608$ \\
+Seaquest      & $\mathbf{100}$ & 28    & 5     & learned ($t\!=\!36$)       & $+22$  \\
+MsPacman      & $\mathbf{666}$ & 408   & 410   & learned ($t\!=\!2.3$)      & $+152$ \\
 Enduro        & 7.8            & 1.4   & 4.7   & trend only (tiny, $t\!=\!1.1$) & $-3$ \\
 Q*bert        & 123            & 63    & 117   & $\approx$random (tie)      & $+100$ \\
 SpaceInvaders & 0              & 148   & 90    & \emph{harmful}             & $-105$ \\
@@ -815,8 +817,8 @@ $\sim$8 reward; the discrete expert scores $\sim$174--211.
 
 \paragraph{Two task regimes.} \emph{Reactive} = default 3-block map (lane-keeping dominates).
 \emph{Planning} = map \texttt{SXSXSX} (straights $+$ X-intersections) with off-route termination,
-so survival requires correct turn decisions (the route expert beats a straight-driving policy by
-$+218$ reward). Eval on the robust head: $n\!=\!8$ (4 seeds $\times$ 2 episodes) for the planning
+so survival requires correct turn decisions: the route expert scores $211\pm65$ vs $93\pm23$ for
+a constant straight$+$throttle policy ($n\!=\!40$ episodes each), a $+118$-reward gap. Eval on the robust head: $n\!=\!8$ (4 seeds $\times$ 2 episodes) for the planning
 rows, $n\!=\!6$ (3 seeds $\times$ 2) for the reactive row.
 
 \smallskip\noindent

@@ -144,7 +144,7 @@ def fig_architecture():
         ax.add_patch(FancyBboxPatch((3.0, 1.8), 1.8, 1.4,
                                      boxstyle="round,pad=0.05",
                                      facecolor="#fff8c0", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(3.9, 2.5, "MLP\n2048→4096\n33M params", ha="center", va="center", fontsize=7.5)
+        ax.text(3.9, 2.5, "MLP\n4096→4096\n33M params", ha="center", va="center", fontsize=7.5)
         # 8 bridge tokens
         for i in range(8):
             ax.add_patch(FancyBboxPatch((5.2 + i*0.16, 2.0), 0.14, 1.0,
@@ -218,7 +218,8 @@ def fig_headline():
             m, lo, hi = _ci_yerr(d, s)
             means[s].append(m); errlo[s].append(lo); errhi[s].append(hi)
         cmp = STATS.get("comparisons", {}).get(f"{game}/{variant}/L_vs_T", {})
-        pvals.append(cmp.get("welch_t", [None, None])[1])
+        pvals.append((cmp.get("welch_t", [None, None])[1],
+                      cmp.get("mann_whitney", [None, None])[1]))
 
     x = np.arange(len(games))
     w = 0.26
@@ -238,13 +239,18 @@ def fig_headline():
             delta = 100 * (l - t) / max(t, 1e-9)
         else:
             delta = float("inf") if l > 0 else 0.0
-        p = pvals[i]
+        p, p_mwu = pvals[i]
         if p is None or (isinstance(p, float) and np.isnan(p)):
             sig = ""
         elif p < 0.001: sig = "***"
         elif p < 0.01:  sig = "**"
         elif p < 0.05:  sig = "*"
         else:           sig = "n.s."
+        # When the two tests disagree (Welch n.s. but MWU significant, e.g.
+        # bimodal MsPacman), annotate both rather than letting Welch hide it.
+        if sig == "n.s." and p_mwu is not None and p_mwu < 0.05:
+            mwu_sig = "***" if p_mwu < 0.001 else "**" if p_mwu < 0.01 else "*"
+            sig = f"W n.s.\nMWU {mwu_sig}"
         color = C_GOOD if l > t else (C_BAD if t > l else "grey")
         if l > t:
             tag = f"+{delta:.0f}%\n{sig}"
@@ -562,7 +568,8 @@ def fig_predictor():
             dy = -0.12 * lim
         if row["game"] == "RoadRunner":
             dx = -0.06 * lim; ha = "right"
-        lab = row["game"] + ("  (driving)" if is_md else "")
+        display = {"Riverraid": "River Raid", "Qbert": "Q*bert"}
+        lab = display.get(row["game"], row["game"]) + ("  (driving)" if is_md else "")
         ax.annotate(lab, (x, y), (x + dx, y + dy), fontsize=7.0,
                     ha=ha, color=(C_ACC if is_md else "0.2"),
                     fontweight=("bold" if is_md else "normal"), zorder=6)
