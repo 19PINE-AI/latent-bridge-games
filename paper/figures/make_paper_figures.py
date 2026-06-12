@@ -1,6 +1,7 @@
 """Generate paper-quality figures for the Latent Bridge arXiv submission.
 
 Produces (in paper/figures/):
+  0. fig_system.pdf            — whole-system runtime loop + F/T/L + training pipeline
   1. fig_architecture.pdf      — v1 vs v2 bridge schematic
   2. fig_headline.pdf          — cross-game F/T/L bar chart
   3. fig_roadrunner.pdf        — RoadRunner F=0 vs L=967 close-up
@@ -77,6 +78,147 @@ C_BAD  = "#c0392b"
 C_ACC  = "#1f6feb"
 
 OUT = Path(__file__).parent
+
+
+# ---------------------------------------------------------------------------
+# Figure 0 — System architecture: async fast/slow runtime loop, F/T/L channels,
+#            and the Stage A/B/C training pipeline.
+# ---------------------------------------------------------------------------
+
+def fig_system():
+    fig = plt.figure(figsize=(7.4, 5.8))
+    gs = fig.add_gridspec(2, 1, height_ratios=[3.4, 1.0], hspace=0.10)
+    ax = fig.add_subplot(gs[0])
+    axt = fig.add_subplot(gs[1])
+    for a in (ax, axt):
+        a.axis("off")
+        a.set_xlim(0, 14)
+    ax.set_ylim(0, 9.9)
+    axt.set_ylim(0, 2.4)
+
+    def box(a, x, y, w, h, fc, ec, text, fs=7.5, tc="black", lw=0.9,
+            weight="normal", style="round,pad=0.06"):
+        a.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=style,
+                                   facecolor=fc, edgecolor=ec, linewidth=lw))
+        a.text(x + w / 2, y + h / 2, text, ha="center", va="center",
+               fontsize=fs, color=tc, fontweight=weight)
+
+    def arrow(a, x0, y0, x1, y1, color="grey", lw=1.2, ls="-", style="->"):
+        a.annotate("", xy=(x1, y1), xytext=(x0, y0),
+                   arrowprops=dict(arrowstyle=style, color=color, lw=lw,
+                                   linestyle=ls))
+
+    # ---------------- fast half (top) ----------------
+    # Environment
+    box(ax, 0.2, 6.0, 2.1, 1.9, "#f5f5f5", "0.4",
+        "Environment\nAtari @ 15 Hz\nMetaDrive @ 10 Hz", fs=7.5)
+
+    # Fast-loop container
+    ax.add_patch(FancyBboxPatch((3.1, 4.6), 10.7, 4.3, boxstyle="round,pad=0.06",
+                                facecolor="#eef6ff", edgecolor=C_ACC, linewidth=1.0))
+    ax.text(3.4, 8.55, "Fast reactive loop  —  MiniCPM-o 4.5 (9 B, frozen)  —  "
+                       "one action per ~67 ms tick",
+            fontsize=8, color=C_ACC, ha="left", va="center", fontweight="bold")
+
+    # vision tower
+    box(ax, 5.0, 7.1, 1.9, 1.0, "white", C_ACC, "vision tower\n(frozen)", fs=7)
+    arrow(ax, 2.35, 7.3, 4.95, 7.6)                     # env frame -> vision tower
+    ax.text(3.3, 7.62, "frame", fontsize=6.5, color="0.35", ha="center",
+            va="bottom")
+
+    # input token strip: [L prefix][vision][state prompt][T suffix]
+    sy, sh = 5.6, 0.85
+    # L prefix: 8 thin red bars (same motif as fig_architecture)
+    for i in range(8):
+        ax.add_patch(FancyBboxPatch((3.55 + i * 0.155, sy), 0.135, sh,
+                                    boxstyle="round,pad=0", facecolor=C_L,
+                                    edgecolor="white", linewidth=0.4, alpha=0.9))
+    ax.text(4.17, sy + sh + 0.12, "L: 8 latent tokens\n(prepended)", fontsize=6.6,
+            color=C_L, ha="center", va="bottom", fontweight="bold")
+    box(ax, 4.95, sy, 1.75, sh, "#e4efe4", "0.55", "vision\ntokens", fs=6.8,
+        style="round,pad=0.02")
+    box(ax, 6.8, sy, 1.75, sh, "#f4f4f4", "0.55", "game-state\nprompt", fs=6.8,
+        style="round,pad=0.02")
+    box(ax, 8.65, sy, 2.0, sh, "#dbeafe", C_T, "T: slow text suffix\n(appended)",
+        fs=6.6, tc="#1d5e8a", style="round,pad=0.02")
+    arrow(ax, 5.9, 7.1, 5.85, sy + sh + 0.05, color="0.55", lw=1.0)  # vision -> strip
+
+    # LLM + action head
+    box(ax, 11.0, 5.6, 1.25, 1.5, "white", C_ACC, "36-layer\nLLM\n(frozen)", fs=6.8)
+    box(ax, 12.45, 5.6, 1.2, 1.5, "white", C_ACC, "action\nhead\n(Stage A)", fs=6.8)
+    arrow(ax, 10.7, sy + sh / 2, 10.95, 6.35, color="0.3", lw=1.4)
+    arrow(ax, 12.3, 6.35, 12.42, 6.35, color="0.3", lw=1.4)
+    # action back to env: right-angle route around the top of the fast box
+    ax.plot([13.05, 13.05], [7.15, 9.35], color="0.3", lw=1.2)
+    ax.plot([13.05, 1.25], [9.35, 9.35], color="0.3", lw=1.2)
+    arrow(ax, 1.25, 9.35, 1.25, 8.0, color="0.3", lw=1.2)
+    ax.text(7.2, 9.46, "action (greedy argmax over game actions), every tick",
+            fontsize=6.8, color="0.3", ha="center", va="bottom")
+
+    # F/T/L definition note inside fast box (bottom right, clear of the red arc)
+    ax.text(13.55, 5.22,
+            "F = no colored segment\nT = + blue suffix   ·   L = + red prefix",
+            fontsize=6.6, color="0.25", style="italic", ha="right", va="center")
+
+    # ---------------- async divider ----------------
+    ax.plot([0.2, 13.8], [4.0, 4.0], ls=(0, (4, 3)), color="0.6", lw=0.9)
+    ax.text(0.25, 4.12, "synchronous, ~15 Hz", fontsize=6.8, color="0.4",
+            ha="left", va="bottom", style="italic")
+    ax.text(0.25, 3.86, "asynchronous, ~1 Hz", fontsize=6.8, color="0.4",
+            ha="left", va="top", style="italic")
+
+    # ---------------- slow half (bottom) ----------------
+    box(ax, 0.2, 1.6, 2.1, 1.5, "#f5f5f5", "0.4",
+        "structured state\n(RAM objects /\ndriving state)", fs=7)
+    arrow(ax, 1.25, 5.95, 1.25, 3.2, color="0.55", lw=1.0)  # env -> structured state
+
+    box(ax, 3.1, 1.35, 3.0, 2.0, "#fff0e0", C_ACC,
+        "Slow — Qwen3-VL-8B-\nThinking (8 B, frozen)\n~1.5 s per emission",
+        fs=7.5)
+    arrow(ax, 2.35, 2.35, 3.05, 2.35, color="0.55", lw=1.0)
+
+    # text emission -> T channel
+    box(ax, 7.0, 2.5, 2.3, 1.0, "#dbeafe", C_T,
+        "text emission\n(~300 chars)", fs=7, tc="#1d5e8a")
+    arrow(ax, 6.15, 2.95, 6.95, 3.0, color=C_T, lw=1.3)
+    arrow(ax, 9.65, 3.5, 9.65, sy - 0.08, color=C_T, lw=1.6)
+
+    # residuals -> MLP -> L channel
+    box(ax, 7.0, 0.5, 2.3, 1.0, "#f4f4f4", "0.5",
+        "layer-24 residuals\n(last 8 positions)", fs=7)
+    arrow(ax, 6.15, 1.75, 6.95, 1.1, color="0.55", lw=1.0)
+    box(ax, 10.0, 0.35, 2.6, 1.3, "#fff8c0", C_ACC,
+        "bridge MLP 4096→4096\n33 M params — the only\ntrained component", fs=7)
+    arrow(ax, 9.35, 1.0, 9.95, 1.0, color="0.55", lw=1.0)
+    # MLP up to L prefix in the strip
+    ax.annotate("", xy=(4.17, sy - 0.08), xytext=(10.6, 1.72),
+                arrowprops=dict(arrowstyle="-|>", color=C_L, lw=1.8,
+                                connectionstyle="arc3,rad=0.22"))
+    # async behaviour note, bottom-left empty corner
+    ax.text(0.2, 0.95, "The fast loop never blocks on the slow model;\n"
+                       "the latest emission is reused (~15 ticks)\n"
+                       "until the next one replaces it.",
+            fontsize=6.6, color="0.4", style="italic", ha="left", va="top")
+
+    # ---------------- training strip (bottom panel) ----------------
+    axt.text(0.2, 2.15, "Training pipeline (per game; both base models stay frozen):",
+             fontsize=7.8, color="0.25", ha="left", va="center", fontweight="bold")
+    box(axt, 0.2, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
+        "Stage A — action head\nbehavioral cloning from SB3 expert\n"
+        "(bare, or robust: suffix-prob 0.5)", fs=7)
+    box(axt, 4.9, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
+        "Stage B — data\nroll out T; cache (frame, slow text,\nlayer-24 residuals)",
+        fs=7)
+    box(axt, 9.6, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
+        "Stage C — bridge\ntrain the MLP only:  KL$(\\pi_L\\,\\|\\,\\pi_T)$\n"
+        "(~5K samples/game, final KL ≈ 0.005)", fs=7)
+    arrow(axt, 4.45, 1.0, 4.85, 1.0, color="0.45", lw=1.2)
+    arrow(axt, 9.15, 1.0, 9.55, 1.0, color="0.45", lw=1.2)
+
+    fig.savefig(OUT / "fig_system.pdf")
+    fig.savefig(OUT / "fig_system.png", dpi=200)
+    plt.close(fig)
+    print("wrote fig_system.{pdf,png}")
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +528,7 @@ def fig_bandwidth():
                 label="L score (deploy-only: train=8, deploy=N)")
     ax.set_xticks(Ns)
     ax.set_xticklabels(Ns)
-    ax.set_xlabel("Bridge bandwidth N (latent tokens per emission)")
+    ax.set_xlabel("Latent token count N (per emission)")
     ax.set_ylabel("L score (mean ± std)")
     ax.set_title("Matched-N suggests Goldilocks at N=8;\n"
                  "deploy-only series inverts it (best at N=16). 3 points fit either story.",
@@ -470,7 +612,8 @@ def fig_continuous_vs_categorical():
     ax.set_ylabel("(L − T) / T")
     # Compute Pearson r for honest annotation
     r = float(np.corrcoef(xs, ys)[0, 1]) if len(xs) >= 2 else float("nan")
-    ax.set_title(f"No quantitative predictor at n={len(xs)}: Pearson r = {r:+.2f}.\n"
+    ax.set_title(f"Emission lexical diversity does not predict sign($L-T$): "
+                 f"Pearson r = {r:+.2f} (n={len(xs)}).\n"
                  "Q*bert inverts, but Enduro and River Raid (lower diversity) do not.",
                  fontsize=9.5)
     ax.legend(loc="upper left", frameon=False, fontsize=7.5)
@@ -583,7 +726,7 @@ def fig_predictor():
     ax.set_yticks(tk); ax.set_yticklabels(lab, fontsize=7)
     ax.set_xlabel("Text bridge benefit  $T-F$   (signed-$\\sqrt{\\cdot}$ axis)")
     ax.set_ylabel("Latent bridge benefit  $L-F$")
-    ax.set_title(f"Latent helps iff slow reasoning helps  (best-variant $r={r:.2f}$, $n={n}$)")
+    ax.set_title(f"Latent helps iff slow reasoning helps  (reported-variant $r={r:.2f}$, $n={n}$)")
     # annotate quadrant
     ax.text(0.97 * lim, 0.10 * lim, "bridge\nhelps", fontsize=7.5,
             color=C_GOOD, ha="right", va="bottom", style="italic")
@@ -613,6 +756,7 @@ def fig_predictor():
 
 
 if __name__ == "__main__":
+    fig_system()
     fig_architecture()
     fig_headline()
     fig_roadrunner()
