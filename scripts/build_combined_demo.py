@@ -9,13 +9,14 @@ Output:
     - Outro card
 
 Pipeline:
-  1. Generate gTTS .mp3 for each narration block
+  1. Generate narration .mp3 for each block — ElevenLabs if ELEVENLABS_API_KEY
+     is set (model eleven_v3 by default), else gTTS
   2. Generate title-card PNGs (PIL) and convert each to a short video clip
   3. Pad each demo clip's audio with the narration mp3
   4. Concatenate all clips with ffmpeg
 
 Run:
-  python scripts/build_combined_demo.py --out demos/combined_narrated.mp4
+  ELEVENLABS_API_KEY=... python scripts/build_combined_demo.py --out demos/combined_narrated.mp4
 """
 from __future__ import annotations
 
@@ -26,12 +27,19 @@ import subprocess
 import sys
 from pathlib import Path
 
+import requests
 from PIL import Image, ImageDraw, ImageFont
 try:
     from gtts import gTTS  # type: ignore
     HAS_GTTS = True
 except ImportError:
     HAS_GTTS = False
+
+# ElevenLabs narration. Key comes from the environment only — this repo is public.
+ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+ELEVEN_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_v3")
+# Daniel — "Steady Broadcaster", informative/educational premade voice.
+ELEVEN_VOICE = os.environ.get("ELEVENLABS_VOICE", "onwK4e9ZLuTAKqWW03F9")
 
 
 # Canvas sized for the 3-panel F/T/L clips (~3376x876). All clips/cards are scaled
@@ -282,6 +290,17 @@ def render_card_png(seg: dict, out_path: Path) -> None:
 
 
 def generate_narration_mp3(text: str, out_path: Path) -> None:
+    if ELEVEN_KEY:
+        r = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVEN_VOICE}",
+            params={"output_format": "mp3_44100_128"},
+            headers={"xi-api-key": ELEVEN_KEY},
+            json={"text": text, "model_id": ELEVEN_MODEL},
+            timeout=120,
+        )
+        r.raise_for_status()
+        out_path.write_bytes(r.content)
+        return
     if not HAS_GTTS:
         # Fallback: empty audio
         subprocess.run(

@@ -56,7 +56,7 @@ export default function Hero() {
           <div className="bg-panel rounded-2xl p-4 border border-border shadow-soft">
             <div className="px-2 pb-2 flex items-center justify-between text-xs">
               <span className="text-muted uppercase tracking-wider">
-                Narrated demo · 4 min 44 s
+                Narrated demo · 5 min 07 s
               </span>
               <a href="demos/combined_narrated.srt" download
                  className="text-link hover:underline">subtitles (SRT)</a>
