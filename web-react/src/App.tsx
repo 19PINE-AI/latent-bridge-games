@@ -12,7 +12,6 @@ import ReplayTheater from "./components/ReplayTheater";
 import PromptLibrary from "./components/PromptLibrary";
 import ReproSection from "./components/ReproSection";
 import StrategiesTable from "./components/StrategiesTable";
-import FiguresGallery from "./components/FiguresGallery";
 import Footer from "./components/Footer";
 
 export default function App() {
@@ -84,12 +83,6 @@ export default function App() {
                  title="Reproducibility &amp; implementation"
                  subtitle="Stage A/C hyperparameters, prompt templates, fairness analysis for the text baseline.">
           <ReproSection />
-        </Section>
-
-        <Section id="figures"
-                 title="Paper figures"
-                 subtitle="From the arXiv-style PDF. Click any to enlarge.">
-          <FiguresGallery />
         </Section>
       </main>
       <Footer />
