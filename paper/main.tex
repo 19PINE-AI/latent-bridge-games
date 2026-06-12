@@ -5,17 +5,15 @@
 A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
 
 \author[1]{Bojie Li}
-\author[2]{Claude (Anthropic)}
 \affil[1]{\texttt{bojieli@gmail.com}}
-\affil[2]{Generated under Claude Code, Opus 4.7 (1M context)}
-\date{May 2026}
+\date{}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection via a text prompt (Gemini Live, OpenAI Realtime). We test an alternative to the text channel: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. On 7 evaluable Atari games coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale, the latent bridge beats the text bridge by 26--82\% on 4 games under greedy decoding ($p<0.05$ by Mann-Whitney on all four; 3/4 by Welch's $t$). The one greedy-decoding inversion (Q*bert, T leads by $2.5\times$) is decoder-dependent: under multinomial sampling at temperature 1.0, L beats T on Q*bert by $2.9\times$ (Welch $p\!\approx\!0.005$). Sampling also recovers the bridges on two other greedy-degenerate games (SpaceInvaders, Seaquest/robust)---the greedy decoder was systematically under-counting the bridge's per-emission signal. A negative-control test---replacing trained bridge tokens with zero or random vectors at matched norm---run on \emph{all 7 games} shows the trained latent carries genuinely learned, behaviour-relevant content ($L_{\text{trained}}\!\gg\!L_{\text{random}}$) on exactly the three games where slow reasoning beats fast-only (RoadRunner $967$ vs $8$; Seaquest $100$ vs $5$; MsPacman $666$ vs $410$), and is inert or \emph{harmful} where it does not (River~Raid, SpaceInvaders)---the learned fraction's sign is itself predicted by $T\!>\!F$. A cross-scale test swapping the 8B-dense slow for Qwen3-VL-30B-A3B-Thinking (MoE, $\sim$3B active) on MsPacman gives $L=458 > T=389$ under sampling but not significantly ($p\!=\!0.50, n\!=\!12$): the $L-T$ gap does \emph{not} grow with slow-model capacity at this single data point. We trace every collapsed cell (5 of 14) to a single mechanism, \textbf{Stage A action-head OOD-brittleness}, and show a targeted retraining recovers the largest single $L\!-\!T$ gap in the sweep (River Raid, +82\%). A direct falsifier---extending T's suffix to 2 or 3 most-recent emissions---does not close the gap: on MsPacman the mean monotonically drops ($408\!\to\!378\!\to\!352$), on RoadRunner the strategy collapses ($608\!\to\!8\!\to\!0$). Direct inspection of the trained bridge shows it is non-lexical (cosine $\le 0.09$ to any vocab token), strongly game-conditioned (+0.81--0.89 within-game cosine), and only weakly per-emission-conditioned (+0.92--0.97 between emissions of the same game)---its \emph{used} capacity is far below its nominal $8\!\times\!4096$. We do \emph{not} obtain a quantitative axis that predicts the sign of $L-T$ a~priori from emission text: lexical-diversity of slow emissions correlates with $L-T$ at $r=0.05$ over our 7 games (not significant). We \emph{do}, however, find a clean \emph{behavioural} predictor: pooling the 7 Atari games with a non-Atari driving domain (MetaDrive), the latent's benefit over fast-only tracks the text bridge's benefit at Pearson $r=0.92$ ($n=8$ best-variant cells; $r=0.94$ over all 16 game/variant cells with no selection)---the bridge helps iff slow reasoning beats reaction on the task ($T>F$). MetaDrive is a controlled negative: even in a planning-heavy regime the slow model never beats fast-only ($T\le F$), and the bridge-replacement control shows the latent is inert there, so a latent bridge's payoff is a property of the task's bottleneck (deliberation vs.\ perception--action), not of the channel. We release 21 side-by-side demo recordings and reproducible pipelines.
+Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 3/4 by Welch's $t$). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioural predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head OOD-brittleness and give a targeted fix. We release 21 demo recordings and reproducible pipelines.
 
 \textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
 \end{abstract}
@@ -25,7 +23,7 @@ Real-time interactive AI systems couple deliberative reasoning to reactive actio
 
 A reasoning model deliberates; a reactive model reacts. Their tick rates differ by an order of magnitude (seconds vs.\ tens of milliseconds), and the production answer for coupling them is to have the slow model emit text that the fast model reads. We test the alternative: a learned continuous-valued channel between two frozen models.
 
-\paragraph{Setting.} Both endpoints are general-purpose multimodal LLMs at matched 9\,B scale, deliberately chosen so the channel (not a capability gap) is the load-bearing variable. The fast model picks actions at $\sim$15\,Hz; the slow emits at $\sim$1\,Hz; the bridge is the only learned component. Our domain is Atari, where slow/fast coupling is visible to the eye---100\,ms ghost-dodging meets 10\,s route-planning.
+\paragraph{Setting.} Both endpoints are general-purpose multimodal LLMs at matched 9\,B scale, deliberately chosen so the channel (not a capability gap) is the load-bearing variable. The fast model picks actions at $\sim$15\,Hz; the slow emits at $\sim$1\,Hz; the bridge is the only learned component. Our domain is Atari~\cite{atari}, where slow/fast coupling is visible to the eye---100\,ms ghost-dodging meets 10\,s route-planning.
 
 \paragraph{What this paper claims, sharpened.}
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
@@ -102,7 +100,7 @@ the 8 selected cells and $r=0.94$ over \emph{all} 16 (game, variant) cells with 
 
 \paragraph{Evaluation.} 3 seeds $\times$ 4 episodes $=n=12$ per (game, strategy, variant) cell, $\le$500 ticks/episode. Atari ALE seeds vary per episode but action selection is greedy; many cells have zero per-episode variance (Appendix~\ref{app:stats}).
 
-\paragraph{Games.} 8 Atari games attempted. \emph{Frostbite excluded}: Stage A converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong reported but uninformative}: Stage A val-accuracy is 25.1\% (random 16.7\%, $1.5\times$); the bare F policy cannot move the paddle, so no bridge can rescue it. The remaining 7 games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
+\paragraph{Games.} 9 Atari games attempted. \emph{Frostbite excluded}: Stage A converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong reported but uninformative}: Stage A val-accuracy is 25.1\% (random 16.7\%, $1.5\times$); the bare F policy cannot move the paddle, so no bridge can rescue it. The remaining 7 games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
 
 % --------------------------------------------------------------------------
 \section{Results}
@@ -120,9 +118,9 @@ Game (reported var.) & F & T & L & $\Delta_{L-T}$ (\%, $p$) \\
 MsPacman (bare)         & $256\pm25$  & $408\pm92$  & $\mathbf{628\pm356}$ & +54\,\% (W $.06$, MWU $.003$)\\
 Seaquest (bare)         & $42\pm20$   & $63\pm12$   & $\mathbf{80\pm0}$    & +26\,\% (MWU $<.001$)$^{\dagger}$\\
 RoadRunner (bare)       & $0\pm0$     & $608\pm250$ & $\mathbf{967\pm49}$  & +59\,\% (W $<.001$)\\
-River Raid (robust)$^*$ & $1033\pm20$ & $337\pm81$  & $\mathbf{612\pm310}$ & +82\,\% (W $.01$)\\
+River Raid (robust)$^*$ & $1032\pm20$ & $337\pm81$  & $\mathbf{612\pm310}$ & +82\,\% (W $.01$)\\
 Enduro (robust)$^*$     & $1\pm1$     & $5\pm6$     & $6\pm3$              & +19\,\% (W $.63$)\\
-SpaceInvaders (rob)$^*$ & $107\pm62$  & $\mathbf{18\pm19}$ & $15\pm0$      & $-18$\,\% (W $.27$)$^{\dagger}$\\
+SpaceInvaders (rob)$^*$ & $107\pm62$  & $\mathbf{18\pm19}$ & $15\pm0$      & $-18$\,\% (MWU $.27$)$^{\dagger}$\\
 Q*bert (robust)$^*$     & $25\pm0$    & $\mathbf{125\pm0}$ & $50\pm0$      & $-60$\,\% (MWU $<.001$)$^{\ddagger}$\\
 \bottomrule
 \end{tabular}
@@ -293,8 +291,8 @@ We swept $N\!\in\!\{4,8,16\}$ two ways on MsPacman: (i) \emph{matched} ($\mathrm
 \toprule
 $N$ & 4 & 8 & 16 \\
 \midrule
-Matched ($\mathrm{train}\!=\!\mathrm{deploy}\!=\!N$) & $296\pm65$ & $\mathbf{628\pm341}$ & $259\pm74$ \\
-Deploy-only ($\mathrm{train}\!=\!8$, $\mathrm{deploy}\!=\!N$) & $232\pm52$ & $628\pm341$ & $720\pm123$ \\
+Matched ($\mathrm{train}\!=\!\mathrm{deploy}\!=\!N$) & $296\pm65$ & $\mathbf{628\pm356}$ & $259\pm74$ \\
+Deploy-only ($\mathrm{train}\!=\!8$, $\mathrm{deploy}\!=\!N$) & $232\pm52$ & $628\pm356$ & $720\pm123$ \\
 \bottomrule
 \end{tabular}\smallskip
 
@@ -335,7 +333,7 @@ Variant & MsPacman score ($n=12$) \\
 $F$ (no bridge tokens)              & $256 \pm 25$ \\
 $L_{\text{zero}}$ (8 zero vectors)    & $379 \pm 95$ \\
 $L_{\text{random}}$ (8 random vectors at trained-norm) & $387 \pm 161$ \\
-$L_{\text{trained}}$                  & $\mathbf{628 \pm 341}$ \\
+$L_{\text{trained}}$                  & $\mathbf{628 \pm 356}$ \\
 \bottomrule
 \end{tabular}\smallskip
 
@@ -460,7 +458,7 @@ Both samples are $\sim$300 characters. RoadRunner's encodes simultaneous $\Delta
 \section{Stage A and Stage C details}
 \label{app:training}
 
-\paragraph{Stage A.} AdamW, lr $1\!\times\!10^{-4}$, 3 epochs, batch=1 with grad-accum=8. Bare val-accuracies on the game-state-only prompt: MsPacman 32\% (random 11\%), Seaquest 24\% (5.6\%), SpaceInvaders 33\% (17\%), Pong 25\% (17\%), RoadRunner 59\% (11\%). Robust Stage A is identical except half of training batches receive a synthetic slow-style text suffix appended (suffix-prob=0.5); bare val-acc drops slightly (e.g., MsPacman 32$\to$33\%, SI 33$\to$30\%) but the policy is suffix-invariant.
+\paragraph{Stage A.} AdamW, lr $1\!\times\!10^{-4}$, 3 epochs, batch=1 with grad-accum=8. Bare val-accuracies on the game-state-only prompt: MsPacman 32\% (random 11\%), Seaquest 24\% (5.6\%), SpaceInvaders 33\% (17\%), Pong 25\% (17\%), RoadRunner 59\% (11\%). Robust Stage A is identical except half of training batches receive a synthetic slow-style text suffix appended (suffix-prob=0.5); bare val-acc barely changes (e.g., MsPacman 32$\to$33\%, SI 33$\to$30\%) but the policy is suffix-invariant.
 
 \paragraph{Stage C.} 2-layer MLP projection (LayerNorm, Linear 4096$\to$4096, GELU, Linear 4096$\to$4096, LayerNorm), 33.6\,M parameters. AdamW, lr $5\!\times\!10^{-5}$, 1 epoch, batch=1 with grad-accum=4. KL temperature $\tau=1.0$. Slow residuals extracted at layer 24 of 36 (we did not ablate the layer choice). Default $N=8$ latent tokens, $\sim$5K (frame, slow text, slow residuals) tuples per game from Stage~B random-policy rollouts.
 
@@ -694,7 +692,7 @@ Variant & mean$\pm$std ($n=12$) & median & vs F & p (Welch, vs trained) \\
 $F$ (no bridge)                & $256\pm25$       & 250  & ---     & --- \\
 $L_{\text{zero}}$                & $379\pm95$       & 395  & $+48\%$ & $0.03$ \\
 $L_{\text{random}}$              & $387\pm161$      & 365  & $+51\%$ & $0.04$ \\
-$L_{\text{trained}}$             & $\mathbf{628\pm341}$ & 550 & $+145\%$ & --- \\
+$L_{\text{trained}}$             & $\mathbf{628\pm356}$ & 550 & $+145\%$ & --- \\
 \bottomrule
 \end{tabular}\smallskip
 
@@ -705,7 +703,9 @@ $L_{\text{trained}}$             & $\mathbf{628\pm341}$ & 550 & $+145\%$ & --- \
 We re-ran the trained/zero/random control on all 7 games at each game's canonical
 (fast-ckpt, bridge-ckpt, decoder); $n\!=\!12$ per cell ($3\times4$), greedy except Q*bert
 (sampling $\tau\!=\!1$, its canonical decoder). $L_{\text{random}}$ uses matched per-position
-L2 norm. ``Learned'' = $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$
+L2 norm. This is an independent re-run of the controls, so its MsPacman cell
+($L_{\text{trained}}\!=\!666$) differs slightly from the standalone run above ($628$); the two
+agree within run-to-run noise. ``Learned'' = $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$
 by $>\!10\%$.
 
 \smallskip\noindent
@@ -763,7 +763,7 @@ The greedy result ($L=210\pm0$) reproduces the deterministic-trajectory pattern 
 \section{Per-game collapse triage}
 \label{app:collapse}
 
-Across the 14 (game, variant) cells in Appendix~\ref{app:full}, six have a strategy cell at zero (or at the random-policy floor for Pong). Stage A val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare Stage A val-acc, not with Stage C KL.
+Across the 14 (game, variant) cells in Appendix~\ref{app:full}, five have a strategy cell at zero; a sixth game, Pong (outside the 14), sits at the random-policy floor ($-21$). Stage A val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare Stage A val-acc, not with Stage C KL.
 
 \smallskip\noindent
 \begin{tabular}{lll}
