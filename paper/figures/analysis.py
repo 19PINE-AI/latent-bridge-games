@@ -230,7 +230,9 @@ def main() -> None:
     lines.append("\\midrule")
     order = [
         ("MsPacman", "bare", "MsPacman"),
+        ("MsPacman", "robust", "MsPacman (robust SA)"),
         ("Seaquest", "bare", "Seaquest"),
+        ("Seaquest", "robust", "Seaquest (robust SA)"),
         ("RoadRunner", "bare", "RoadRunner"),
         ("RoadRunner", "robust", "RoadRunner (robust SA)"),
         ("RiverRaid", "bare", "River Raid"),

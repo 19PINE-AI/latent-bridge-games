@@ -13,7 +13,7 @@ A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 3/4 by Welch's $t$). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioural predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head OOD-brittleness and give a targeted fix. We release 21 demo recordings and reproducible pipelines.
+Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 2/4 by Welch's $t$; of the rest, MsPacman is marginal under Welch and Seaquest has a zero-variance cell that makes Welch unreliable). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioural predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head OOD-brittleness and give a targeted fix. We release 21 demo recordings and reproducible pipelines.
 
 \textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
 \end{abstract}
@@ -40,7 +40,7 @@ We do not have an a~priori quantitative predictor for the sign of $L-T$. Our ini
 \centering
 \includegraphics[width=\textwidth]{figures/fig_headline.pdf}
 \caption{\textbf{Cross-game F/T/L scores, reported variant per game; $n=12$ episodes each.}
-Stars on the $L$\,vs\,$T$ comparison: \texttt{*}\,$p<.05$, \texttt{**}\,$p<.01$, \texttt{***}\,$p<.001$ (Welch's $t$ where both cells have non-zero variance, Mann-Whitney $U$ otherwise). Asterisks on game labels mark the robust-Stage-A variant (\S\ref{sec:ood}); other games use bare Stage~A. The reported variant per game is the one that yields a non-degenerate $L$/$T$ comparison; both variants are tabulated in Appendix~\ref{app:full}.}
+Stars on the $L$\,vs\,$T$ comparison: \texttt{*}\,$p<.05$, \texttt{**}\,$p<.01$, \texttt{***}\,$p<.001$ (Welch's $t$ where both cells have non-zero variance, Mann-Whitney $U$ otherwise). Asterisks on game labels mark the robust-Stage-A variant (\S\ref{sec:ood}); other games use bare Stage~A. The reported variant per game is selected by the rule in \S\ref{sec:setup_variant} (higher deployment $L$ among variants with a non-degenerate, $T\!>\!0$, comparison); both variants are tabulated in Appendix~\ref{app:full}.}
 \label{fig:headline}
 \end{figure}
 
@@ -86,9 +86,14 @@ The Stage A action head is trained either \emph{bare} (plain state prompt) or \e
 (suffix-probability 0.5: half of batches get a slow-style text suffix appended, teaching the
 head to tolerate the OOD suffix/bridge inputs it meets at deployment). This is one binary
 hyperparameter. We train \emph{both} for every game and \textbf{select per game by the standard
-rule---higher validation-time deployment score (we use $L$)---exactly as one would tune any
-hyperparameter}; ties and double-collapses ($L_{\text{bare}}=L_{\text{robust}}=0$) break toward
-the variant with higher $T$. Both variants for all games are reported (Appendix~\ref{app:full});
+rule---higher validation-time deployment score (we use $L$), among variants whose text channel
+has not collapsed ($T\!>\!0$, so the $L$-vs-$T$ comparison is non-degenerate)---exactly as one
+would tune any hyperparameter}; ties and double-collapses ($L_{\text{bare}}=L_{\text{robust}}=0$,
+or both $T\!=\!0$) break toward the variant with higher $T$. This rule picks the same variant as
+unconstrained ``higher $L$'' on six of seven games; the lone exception is Enduro, where bare has
+marginally higher $L$ ($7.8$ vs $5.8$) but $T\!=\!0$ (degenerate), so we report robust
+($T\!=\!5$, $L\!=\!6$)---a \emph{conservative} choice that lowers, not raises, Enduro's reported
+$L$. Both variants for all games are reported (Appendix~\ref{app:full});
 the headline uses the selected one. The selection is blind to the $L\!-\!T$ \emph{gap}---it
 maximises $L$, the deployed quantity---so it does not inflate the text-vs-latent comparison. The
 choice matters and is itself a finding: robustness \emph{rescues} games whose bare head collapses
@@ -133,7 +138,7 @@ Full table including bare-vs-robust pairs in Appendix~\ref{app:full}.}
 \end{table}
 
 \paragraph{L\,>\,T on four games, three significant by both tests.}
-RoadRunner (+59\%, $d=1.99$), Seaquest (+26\%, large effect on tight cells), River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann-Whitney. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann-Whitney ($p=0.003$): the L distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test.
+RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann-Whitney. Seaquest (+26\%) is significant by Mann-Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$) and we do not count it as a Welch win. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann-Whitney ($p=0.003$): the L distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test.
 
 \paragraph{Two non-significant: Enduro and SpaceInvaders.}
 Enduro/robust has tiny absolute scores ($T\!=\!5$, $L\!=\!6$); both cells are at floor. SpaceInvaders/robust has $T\!=\!18$, $L\!=\!15$, $p\!=\!0.27$. We do not claim these as L wins or T wins.
@@ -173,7 +178,7 @@ Sample, $\tau=1.0$         & $66.7\pm71.7$  & $87.5\pm65.0$   & $\mathbf{250.0\p
 \bottomrule
 \end{tabular}\smallskip
 
-At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.55$, $p\!=\!0.59$). At $\tau\!=\!1.0$ \textbf{$L$ beats $T$ by $2.9\times$} (Welch's $t\!\approx\!3.3$, $p\!\approx\!0.005$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation.
+At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.55$, $p\!=\!0.59$). At $\tau\!=\!1.0$ \textbf{$L$ beats $T$ by $2.9\times$} (Welch's $t\!\approx\!3.3$, $p\!\approx\!0.005$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation (full per-temperature numbers in Appendix~\ref{app:decoder}).
 
 \paragraph{Mechanistic explanation.} Item-2 diagnostics (\S\ref{sec:bridge_content}) showed the bridge tokens differ by only 3--8\,\% across emissions of the same game. Under greedy decoding, this small per-emission variance is below the threshold needed to change the argmax---the head picks the same action regardless, producing the std=0 observation that gave $L\!=\!50$ on every episode. Under sampling, the small bridge variance can influence the action distribution; the per-emission strategic content the bridge carries gets exposed. The text channel's per-emission information is also exposed under sampling, but text's signal is apparently more sample-noise-fragile (T \emph{decreases} from $\tau\!=\!0.5$ to $\tau\!=\!1.0$, while $L$ \emph{increases}). At sufficient stochasticity the bridge wins.
 
@@ -245,7 +250,7 @@ bridge-replacement control is the diagnostic that separates a genuinely informat
 \emph{Left:} per-game latent benefit $L\!-\!F$ vs.\ text benefit $T\!-\!F$ across 7 Atari games
 and MetaDrive (driving), on a signed-$\sqrt{\cdot}$ axis (true reward deltas on the ticks).
 Bold points are the best-variant cell per game (Pearson $r=0.92$, $n=8$; leave-one-out
-$r\!\in\![0.89,0.98]$, bootstrap 95\,\% CI $[0.82,1.0]$); faint grey points are all 16
+$r\!\in\![0.89,0.98]$, bootstrap 95\,\% CI $[0.81,1.0]$); faint grey points are all 16
 game/variant cells ($r=0.94$), showing the relationship does not depend on variant selection
 (Appendix~\ref{app:metadrive}). The bridge helps only in the upper-right quadrant ($T\!>\!F$ and
 $L\!>\!F$). MetaDrive (blue diamond) sits at the origin: neither channel beats fast-only. \emph{Right:} MetaDrive in both regimes---reactive lane-keeping and
@@ -261,7 +266,7 @@ the task demands route planning.}
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.78\textwidth]{figures/fig_stage_a_ood.pdf}
-\caption{\textbf{The same Stage A retraining recovers two distinct collapses.} SpaceInvaders (left): bare gives $T\!=\!L\!=\!0$; robust gives $T\!=\!18$, $L\!=\!15$ (still below $F$). River Raid (right): bare gives $T\!\approx\!L\!\approx\!360$; robust gives $T\!=\!337$, $\mathbf{L\!=\!612}$ (largest $L\!-\!T$ gap in the paper).}
+\caption{\textbf{The same Stage A retraining recovers two distinct collapses.} SpaceInvaders (left): bare gives $T\!=\!L\!=\!0$; robust gives $T\!=\!18$, $L\!=\!15$ (still below $F$). River Raid (right): bare gives $T\!=\!383$, $L\!=\!360$ (a near-tie); robust gives $T\!=\!337$, $\mathbf{L\!=\!612}$ (largest $L\!-\!T$ gap in the paper).}
 \label{fig:ood}
 \end{figure}
 
@@ -363,7 +368,7 @@ Cosine between the \emph{mean bridge token} of one emission vs another emission 
 \subsection{Sharpened claims}
 
 \begin{finding}
-At matched 9\,B endpoint scale on 7 evaluable Atari games, a learned latent bridge beats a text bridge by 26--82\% on 4 games (3/4 significant by Welch $p<0.05$; 4/4 by Mann-Whitney), and ties on 2 (Enduro, SpaceInvaders). The one apparent counter-example---Q*bert under greedy decoding ($T\!=\!125$, $L\!=\!50$)---inverts under multinomial sampling at $\tau\!=\!1.0$: $L\!=\!250 > T\!=\!88$, Welch $p\!\approx\!0.005$ (\S\ref{sec:qbert}). \textbf{We have a mechanism story for L\,>\,T} (slow-residual joint state survives a continuous channel; text serializes one element at a time); we now lack a credible game where greedy-decoding-corrected $T > L$ is a stable outcome.
+At matched 9\,B endpoint scale on 7 evaluable Atari games, a learned latent bridge beats a text bridge by 26--82\% on 4 games (2/4 significant by Welch $p<0.05$---RoadRunner, River Raid; the other two have a marginal or zero-variance cell; 4/4 by Mann-Whitney), and ties on 2 (Enduro, SpaceInvaders). The one apparent counter-example---Q*bert under greedy decoding ($T\!=\!125$, $L\!=\!50$)---inverts under multinomial sampling at $\tau\!=\!1.0$: $L\!=\!250 > T\!=\!88$, Welch $p\!\approx\!0.005$ (\S\ref{sec:qbert}). \textbf{We have a mechanism story for L\,>\,T} (slow-residual joint state survives a continuous channel; text serializes one element at a time); we now lack a credible game where greedy-decoding-corrected $T > L$ is a stable outcome.
 \end{finding}
 
 \begin{finding}
@@ -465,6 +470,8 @@ Both samples are $\sim$300 characters. RoadRunner's encodes simultaneous $\Delta
 \paragraph{Text-bridge suffix.} The slow's full unmodified post-thinking emission, appended verbatim under a ``strategic-guidance'' tag; no truncation; median 302 chars across games.
 
 \paragraph{Slow prompt template (excerpt, RoadRunner, paraphrased).}
+The object coordinates fed to the slow model are extracted from the ALE RAM in the style of the
+Atari Annotated RAM Interface~\cite{atariari}.
 ``Road Runner is at $(x_{rr}, y_{rr})$, Coyote at $(x_c, y_c)$ with $\Delta_x={+}3$. Nearest birdseed at $x=159$; obstacles at $(170,16)$ and $(170,0)$. \dots'' The system prompt instructs the slow to emit 1--3 sentences identifying threat/opportunity and recommended intent---\emph{not} individual actions.
 
 \section{Latency breakdown}
@@ -700,13 +707,17 @@ $L_{\text{trained}}$             & $\mathbf{628\pm356}$ & 550 & $+145\%$ & --- \
 \emph{$L_{\text{zero}}$ vs $L_{\text{random}}$}: Welch $t\!=\!0.15$, $p\!=\!0.88$ (n.s.)---essentially the same. So the architectural lift over $F$ comes from \emph{having 8 prepended slots}, not from the slots having any particular content. \emph{$L_{\text{trained}}$ vs $L_{\text{random}}$}: Welch $t\!\approx\!2.21$, $p\!\approx\!0.04$. The trained content is contributing a real signal, on top of the architectural lift. Decomposition on MsPacman: $\sim$40\,\% of L's advantage over F is architectural; $\sim$60\,\% is learned bridge content.
 
 \paragraph{All-games sweep (the control run on every Atari game, not just MsPacman).}
-We re-ran the trained/zero/random control on all 7 games at each game's canonical
-(fast-ckpt, bridge-ckpt, decoder); $n\!=\!12$ per cell ($3\times4$), greedy except Q*bert
-(sampling $\tau\!=\!1$, its canonical decoder). $L_{\text{random}}$ uses matched per-position
-L2 norm. This is an independent re-run of the controls, so its MsPacman cell
-($L_{\text{trained}}\!=\!666$) differs slightly from the standalone run above ($628$); the two
-agree within run-to-run noise. ``Learned'' = $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$
-by $>\!10\%$.
+We re-ran the trained/zero/random control on all 7 games using the \emph{bare} Stage~A head
+under greedy decoding---the natural common setting for a content control---with the single
+exception of Q*bert, run on its robust head under $\tau\!=\!1$ sampling (its canonical decoder,
+since greedy Q*bert is degenerate, \S\ref{sec:qbert}); $n\!=\!12$ per cell ($3\times4$).
+$L_{\text{random}}$ uses matched per-position L2 norm. Because the control is run \emph{bare}, the
+$T\!-\!F$ column below is the bare-head value, so three games (Enduro, SpaceInvaders, River~Raid)
+use their bare cell here even though the headline reports their robust variant---the learned-vs-control
+verdict does not depend on that choice. This is also an independent re-run, so its MsPacman cell
+($L_{\text{trained}}\!=\!666$) and Seaquest cell ($100$) differ slightly from the standalone /
+headline runs above ($628$ and $80$); all agree within run-to-run noise. ``Learned'' =
+$L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$ by $>\!10\%$.
 
 \smallskip\noindent
 \begin{tabular}{lrrrll}
@@ -788,7 +799,7 @@ top-down rendered $84\!\times\!84$ image (rendered via the pygame top-down chann
 is what makes headless end-to-end runs feasible on one GPU); 9 discrete actions (3 steer
 $\times$ 3 throttle). The slow model sees the structured state (speed, heading, lane offset,
 upcoming-turn cue derived from \texttt{navi\_arrow\_dir}, nearby vehicles). Stage~A clones
-MetaDrive's built-in PPO expert; Stage~B collects slow emissions under expert driving; Stage~C
+MetaDrive's built-in PPO~\cite{ppo} expert; Stage~B collects slow emissions under expert driving; Stage~C
 distils the latent against the (robust, suffix-aware) text teacher. Random policy scores
 $\sim$8 reward; the discrete expert scores $\sim$174--211.
 
@@ -817,7 +828,11 @@ and is the diagnostic basis for calling MetaDrive a controlled negative.
 
 \paragraph{Why $L$ cannot exceed $F$ here.} Stage~C trains $L$ to match the text teacher's
 action distribution (objective $\mathrm{KL}(\pi_L\|\pi_T)$), so $L$'s ceiling is $T$. On
-MetaDrive $T\!\le\!F$ in every configuration tested (5 of 5), so the best attainable latent is
+MetaDrive $T\!\le\!F$ in every configuration we ran---both task regimes (reactive lane-keeping,
+planning intersections), both decoders (greedy, sampling), and both Stage~A heads: the bare head,
+where the text channel collapses ($T\!=\!17.2$ vs $F\!=\!73.7$), and the robust head, where $T$
+sits just below $F$ in the tabulated reactive ($69.5$ vs $71.2$), planning-greedy ($85.1$ vs
+$87.8$), and planning-sampling ($43.5$ vs $123.2$) cells---so the best attainable latent is
 $L\!\approx\!F$. Fixing the teacher (robust, suffix-aware head, expert-driven data, KL converged
 to $0.004$) makes the distillation \emph{clean}---$L=T$ to the decimal under greedy---but cannot
 raise a ceiling set by a teacher that does not beat fast-only. The slow model's frame-grounded,
@@ -827,11 +842,12 @@ even when the task demands route planning.
 \paragraph{Robustness of the predictor.}
 The $(T\!-\!F, L\!-\!F)$ correlation (Figure~\ref{fig:predictor}) is robust to both variant
 selection and individual games. \emph{Variant selection:} $r=0.92$ over the 8 best-variant cells
-and $r=0.94$ over all 16 (game, variant) cells with no selection---the choice of which Stage~A
-variant to headline does not create the relationship. \emph{Individual games} (on the 8
+and $r=0.94$ over all 16 (game, variant) cells with no selection---the 16 are the 14 bare/robust
+Atari cells, a SpaceInvaders expert-data cell (\S\ref{sec:ood}), and MetaDrive---so the choice of
+which Stage~A variant to headline does not create the relationship. \emph{Individual games} (on the 8
 best-variant cells): leave-one-out Pearson $r$ stays in $[0.89, 0.98]$ for all 8 deletions
 (dropping the RoadRunner high-leverage point gives $r=0.89$); the rank correlation is Spearman
-$\rho=0.95$; a game-level bootstrap (10{,}000 resamples) gives a 95\,\% CI of $[0.82, 1.0]$; and
-excluding both dynamic-range extremes (RoadRunner and River~Raid) still gives $r=0.85$ ($n=6$).
+$\rho=0.98$; a game-level bootstrap (10{,}000 resamples) gives a 95\,\% CI of $[0.81, 1.0]$; and
+excluding both dynamic-range extremes (RoadRunner and River~Raid) still gives $r=0.84$ ($n=6$).
 
 \end{document}
