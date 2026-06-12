@@ -13,7 +13,7 @@ A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 2/4 by Welch's $t$; of the rest, MsPacman is marginal under Welch and Seaquest has a zero-variance cell that makes Welch unreliable). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioural predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head OOD-brittleness and give a targeted fix. We release 21 demo recordings and reproducible pipelines.
+Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. Coupling a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games, the latent bridge beats the text bridge by 26--82\% on 4 games (4/4 significant by Mann--Whitney, 2/4 by Welch's $t$; of the rest, MsPacman is marginal under Welch and Seaquest has a zero-variance cell that makes Welch unreliable). The one greedy-decoding inversion (Q*bert) reverses under sampling: $L$ beats $T$ by $2.9\times$ ($p\!\approx\!0.005$). We find no bandwidth ceiling---a 30B slow does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioural predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task; MetaDrive is a controlled negative where it does not, a bridge-replacement control confirming the latent is inert. We trace every collapsed cell to Stage~A action-head OOD-brittleness and give a targeted fix. We release F/T/L replay recordings for all 8 experiments (7 Atari $+$ MetaDrive) and reproducible pipelines.
 
 \textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
 \end{abstract}
@@ -30,7 +30,7 @@ A reasoning model deliberates; a reactive model reacts. Their tick rates differ 
 \item \textbf{Architecture matters.} A first attempt (v1) using 256-d cross-attention at 2 of 36 LLM layers converged to KL=0.004 on offline data but \emph{failed} at deployment. The fix (v2) is the LLaVA pattern: project slow residuals into the fast LLM's 4096-d input embedding space and prepend, letting all layers attend via standard causal attention.
 \item \textbf{The latent bridge beats text on 4--5 of 7 games.} Under greedy decoding (paper convention) it beats T by 26--82\% on 4 games; on Q*bert it loses by $2.5\times$ greedy but \emph{beats T by $2.9\times$ under sampling} (\S\ref{sec:qbert}); on Enduro and SpaceInvaders the difference is not significant. The greedy Q*bert ``inversion'' is decoder-dependent, not a fundamental counter-example.
 \item \textbf{When it helps is a property of the task, not the channel.} Across 7 Atari games and a non-Atari driving domain (MetaDrive), the latent's benefit over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at Pearson $r=0.92$ (and $r=0.94$ over all 16 game/variant cells, so it does not depend on variant selection): the bridge pays off exactly when slow reasoning beats fast reaction on the task ($T\!>\!F$). MetaDrive is a controlled negative---even with a planning-heavy route, $T\!\le\!F$, and a bridge-replacement control confirms the latent is inert. We frame the contribution this way rather than as a ``text is bandwidth-limited'' claim: our own ablations (a 30B slow does not widen the gap; a longer text suffix does not close it; the latent uses far less than its nominal capacity) do not support a bandwidth ceiling as the operative mechanism.
-\item \textbf{Most collapsed cells are not bridge failures.} Of 14 (game, Stage-A-variant) cells, 5 have $T$ or $L$ at zero. We trace these to OOD-brittleness in the action head, not the bridge. A targeted Stage A retraining at suffix-probability 0.5 produces the largest $L$\,$-$\,$T$ gap in the paper (River Raid, +82\%).
+\item \textbf{Most collapsed cells are not bridge failures.} Of 14 (game, Stage-A-variant) cells, 5 have a strategy ($F$, $T$, or $L$) at zero. We trace these to OOD-brittleness in the action head, not the bridge. A targeted Stage A retraining at suffix-probability 0.5 produces the largest $L$\,$-$\,$T$ gap in the paper (River Raid, +82\%).
 \item \textbf{The latent advantage is not always an absolute win.} On several games where L beats T, $F$ (fast-only) still beats $L$. The latent bridge improves over the text bridge \emph{at matched architecture}; it does not always justify a slow model at all.
 \end{itemize}
 
@@ -137,7 +137,7 @@ Full table including bare-vs-robust pairs in Appendix~\ref{app:full}.}
 \label{tab:headline}
 \end{table}
 
-\paragraph{L\,>\,T on four games, three significant by both tests.}
+\paragraph{L\,>\,T on four games, two significant by both tests.}
 RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann-Whitney. Seaquest (+26\%) is significant by Mann-Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$) and we do not count it as a Welch win. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann-Whitney ($p=0.003$): the L distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test.
 
 \paragraph{Two non-significant: Enduro and SpaceInvaders.}
@@ -236,8 +236,8 @@ Pooling all eight game-evals (Figure~\ref{fig:predictor}, left), the latent brid
 over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at \textbf{Pearson
 $r=0.92$} (best-variant per game; $r=0.94$ over all 16 game/variant cells, so the relationship
 is not an artifact of variant selection, \S\ref{sec:setup_variant}). The bridge pays off exactly
-when slow reasoning beats reaction on the task ($T\!>\!F$: RoadRunner, MsPacman, Seaquest, Q*bert)
-and is inert or harmful when it does not (River Raid, SpaceInvaders, MetaDrive). This reframes ``does a latent bridge help?'' as a
+when slow reasoning beats reaction on the task ($T\!>\!F$: RoadRunner, MsPacman, Seaquest, Q*bert,
+and Enduro at floor) and is inert or harmful when it does not (River Raid, SpaceInvaders, MetaDrive). This reframes ``does a latent bridge help?'' as a
 property of the \emph{task} (is the bottleneck deliberation or perception--action?), not of
 the channel---and makes MetaDrive a clean controlled negative rather than a failed port. The
 bridge-replacement control is the diagnostic that separates a genuinely informative latent
@@ -386,7 +386,7 @@ property of the task's bottleneck (deliberation vs.\ perception--action), not of
 
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
 \item \textbf{Small $n$.} 12 episodes per cell. Several cells have zero per-episode variance (greedy decoding + deterministic policy + small action space); on those, parametric statistics are not meaningful and we report MWU or just note the deterministic outcome.
-\item \textbf{Per-game variant selection.} The headline figure uses bare-SA on games where it gives non-degenerate $T,L$, and robust-SA otherwise. This is a per-game choice. We report both variants for every game in Appendix~\ref{app:full}.
+\item \textbf{Per-game variant selection.} The headline reports, per game, the Stage~A variant with the higher deployment $L$ among variants whose $T$ has not collapsed (\S\ref{sec:setup_variant}); this is a per-game choice. We report both variants for every game in Appendix~\ref{app:full}, and show the cross-game predictor holds with no selection ($r=0.94$ over all 16 cells).
 \item \textbf{The token-count ($N$) ablation is three points.} The deploy-only result complicates the Goldilocks story, as noted in \S\ref{sec:bandwidth}.
 \item \textbf{T's text budget was varied; it did not close the gap (\S\ref{sec:longer_t}).} On MsPacman and RoadRunner we concatenated the last 2 and 3 slow emissions into T's suffix instead of just the most recent. The L\,>\,T gap survives: on MsPacman the mean drops monotonically (408$\to$378$\to$352); on RoadRunner the strategy \emph{collapses} (608$\to$8$\to$0). Giving T more text does not help.
 \item \textbf{Cross-scale endpoint test: gap does not grow with a 30B-A3B MoE slow.} Replacing the 8B-dense slow with Qwen3-VL-30B-A3B-Thinking (bf16, $\sim$3B active params per forward), retraining Stage~C on $\sim$470 fresh emissions, and re-evaluating on MsPacman gives: under sampling $\tau\!=\!1.0$, $L=458\pm283$ vs $T=389\pm209$ (+18\,\%, Welch $p=0.50$, Cohen $d=0.28$, $n=12$). Under greedy, the cells go deterministic (Q*bert-style artifact, \S\ref{sec:qbert}) and $T=312, L=210$. So at this single cross-scale data point the $L\!-\!T$ gap \emph{does not grow} relative to the 8B-dense baseline ($+54\%, p=0.06$)---it shrinks to a non-significant trend. Confounds: (a) 30B-A3B is MoE with only $\sim$3B active per forward, so this is also a sparse-vs-dense comparison; (b) hidden dim differs (2048-d for 30B vs 4096-d for 8B), forcing the projection to map across dimensions; (c) only MsPacman tested. Full numbers in Appendix~\ref{app:scaling_30b}.
@@ -774,7 +774,7 @@ The greedy result ($L=210\pm0$) reproduces the deterministic-trajectory pattern 
 \section{Per-game collapse triage}
 \label{app:collapse}
 
-Across the 14 (game, variant) cells in Appendix~\ref{app:full}, five have a strategy cell at zero; a sixth game, Pong (outside the 14), sits at the random-policy floor ($-21$). Stage A val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare Stage A val-acc, not with Stage C KL.
+Across the 14 (game, variant) cells in Appendix~\ref{app:full}, five have a strategy cell at zero (the first five rows below). Robust SA additionally destroys one already-working cell without driving it to exactly zero (MsPacman/robust, $L\!\to\!60$), and a separate game, Pong (outside the 14), sits at the random-policy floor ($-21$). Stage A val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare Stage A val-acc, not with Stage C KL.
 
 \smallskip\noindent
 \begin{tabular}{lll}
@@ -785,8 +785,10 @@ RoadRunner/bare & $F=0$ & Stage A predicts NOOP; bridges rescue. \\
 SpaceInvaders/bare & $T=L=0$ & Stage A OOD-brittle; robust partially rescues. \\
 Q*bert/bare & $T=L=0$ & Stage A OOD-brittle; robust rescues to $T\!=\!125, L\!=\!50$. \\
 Seaquest/robust & $T=L=0$ & Robust drops below bare F; use bare. \\
-MsPacman/robust & $L\!\to\!60$ & Robust destroys MsPacman policy; use bare. \\
-Pong/all & all $-21$ & Stage A val-acc only $1.5\times$ random; cannot be rescued. \\
+Enduro/bare & $T=0$ & Text collapses; robust gives a non-degenerate near-floor tie. \\
+\midrule
+MsPacman/robust & $L\!\to\!60$ & (non-zero) Robust destroys MsPacman policy; use bare. \\
+Pong/all & all $-21$ & (outside 14) Stage A val-acc only $1.5\times$ random; cannot be rescued. \\
 \bottomrule
 \end{tabular}
 
