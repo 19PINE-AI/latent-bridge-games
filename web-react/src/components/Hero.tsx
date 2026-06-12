@@ -1,11 +1,13 @@
 import { ArrowDownCircle } from "lucide-react";
 import { SUMMARY } from "../data/games";
+import ArchDiagram from "./ArchDiagram";
 
 export default function Hero() {
   return (
     <section id="hero" className="border-b border-border">
       <div className="max-w-6xl mx-auto px-6 pt-16 pb-12">
-        <div className="reveal max-w-3xl">
+        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center">
+          <div className="reveal">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-5
                             rounded-full bg-panel border border-border text-xs uppercase
                             tracking-wider text-muted">
@@ -23,7 +25,7 @@ export default function Hero() {
               Real-time interactive AI is structurally torn: reasoning models tick too slowly
               for 60 Hz environments; streaming models lack reasoning depth. Production splits
               the workload by having the slow model emit <em>text</em> the fast model reads. We
-              test the alternative — a trainable <strong>33 M-param latent bridge</strong>
+              test the alternative — a trainable <strong>33 M-param latent bridge</strong>{" "}
               prepended LLaVA-style to the fast model's input embedding, carrying the slow
               model's residuals instead of its words.
             </p>
@@ -48,6 +50,24 @@ export default function Hero() {
               <ArrowDownCircle size={18} />
               Watch fast vs latent
             </a>
+          </div>
+
+          {/* architecture at a glance */}
+          <div className="reveal">
+            <div className="bg-panel rounded-2xl p-5 border border-border shadow-soft">
+              <div className="px-1 pb-3 text-xs text-muted uppercase tracking-wider">
+                Architecture at a glance
+              </div>
+              <ArchDiagram />
+              <p className="mt-3 px-1 text-xs text-muted leading-relaxed">
+                Both models stay frozen; only the 33 M-param projection trains. The experiment
+                holds everything else fixed and swaps the channel: the slow model's{" "}
+                <span className="text-link">words (T)</span> vs its projected{" "}
+                <span className="text-accent">latent (L)</span>. Details in{" "}
+                <a href="#architecture" className="text-link hover:underline">Architecture</a>.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* The narrated video is ~3.85:1, so it gets its own full-width row

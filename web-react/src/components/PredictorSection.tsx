@@ -104,7 +104,7 @@ export default function PredictorSection() {
       <div className="bg-panel rounded-2xl border border-border p-5">
         <h3 className="font-semibold text-ink mb-1">MetaDrive: the controlled negative</h3>
         <p className="text-xs text-muted mb-3">
-          A real-time driving domain (10 Hz). Even when the task is rebuilt to <em>require</em>
+          A real-time driving domain (10 Hz). Even when the task is rebuilt to <em>require</em>{" "}
           route planning, slow reasoning never beats fast-only — so the latent has nothing to
           carry.
         </p>
@@ -143,7 +143,7 @@ export default function PredictorSection() {
           L<sub>trained</sub> = {METADRIVE.control.L} ·
           L<sub>zero</sub> = {METADRIVE.control.Lzero} ·
           L<sub>random</sub> = {METADRIVE.control.Lrandom}.
-          Replacing the trained latent with zeros or random vectors does <strong>not</strong>
+          Replacing the trained latent with zeros or random vectors does <strong>not</strong>{" "}
           lower the score — the latent is <strong>inert</strong>. Run on all 7 Atari games, this
           control shows the trained latent carries real learned content (L<sub>trained</sub> ≫
           L<sub>random</sub>) on exactly the games where slow reasoning helps (RoadRunner 967 vs 8,

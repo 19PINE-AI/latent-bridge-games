@@ -27,7 +27,7 @@ export default function ArchitectureSection() {
         <h3 className="font-semibold text-ink mb-3">Why v1 (cross-attention) failed</h3>
         <p className="text-sm text-ink/85 leading-relaxed">
           v1 used a 256-d ring buffer with cross-attention at LLM layers 12 and 24 only.
-          KL converged to 0.004 on offline data but <strong>L = 225 &lt; F = 256</strong>
+          KL converged to 0.004 on offline data but <strong>L = 225 &lt; F = 256</strong>{" "}
           at deployment, bimodal with 4/12 catastrophic episodes.
         </p>
         <p className="mt-3 text-sm text-ink/85 leading-relaxed">
