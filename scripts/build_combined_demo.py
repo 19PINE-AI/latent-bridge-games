@@ -38,8 +38,9 @@ except ImportError:
 # ElevenLabs narration. Key comes from the environment only — this repo is public.
 ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVEN_MODEL = os.environ.get("ELEVENLABS_MODEL", "eleven_v3")
-# Daniel — "Steady Broadcaster", informative/educational premade voice.
-ELEVEN_VOICE = os.environ.get("ELEVENLABS_VOICE", "onwK4e9ZLuTAKqWW03F9")
+# Matilda — "Knowledgable, Professional", informative/educational premade voice;
+# noticeably faster-paced than the broadcaster voices.
+ELEVEN_VOICE = os.environ.get("ELEVENLABS_VOICE", "XrExE9yKIg1WjnnlVkGX")
 
 
 # Canvas sized for the 3-panel F/T/L clips (~3376x876). All clips/cards are scaled
@@ -314,49 +315,61 @@ def generate_narration_mp3(text: str, out_path: Path) -> None:
 
 
 def make_card_video(card_png: Path, audio_mp3: Path, out_mp4: Path,
-                     min_duration: float) -> None:
-    """Combine a static PNG with an audio track into an MP4 clip."""
-    # Get audio duration
-    res = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(audio_mp3)],
-        capture_output=True, text=True,
-    )
-    try:
-        audio_dur = float(res.stdout.strip() or "0")
-    except ValueError:
-        audio_dur = 3.0
-    duration = max(min_duration, audio_dur + 0.5)
+                     min_duration: float) -> float:
+    """Combine a static PNG with an audio track into an MP4 clip.
+
+    The audio is padded with silence (apad) to exactly the clip duration, so
+    audio and video streams are the same length — stream-length mismatches
+    are what made narration drift against the picture across the final concat.
+    Returns the clip duration.
+    """
+    audio_dur = _probe_dur(audio_mp3)
+    duration = max(min_duration, audio_dur + 0.7)
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-i", str(card_png),
         "-i", str(audio_mp3),
         "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
         "-vf", FIT,
+        "-af", "apad",
         "-r", str(FPS),
-        "-t", f"{duration:.2f}",
-        "-shortest", str(out_mp4),
+        "-t", f"{duration:.3f}",
+        str(out_mp4),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
+    return duration
 
 
-def make_game_video(video_in: Path, audio_mp3: Path, out_mp4: Path) -> None:
-    """Re-encode a gameplay clip and overlay narration audio."""
-    # Use the gameplay video for the visual, narration mp3 as the audio.
-    # If narration is shorter than the video, the video plays out silently after.
+def make_game_segment(card_png: Path, video_in: Path, audio_mp3: Path,
+                      out_mp4: Path, title_secs: float = 3.0) -> float:
+    """One segment clip: title card, then gameplay, with the narration audio
+    starting at t=0 — i.e. while the title card for the SAME game is on screen.
+
+    The segment is trimmed to narration + a short gameplay tail (never beyond
+    the gameplay clip), and the audio is apadded to exactly the video length,
+    so narration can neither be cut mid-sentence nor bleed into the next
+    segment. Returns the clip duration.
+    """
+    narr_dur = _probe_dur(audio_mp3)
+    video_dur = _probe_dur(video_in)
+    duration = min(title_secs + video_dur, max(narr_dur + 2.5, 12.0))
     cmd = [
         "ffmpeg", "-y",
+        "-loop", "1", "-t", f"{title_secs:.3f}", "-i", str(card_png),
         "-i", str(video_in),
         "-i", str(audio_mp3),
-        "-map", "0:v:0", "-map", "1:a:0",
+        "-filter_complex",
+        f"[0:v]{FIT},fps={FPS}[v0];[1:v]{FIT},fps={FPS}[v1];"
+        f"[v0][v1]concat=n=2:v=1:a=0[v];[2:a]apad[a]",
+        "-map", "[v]", "-map", "[a]",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-vf", FIT,
-        "-r", str(FPS),
-        "-c:a", "aac", "-b:a", "128k",
-        "-shortest", str(out_mp4),
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+        "-t", f"{duration:.3f}",
+        str(out_mp4),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
+    return duration
 
 
 def _probe_dur(path: Path) -> float:
@@ -406,37 +419,21 @@ def main():
         print(f"[{i:02d}/{len(SEGMENTS)-1}] {seg_id}: generating narration")
         generate_narration_mp3(seg["narration"], narr_mp3)
 
+        card_png = workdir / f"{i:02d}_{seg_id}_card.png"
+        render_card_png(seg, card_png)
+        clip_mp4 = workdir / f"{i:02d}_{seg_id}.mp4"
         if seg["kind"] == "card":
-            card_png = workdir / f"{i:02d}_{seg_id}_card.png"
-            render_card_png(seg, card_png)
-            clip_mp4 = workdir / f"{i:02d}_{seg_id}.mp4"
             make_card_video(card_png, narr_mp3, clip_mp4,
                              min_duration=seg.get("card_duration", 5))
-            parts.append(clip_mp4)
-            seg_spans.append((clip_mp4, seg["narration"]))
         else:
-            # Title card BEFORE the gameplay
-            card_png = workdir / f"{i:02d}_{seg_id}_card.png"
-            render_card_png(seg, card_png)
-            title_clip = workdir / f"{i:02d}_{seg_id}_title.mp4"
-            # Short silent title card (3s) — keeps the narration concentrated on gameplay
-            subprocess.run(
-                ["ffmpeg", "-y", "-loop", "1", "-i", str(card_png),
-                 "-f", "lavfi", "-i", "anullsrc=cl=stereo:r=24000",
-                 "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-                 "-vf", FIT,
-                 "-r", str(FPS), "-c:a", "aac", "-b:a", "128k",
-                 "-t", "3", "-shortest", str(title_clip)],
-                check=True, capture_output=True,
-            )
-            parts.append(title_clip)
-            # Then the gameplay with narration overlaid as audio
-            game_clip = workdir / f"{i:02d}_{seg_id}_play.mp4"
-            make_game_video(Path(seg["video"]), narr_mp3, game_clip)
-            parts.append(game_clip)
-            seg_spans.append((game_clip, seg["narration"]))
+            # Title card + gameplay as ONE clip; narration starts on the title
+            # card so each game's narration begins exactly when that game appears.
+            make_game_segment(card_png, Path(seg["video"]), narr_mp3, clip_mp4)
+        parts.append(clip_mp4)
+        seg_spans.append((clip_mp4, seg["narration"]))
 
-    # Concatenate
+    # Concatenate. Re-encode rather than stream-copy: per-clip AAC/H.264
+    # stream-length rounding is what let narration drift against the picture.
     concat_list = workdir / "concat.txt"
     concat_list.write_text("".join(f"file '{p.resolve()}'\n" for p in parts))
     out_path = Path(args.out)
@@ -444,7 +441,9 @@ def main():
     print(f"Concatenating {len(parts)} clips → {out_path}")
     subprocess.run(
         ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
-         "-c", "copy", str(out_path)],
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
+         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+         str(out_path)],
         check=True, capture_output=True,
     )
     print(f"Wrote {out_path} ({out_path.stat().st_size / 1e6:.1f} MB)")

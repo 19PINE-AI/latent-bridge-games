@@ -1,47 +1,47 @@
 1
-00:00:00,000 --> 00:00:29,634
+00:00:00,000 --> 00:00:23,634
 This is the Latent Bridge. A fast reactive model acts every frame; a slow reasoning model thinks once a second. We compare three ways to couple them: fast-only, a text bridge that passes the slow model's words, and a learned latent bridge that passes its continuous residuals. Each clip shows fast, text, and latent side by side.
 
 2
-00:00:32,734 --> 00:00:57,901
+00:00:23,734 --> 00:00:42,501
 Road Runner: our cleanest win. The fast model alone scores zero — it has the reflexes but won't commit a direction. The text bridge reaches 608; the latent bridge, 967. Watch all three play side by side.
 
 3
-00:01:01,001 --> 00:01:24,968
+00:00:42,601 --> 00:01:02,168
 Ms. Pac-Man, our original headline. Fast 256, text 408, latent 628. The latent channel carries richer joint state per emission — ghost and pellet positions together — than text serializes compactly.
 
 4
-00:01:28,068 --> 00:01:53,702
+00:01:02,268 --> 00:01:22,035
 River Raid: the largest latent-over-text gap in the sweep, 82 percent. But notice fast-only still leads at 1033 — the bridges help relative to each other, not over fast here. The recovery came from fixing Stage A out-of-distribution brittleness.
 
 5
-00:01:56,802 --> 00:02:14,302
+00:01:22,135 --> 00:01:34,702
 Seaquest: both bridges beat fast-only, and latent leads at 80 versus 63. The latent policy locks into a stable surfacing and kill pattern.
 
 6
-00:02:17,402 --> 00:02:43,636
+00:01:34,802 --> 00:01:55,036
 Q*bert is the honest counter-example. Its guidance is categorical — jump up-right to a target tile — which fits losslessly into text. Here text wins: 125 versus latent's 50. The bridge is not always better; it depends on the task.
 
 7
-00:02:46,736 --> 00:03:09,970
+00:01:55,136 --> 00:02:12,503
 Space Invaders: fast-only dominates at 107, and both bridges sit near 18. Slow reasoning does not help this reactive task, so the bridge has nothing useful to carry. This negative is a clue to the general rule.
 
 8
-00:03:13,070 --> 00:03:27,304
+00:02:12,603 --> 00:02:24,503
 Enduro: scores are tiny because the expert was weak, so we report it for completeness rather than as a confident win.
 
 9
-00:03:30,404 --> 00:03:40,057
+00:02:24,603 --> 00:02:37,253
 We also leave Atari for MetaDrive, a real-time driving simulator. Even on a route that requires planning, slow reasoning never beats the fast reactive policy — fast 88, text and latent both 85. Driving is a tight perception-action loop, so the bridge stays inert. This controlled negative is the key to the general rule.
 
 10
-00:03:40,157 --> 00:04:06,124
+00:02:37,353 --> 00:02:58,587
 Pulling it together: across seven Atari games and MetaDrive, the latent bridge's benefit tracks the text bridge's benefit at correlation zero point nine two. The bridge helps if and only if slow reasoning beats fast reaction on the task. Whether a latent bridge is worth it is a property of the task, not the channel.
 
 11
-00:04:06,224 --> 00:04:41,058
+00:02:58,687 --> 00:03:25,921
 To prove the latent carries real learned content, we replace it with zeros or random vectors. On the games where slow reasoning helps, the trained latent far exceeds both controls — Road Runner drops from 967 to zero when the latent is removed. Where slow reasoning doesn't help, the trained latent is no better, or even harmful. How much of the latent is learned is itself predicted by whether slow beats fast.
 
 12
-00:04:41,158 --> 00:05:07,192
+00:03:26,021 --> 00:03:46,388
 In summary: the latent bridge helps if and only if slow reasoning helps the task, shown across Atari and a driving domain, with a bridge-replacement control and a clean negative. Code, paper, and interactive replays at github dot com slash bojieli slash latent dash bridge dash games.
