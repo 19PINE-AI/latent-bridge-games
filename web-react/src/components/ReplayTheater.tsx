@@ -65,8 +65,10 @@ export default function ReplayTheater() {
         })}
       </div>
 
-      <div className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
-        {/* left: contrastive video */}
+      {/* The per-strategy clips are wide; give the 3-up video card the full row
+          and move the slow-model panel below it (same reason as the hero video). */}
+      <div className="flex flex-col gap-6">
+        {/* contrastive video, full width */}
         <div className="bg-panel rounded-2xl border border-border p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-ink">{g.name}
@@ -123,8 +125,8 @@ export default function ReplayTheater() {
           <p className="mt-3 text-xs text-muted leading-relaxed">{g.notes}</p>
         </div>
 
-        {/* right: the reasoning the bridge transmits */}
-        <div className="bg-panel rounded-2xl border border-border p-4 flex flex-col">
+        {/* below: the reasoning the bridge transmits */}
+        <div className="bg-panel rounded-2xl border border-border p-4">
           <h3 className="font-semibold text-ink mb-1 flex items-center gap-2">
             <Play size={15} className="text-accent" /> What the slow model sends
           </h3>
@@ -136,17 +138,22 @@ export default function ReplayTheater() {
             content, different channel.
           </p>
 
-          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">State snapshot → slow model</div>
-          <pre className="bg-bg rounded-lg border border-border p-3 text-[11px] leading-snug
-                          text-ink/90 font-mono whitespace-pre-wrap overflow-auto max-h-52 mb-3">
-            {rdata.user_prompt ?? "—"}
-          </pre>
-
-          <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Slow model emission (post-thinking)</div>
-          <pre className="bg-bg rounded-lg border border-accent/30 p-3 text-[11px] leading-snug
-                          text-accent/90 font-mono whitespace-pre-wrap overflow-auto max-h-52">
-            {rdata.slow_emission ?? "—"}
-          </pre>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-muted mb-1">State snapshot → slow model</div>
+              <pre className="bg-bg rounded-lg border border-border p-3 text-[11px] leading-snug
+                              text-ink/90 font-mono whitespace-pre-wrap overflow-auto max-h-52">
+                {rdata.user_prompt ?? "—"}
+              </pre>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-muted mb-1">Slow model emission (post-thinking)</div>
+              <pre className="bg-bg rounded-lg border border-accent/30 p-3 text-[11px] leading-snug
+                              text-accent/90 font-mono whitespace-pre-wrap overflow-auto max-h-52">
+                {rdata.slow_emission ?? "—"}
+              </pre>
+            </div>
+          </div>
         </div>
       </div>
     </div>

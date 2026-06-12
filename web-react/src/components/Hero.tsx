@@ -5,8 +5,7 @@ export default function Hero() {
   return (
     <section id="hero" className="border-b border-border">
       <div className="max-w-6xl mx-auto px-6 pt-16 pb-12">
-        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center">
-          <div className="reveal">
+        <div className="reveal max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-5
                             rounded-full bg-panel border border-border text-xs uppercase
                             tracking-wider text-muted">
@@ -49,29 +48,30 @@ export default function Hero() {
               <ArrowDownCircle size={18} />
               Watch fast vs latent
             </a>
-          </div>
+        </div>
 
-          <div className="reveal">
-            <div className="bg-panel rounded-2xl p-4 border border-border shadow-soft">
-              <div className="px-2 pb-2 flex items-center justify-between text-xs">
-                <span className="text-muted uppercase tracking-wider">
-                  Narrated demo · 4 min 44 s
-                </span>
-                <a href="demos/combined_narrated.srt" download
-                   className="text-link hover:underline">subtitles (SRT)</a>
-              </div>
-              <video src="demos/combined_narrated.mp4" controls playsInline
-                     preload="metadata"
-                     className="w-full rounded-lg bg-black aspect-[16/6.24]" />
-              <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
-                Full narrated tour with 3-way F/T/L clips for all 7 Atari games and MetaDrive,
-                then the headline findings: Road Runner → Ms. Pac-Man → River Raid → Seaquest →
-                Q*bert (text wins) → Space Invaders → Enduro → MetaDrive (the controlled
-                negative) → the T &gt; F predictor (r = 0.92) → the bridge-replacement control.
-                Interactive versions in <a href="#replay" className="text-link hover:underline">Replay</a> and
-                {" "}<a href="#predictor" className="text-link hover:underline">Predictor</a> below.
-              </p>
+        {/* The narrated video is ~3.85:1, so it gets its own full-width row
+            rather than sharing a two-column grid where it renders too small. */}
+        <div className="reveal mt-10">
+          <div className="bg-panel rounded-2xl p-4 border border-border shadow-soft">
+            <div className="px-2 pb-2 flex items-center justify-between text-xs">
+              <span className="text-muted uppercase tracking-wider">
+                Narrated demo · 4 min 44 s
+              </span>
+              <a href="demos/combined_narrated.srt" download
+                 className="text-link hover:underline">subtitles (SRT)</a>
             </div>
+            <video src="demos/combined_narrated.mp4" controls playsInline
+                   preload="metadata"
+                   className="w-full rounded-lg bg-black aspect-[3376/876]" />
+            <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
+              Full narrated tour with 3-way F/T/L clips for all 7 Atari games and MetaDrive,
+              then the headline findings: Road Runner → Ms. Pac-Man → River Raid → Seaquest →
+              Q*bert (text wins) → Space Invaders → Enduro → MetaDrive (the controlled
+              negative) → the T &gt; F predictor (r = 0.92) → the bridge-replacement control.
+              Interactive versions in <a href="#replay" className="text-link hover:underline">Replay</a> and
+              {" "}<a href="#predictor" className="text-link hover:underline">Predictor</a> below.
+            </p>
           </div>
         </div>
       </div>
