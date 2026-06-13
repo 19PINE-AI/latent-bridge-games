@@ -75,7 +75,7 @@ export default function App() {
 
         <Section id="architecture"
                  title="Architecture"
-                 subtitle="33 M trainable params; both base models frozen.">
+                 subtitle="The full fast/slow runtime loop and the two bridge designs — 33 M trainable params; both base models frozen.">
           <ArchitectureSection />
         </Section>
 

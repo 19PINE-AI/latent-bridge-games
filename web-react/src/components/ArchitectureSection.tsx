@@ -1,6 +1,9 @@
-// v1-vs-v2 bridge architecture, drawn rather than described. Shared geometry:
+// Whole-system diagram first (mirrors the paper's Fig. 2), then the v1-vs-v2
+// bridge comparison, drawn rather than described. Shared geometry for v1/v2:
 // slow model on the left, the fast LLM as a 36-layer stack on the right; the
 // two figures differ in how the bridge enters the stack.
+import SystemDiagram from "./SystemDiagram";
+
 const C = {
   ink: "#e6e7eb",
   muted: "#9094a4",
@@ -123,7 +126,26 @@ function V1Diagram() {
 
 export default function ArchitectureSection() {
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      <div className="bg-panel rounded-2xl border border-border p-6">
+        <h3 className="font-semibold text-ink mb-3">
+          The whole system{" "}
+          <span className="text-muted text-sm font-normal">(paper Fig. 2)</span>
+        </h3>
+        <SystemDiagram />
+        <p className="mt-4 text-sm text-ink/85 leading-relaxed">
+          One synchronous loop, one asynchronous one. The fast model picks an
+          action every ~67 ms from its input token strip; the slow model reasons
+          over structured state about once a second, and the fast loop never
+          blocks on it. The three strategies are just three versions of that
+          strip: <strong>F</strong> ignores the slow model, <strong>T</strong>{" "}
+          appends its text emission verbatim, and <strong>L</strong> projects its
+          layer-24 residuals through the 33 M bridge MLP — the only trained
+          component — into 8 latent tokens prepended to the input.
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
       <div className="bg-panel rounded-2xl border border-border p-6">
         <h3 className="font-semibold text-ink mb-3">
           v2 — LLaVA-style prepend <span className="text-good text-sm font-normal">(works)</span>
@@ -149,6 +171,7 @@ export default function ArchitectureSection() {
           adapter-style coupling that reports only offline KL should also report
           deployment.
         </p>
+      </div>
       </div>
     </div>
   );
