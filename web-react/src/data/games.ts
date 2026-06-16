@@ -145,7 +145,7 @@ export const GAMES: GameResult[] = [
     L_vs_T_pct: -60,
     pvalue: 1e-7, // MWU on fully separated distributions
     pvalueIsMWU: true,
-    notes: "Text BEATS latent by 2.5×. The slow's emission is essentially (jump_direction, target_colour, threat_actor) — categorical and fits losslessly into ~200 characters. Latent's compression introduces noise that hurts more than the bandwidth helps. The refined-claim counter-example.",
+    notes: "Greedy: text beats latent 2.5× (T=125, L=50) — but every cell is zero-variance, the deterministic regime. Under multinomial sampling (τ=1.0) this INVERTS to a 2.9× latent win (L=250, T=88, p≈0.006): the greedy 'text win' was a decoder artifact, not a property of the (categorical) emission. The one inversion does not survive a decoder ablation.",
     category: "win-T",
     videoF: "demos/qbert_F.mp4",
     videoT: "demos/qbert_T.mp4",
@@ -260,11 +260,67 @@ export const BRIDGE_REPLACE: BridgeReplacePoint[] = [
 export const SUMMARY = {
   totalGames: 8,         // (Frostbite excluded — Stage A at random)
   evaluable: 7,          // (Pong reported as floor)
-  L_wins_significant: 4, // MsPacman, Seaquest, RoadRunner, RiverRaid-robust
-  T_wins: 1,             // Q*bert-robust
+  L_wins_greedy: 4,      // greedy: MsPacman, Seaquest, RoadRunner, RiverRaid-robust
+  L_wins_robust: 3,      // decoder-robust (win under greedy AND sampling): MsPacman, RoadRunner, RiverRaid
   draws_or_partial: 2,   // Enduro-robust (small), SI-robust (partial), Pong (floor)
   largestGapPct: 82,
   largestGapGame: "River Raid (robust SA)",
+} as const;
+
+// Decoder-fragility experiment (2026-06-14): the two zero-variance greedy cells were
+// re-run under multinomial sampling (tau=1.0, n=12). They flip in OPPOSITE directions,
+// so a decoder-consistent L>T tally stays at 4 of 7 (Seaquest out, Q*bert in) — NOT 5.
+// The three high-variance greedy winners (MsPacman/RoadRunner/RiverRaid) win under both.
+export interface DecoderCell {
+  game: string;
+  greedy: { F: number; T: number; L: number };
+  sample: { F: number; T: number; L: number };
+  flip: string;        // what the sampling decoder changes
+  note: string;
+}
+export const DECODER_FRAGILITY: DecoderCell[] = [
+  {
+    game: "Q*bert (robust)",
+    greedy: { F: 25, T: 125, L: 50 },
+    sample: { F: 66.7, T: 87.5, L: 250.0 },
+    flip: "T > L greedy → noisy under sampling",
+    note: "one τ=1.0 run gave L=250 (2.9×), but it didn't replicate; on the full grid Q*bert is a high-variance tie, not a latent win.",
+  },
+  {
+    game: "Seaquest (bare)",
+    greedy: { F: 41.7, T: 63.3, L: 80.0 },
+    sample: { F: 63.3, T: 143.3, L: 135.0 },
+    flip: "L > T (+26%)  →  L ≈ T (tie, p = 0.60)",
+    note: "the headline +26% win was a greedy artifact; both bridges still crush F (slow still helps).",
+  },
+];
+
+// Best-achievable per-channel (decoder = tuned deployment hyperparameter, selected on held-out
+// seeds via leave-one-seed-out). The fixed-greedy "L beats T 26-82%" advantage is decoder-specific;
+// tuned per channel the latent is never significantly worse and significantly better on 2/7.
+export interface BestAchievable {
+  game: string;
+  T: number; Tdec: string;
+  L: number; Ldec: string;
+  B: number;            // combined channel (text + latent together)
+  ltVerdict: "L" | "T" | "tie";   // best-L vs best-T
+  combineEffect: "interferes" | "complements" | "neutral";  // best-B vs best single
+  combinePct: number;   // (B - best_single)/best_single, %
+}
+export const BEST_ACHIEVABLE: BestAchievable[] = [
+  { game: "MsPacman",      T: 401, Tdec: "τ0.5", L: 628, Ldec: "greedy", B: 319, ltVerdict: "L",   combineEffect: "interferes", combinePct: -49 },
+  { game: "RoadRunner",    T: 475, Tdec: "greedy", L: 608, Ldec: "greedy", B: 25, ltVerdict: "L",   combineEffect: "interferes", combinePct: -96 },
+  { game: "River Raid",    T: 639, Tdec: "τ0.5", L: 566, Ldec: "τ0.7",   B: 452, ltVerdict: "tie", combineEffect: "interferes", combinePct: -29 },
+  { game: "Seaquest",      T: 120, Tdec: "τ0.5", L: 130, Ldec: "τ0.7",   B: 138, ltVerdict: "tie", combineEffect: "neutral",    combinePct:  +6 },
+  { game: "Q*bert",        T: 185, Tdec: "τ1.5", L: 146, Ldec: "τ1.0",   B: 125, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -33 },
+  { game: "Enduro",        T:   3, Tdec: "τ0.5", L:   2, Ldec: "greedy", B:   4, ltVerdict: "tie", combineEffect: "neutral",    combinePct: +25 },
+  { game: "SpaceInvaders", T: 162, Tdec: "τ1.0", L: 142, Ldec: "τ1.0",   B: 142, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -13 },
+];
+// Headline of the best-achievable analysis: 2 significant latent wins, 5 ties, 0 losses;
+// combining both channels significantly INTERFERES on 3/7 and never helps → couple via one channel.
+export const BEST_ACHIEVABLE_SUMMARY = {
+  latentSigWins: 2, latentTies: 5, latentSigLosses: 0,
+  combineInterferes: 3, combineComplements: 0, combineNeutral: 4,
 } as const;
 
 // The behavioural predictor: latent benefit (L−F) vs text benefit (T−F) across

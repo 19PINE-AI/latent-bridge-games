@@ -139,6 +139,19 @@ def _run_episode(strategy: str,
                     slow_text_suffix=None,  # v2 L mode uses latents only
                     vision_refresh_every=vision_refresh_every,
                 )
+        elif strategy == "B":
+            # Both channels at once: text suffix in the prompt AND latent tokens prepended.
+            if text_suffix_window > 1 and len(recent_slow_texts) > 1:
+                suffix = " ".join(recent_slow_texts)
+            else:
+                suffix = latest_slow_text
+            with torch.no_grad():
+                logits = fast.predict_action(
+                    obs, thought_tokens=latest_bridge_tokens,
+                    legal_action_mask=legal,
+                    slow_text_suffix=suffix,
+                    vision_refresh_every=vision_refresh_every,
+                )
         else:
             raise ValueError(f"unsupported strategy {strategy!r}")
 
@@ -163,7 +176,7 @@ def _run_episode(strategy: str,
 
         # --- Slow emission (only T/L) ---
         emit_text_this_tick = None
-        if text_state is not None and slow is not None and strategy in ("T", "L"):
+        if text_state is not None and slow is not None and strategy in ("T", "L", "B"):
             messages = build_slow_model_messages(game, text_state,
                                                  prior_thought=latest_slow_text)
             # v2: emit returns N bridge tokens (in fast LLM embedding space)
@@ -256,7 +269,7 @@ def _aggregate(cells: list[dict]) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/eval.yaml")
-    ap.add_argument("--strategies", nargs="+", choices=("F", "T", "L"), default=None,
+    ap.add_argument("--strategies", nargs="+", choices=("F", "T", "L", "B"), default=None,
                     help="override config")
     ap.add_argument("--games", nargs="+", default=None, help="override config")
     ap.add_argument("--seeds", type=int, nargs="+", default=None, help="override config")
@@ -353,7 +366,7 @@ def main():
                 fast.action_head.load_state_dict(ckpt["action_head_state"])
                 print(f"  loaded action_head from {args.bridge_ckpt} (overrides fast-ckpt)")
 
-    needs_slow = any(s in strategies for s in ("T", "L"))
+    needs_slow = any(s in strategies for s in ("T", "L", "B"))
     slow = None
     if needs_slow:
         print("Loading SlowModel...")

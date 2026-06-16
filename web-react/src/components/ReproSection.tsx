@@ -79,22 +79,22 @@ export default function ReproSection() {
         <ol className="list-decimal pl-5 space-y-2 text-sm text-ink/85">
           <li>
             T uses the slow model's full unmodified emission, with no truncation.
-            Median lengths are remarkably uniform across games (293–335 chars).
-            T wins on Q*bert and loses on RoadRunner using emissions of nearly
-            identical length — so <strong>length is not the binding variable</strong>.
+            Median lengths are remarkably uniform across games (293–335 chars), so
+            <strong> character budget is not the binding variable</strong>.
           </li>
           <li>
-            The capacity-relevant variable is per-emission token entropy.
-            Q*bert: 8.1 unique tokens/em, gzip 16.2 %. RoadRunner: 12.8 unique
-            tokens/em, gzip 24.0 %. The reason T beats L on Q*bert is
-            <strong> structural to the emission distribution</strong>, not the
-            channel's character budget.
+            We <em>did</em> run the longer-suffix sweep: feeding T a rolling window of the
+            last 2–3 emissions does <strong>not</strong> close the gap — it widens it.
+            MsPacman declines 14 % (w=1→3); RoadRunner collapses to <strong>0 on every
+            episode</strong> at w=3 (stale older emissions mislead the frozen head). The
+            latent sidesteps this because it carries only the most-recent emission's residuals.
           </li>
         </ol>
         <p className="text-xs text-muted mt-3 leading-relaxed">
-          We did not run a controlled longer-suffix sweep on T (it would require
-          regenerating Stage B/C with different slow-emission lengths) — this is
-          the cleanest single follow-up to harden the fairness claim.
+          And the earlier lexical-entropy hypothesis (that T beats L on Q*bert because its
+          emissions are lower-entropy) did not survive: under sampling Q*bert <em>inverts</em> to
+          a 2.9× latent win, so the greedy T-win was a decoder artifact, not a property of the
+          emission distribution.
         </p>
       </Card>
     </div>

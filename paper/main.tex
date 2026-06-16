@@ -13,7 +13,7 @@ A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. We couple a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games. The latent bridge beats the text bridge by 26--82\% on 4 of the 7 games. All four wins are significant by Mann--Whitney; RoadRunner and River Raid are also significant by Welch's $t$, while MsPacman is marginal under Welch and Seaquest has a zero-variance cell where Welch is unreliable. The one inversion (Q*bert) is a greedy-decoding artifact: under multinomial sampling the latent beats text by $2.9\times$ ($p\!\approx\!0.006$), making it 5 of 7 once the artifact is corrected. We find no bandwidth ceiling---a 30B slow model does not widen the gap, more text does not close it, and the latent under-uses its capacity---but a clean behavioral predictor holds: pooling the 7 games with a driving domain (MetaDrive), latent and text benefits over fast-only track at Pearson $r=0.92$. The latent bridge helps if and only if slow reasoning beats reaction on the task. MetaDrive is a controlled negative where it does not, and a bridge-replacement control confirms the latent there is inert. We trace every collapsed cell to Stage~A action-head failures---chiefly OOD-brittleness under bridge inputs---and give a targeted fix. We release F/T/L replay recordings for all 8 experiments (7 Atari $+$ MetaDrive) and reproducible pipelines.
+Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. We couple a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games and a driving domain (MetaDrive). Under a fixed \emph{greedy} action decoder---our original convention---the latent bridge beats the text bridge by 26--82\% on 4 of 7 games. We show this advantage is \emph{decoder-specific}: under any fixed sampling temperature it disappears, because the latent's thin per-emission signal ($3$--$8\%$ variance) improves the deterministic argmax but is swamped once the decoder samples. The honest comparison therefore treats the action decoder as a deployment hyperparameter and evaluates each channel at \emph{its own best decoder}, selected on held-out seeds (leave-one-seed-out) so the estimate is unbiased. Under this best-achievable protocol the latent is \textbf{never significantly worse than the text bridge on any of the 7 games and is significantly \emph{better} on 2} (MsPacman $+57\%$, RoadRunner $+28\%$); the other 5 are statistical ties. The optimal decoder is itself \emph{channel-dependent} (the latent prefers greedy or high temperature, the text bridge $\tau\!\approx\!0.5$), which is exactly why comparing them at a single fixed decoder is unfair to both. The latent is thus a safe-or-better drop-in for the text channel---non-inferior everywhere, materially better where slow reasoning helps most---rather than a uniform winner. \emph{Combining} both channels in one forward pass does \emph{not} help: it never beats the better single channel and significantly \emph{interferes} on 3 of 7 games (catastrophically on RoadRunner, $-96\%$), so the design rule is to couple via exactly \emph{one} channel. The decoder-robust, task-level finding is a behavioral predictor: pooling the 7 Atari games with MetaDrive, latent and text benefits over fast-only track at Pearson $r=0.92$---the bridge helps if and only if slow reasoning beats reaction ($T\!>\!F$). MetaDrive is a controlled negative where it does not, with a bridge-replacement control confirming the latent is inert there. We also find no bandwidth ceiling (a 30B slow model does not widen the gap; more text does not close it). We release F/T/L replay recordings for all 8 experiments and reproducible pipelines.
 
 \textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
 \end{abstract}
@@ -23,12 +23,13 @@ Real-time interactive AI systems couple deliberative reasoning to reactive actio
 
 A reasoning model deliberates; a reactive model reacts. Their tick rates differ by an order of magnitude (seconds vs.\ tens of milliseconds), and the production answer for coupling them is to have the slow model emit text that the fast model reads. We test the alternative: a learned continuous-valued channel between two frozen models.
 
-\paragraph{Setting.} Both endpoints are general-purpose multimodal LLMs at matched 9\,B scale, deliberately chosen so the channel (not a capability gap) is the load-bearing variable. The fast model picks actions at $\sim$15\,Hz; the slow emits at $\sim$1\,Hz; the bridge is the only learned component. Our domain is Atari~\cite{atari}, where slow/fast coupling is visible to the eye---100\,ms ghost-dodging meets 10\,s route-planning.
+\paragraph{Setting.} Both endpoints are general-purpose multimodal LLMs at matched scale (9\,B fast, 8\,B slow), deliberately chosen so the channel (not a capability gap) is the load-bearing variable. The fast model picks actions at $\sim$15\,Hz; the slow emits at $\sim$1\,Hz; the bridge is the only learned component. Our domain is Atari~\cite{atari}, where slow/fast coupling is visible to the eye---100\,ms ghost-dodging meets 10\,s route-planning.
 
 \paragraph{What this paper claims, sharpened.}
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
 \item \textbf{Architecture matters.} A first attempt (v1) using 256-d cross-attention at 2 of 36 LLM layers converged to KL=0.004 on offline data but \emph{failed} at deployment. The fix (v2) is the LLaVA pattern: project slow residuals into the fast LLM's 4096-d input embedding space and prepend, letting all layers attend via standard causal attention.
-\item \textbf{The latent bridge beats text on 4 of 7 games under greedy decoding---5 once a decoding artifact is corrected} (Figure~\ref{fig:headline}). Under greedy decoding (paper convention) it beats $T$ by 26--82\% on 4 games; on Q*bert it loses by $2.5\times$ greedy but \emph{beats $T$ by $2.9\times$ under sampling} (\S\ref{sec:qbert}); on Enduro and SpaceInvaders the difference is not significant. The greedy Q*bert ``inversion'' is decoder-dependent, not a fundamental counter-example.
+\item \textbf{Tuned per channel, the latent is never significantly worse than text and is significantly better on 2 of 7 games} (\S\ref{sec:best_achievable}, Table~\ref{tab:best_achievable}). Under a fixed greedy decoder the latent beats text by 26--82\% on 4 of 7 games (Figure~\ref{fig:headline})---but \emph{this is greedy-specific}: a full decoder sweep (greedy, $\tau\!\in\!\{0.3,0.5,0.7,1.0,1.5\}$) shows the advantage vanishes at every fixed sampling temperature, because the latent's thin per-emission signal only sharpens the deterministic argmax (\S\ref{sec:qbert}). Since the action decoder is a deployment hyperparameter one tunes, the fair comparison is each channel at its own best decoder, selected on held-out seeds: there the latent significantly wins MsPacman ($+57\%$) and RoadRunner ($+28\%$), is a statistical tie on the other 5 games, and never significantly loses---and the two channels prefer \emph{different} decoders (latent greedy/high-$\tau$, text $\tau\!\approx\!0.5$), which is why a single fixed decoder is unfair to both.
+\item \textbf{Using both channels at once \emph{hurts}---couple via exactly one} (\S\ref{sec:combined}, Table~\ref{tab:combined}). Feeding the text suffix and latent tokens to the frozen head in one forward pass never beats the better single channel (0 of 7) and significantly \emph{interferes} on 3 of 7 (MsPacman $-49\%$, River~Raid $-29\%$, RoadRunner $-96\%$). The naive ``more context is better'' intuition fails: the head, trained on one conditioning signal at a time, gets a worse policy from two. The recommendation is to couple via a single channel (latent as the safe default), not both.
 \item \textbf{When it helps is a property of the task, not the channel.} Across 7 Atari games and a non-Atari driving domain (MetaDrive), the latent's benefit over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at Pearson $r=0.92$ (and $r=0.94$ over all 16 evaluated cells, so it does not depend on variant selection): the bridge pays off exactly when slow reasoning beats fast reaction on the task ($T\!>\!F$). MetaDrive is a controlled negative---even with a planning-heavy route, $T\!\le\!F$, and a bridge-replacement control confirms the latent is inert. We frame the contribution this way rather than as a ``text is bandwidth-limited'' claim: our own ablations (a 30B slow does not widen the gap; a longer text suffix does not close it; the latent uses far less than its nominal capacity) do not support a bandwidth ceiling as the operative mechanism.
 \item \textbf{Most collapsed cells are not bridge failures.} Of 14 (game, Stage-A-variant) cells, 5 have a strategy ($F$, $T$, or $L$) at zero (per-game triage in Appendix~\ref{app:collapse}). We trace these to Stage~A action-head failures---chiefly OOD-brittleness under the suffix/bridge inputs the head meets at deployment---not to the bridge. A targeted Stage A retraining at suffix-probability 0.5 produces the largest $L$\,$-$\,$T$ gap in the paper (River Raid, +82\%).
 \item \textbf{The latent advantage is not always an absolute win.} On several games where $L$ beats $T$, $F$ (fast-only) still beats $L$. The latent bridge improves over the text bridge \emph{at matched architecture}; it does not always justify a slow model at all.
@@ -137,18 +138,19 @@ Q*bert (robust)$^*$     & $25\pm0$    & $\mathbf{125\pm0}$ & $50\pm0$      & $-6
 Bold marks the better of $T$/$L$. W = Welch's two-sided $t$ $p$-value; MWU = Mann--Whitney $U$.
 $^{\dagger}$ One cell has zero variance; Welch undefined or unreliable, so MWU is the principal test.
 $^{\ddagger}$ Both cells have zero variance (all 12 episodes identical); the comparison is deterministic-trajectory, not statistical---we report it for completeness (see \S\ref{sec:qbert}).
+Seaquest's greedy $L\!>\!T$ rests on its zero-variance $L$ cell ($80\!\pm\!0$) and \emph{does not survive sampling} ($L\!=\!135$ vs $T\!=\!143$, n.s., \S\ref{sec:qbert})---the mirror image of Q*bert.
 Full table including bare-vs-robust pairs in Appendix~\ref{app:full}.}
 \label{tab:headline}
 \end{table}
 
-\paragraph{$L\!>\!T$ on four games, two significant by both tests.}
-RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann--Whitney. Seaquest (+26\%) is significant by Mann--Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$) and we do not count it as a Welch win. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann--Whitney ($p=0.003$): the $L$ distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test.
+\paragraph{$L\!>\!T$ on four games under greedy decoding, but one is decoder-fragile.}
+RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann--Whitney. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann--Whitney ($p=0.003$): the $L$ distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test. Seaquest (+26\% greedy) is significant by Mann--Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$); we re-ran it under sampling and the greedy $L\!>\!T$ \emph{does not survive}---$L\!=\!135$ vs $T\!=\!143$ (Welch $p\!=\!0.60$, MWU $p\!=\!0.73$), a tie (\S\ref{sec:qbert}). So the decoder-robust latent wins are the three games with non-degenerate greedy cells (RoadRunner, River~Raid, MsPacman); Seaquest is a greedy-only win.
 
 \paragraph{Two non-significant: Enduro and SpaceInvaders.}
 Enduro/robust has tiny absolute scores ($T\!=\!5$, $L\!=\!6$); both cells are at floor. SpaceInvaders/robust has $T\!=\!18$, $L\!=\!15$, $p\!=\!0.27$. We do not claim these as $L$ wins or $T$ wins.
 
 \paragraph{Q*bert: greedy decoding gives the only inversion; sampling reverses it.}
-Under greedy action selection (paper convention), Q*bert/robust gives $T\!=\!125$, $L\!=\!50$, both cells at zero variance---text wins by $2.5\times$. \emph{Under multinomial sampling at $\tau\!=\!1.0$, $L$ beats $T$ by $2.9\times$ ($250\pm156$ vs $88\pm65$, Welch $p\!\approx\!0.006$).} The headline ``Q*bert inversion'' is therefore a greedy-decoding artifact (\S\ref{sec:qbert}); under sampling Q*bert joins the $L\!>\!T$ side.
+Under greedy action selection (paper convention), Q*bert/robust gives $T\!=\!125$, $L\!=\!50$, both cells at zero variance---text wins by $2.5\times$. \emph{In one multinomial-sampling run at $\tau\!=\!1.0$, $L$ beats $T$ by $2.9\times$ ($250\pm156$ vs $88\pm65$, Welch $p\!\approx\!0.006$).} The greedy ``Q*bert inversion'' is therefore a decoding artifact---but the $\tau\!=\!1.0$ cell is itself high-variance and does not replicate: on the full decoder grid with held-out selection Q*bert is a \emph{statistical tie}, not a latent win (\S\ref{sec:best_achievable}). The honest summary is that Q*bert is decoder-sensitive and noisy, with no robust winner either way.
 
 \paragraph{Bridges do not always beat F.}
 On River Raid and SpaceInvaders (both using robust Stage A), $F$ outscores both $T$ and $L$. The latent bridge is an improvement over the text bridge \emph{at matched architecture}; whether the slow-fast architecture beats fast-only is a separate question that depends on the game.
@@ -164,7 +166,7 @@ On River Raid and SpaceInvaders (both using robust Stage A), $F$ outscores both 
 
 RoadRunner is the effect at its sharpest (Figure~\ref{fig:roadrunner}): $F=0$ (the head literally cannot score), and the slow's emission is rich joint state (Coyote $\Delta_x$, multiple obstacle coordinates, pellet position). $L$ recovers 967, $T$ recovers 608; the +59\% gap with $d=1.99$ is our largest statistically clean effect. Direct inspection of the trained bridge (\S\ref{sec:bridge_content}, Appendix~\ref{app:bridge_diag}) shows the latent encodes mostly game identity plus a thin per-emission strategic residual, rather than a text-like message---the channel is non-lexical but game-conditioned.
 
-\subsection{The Q*bert ``inversion'' is a greedy-decoding artifact}
+\subsection{Greedy decoding flips low-variance cells---both ways (Q*bert and Seaquest)}
 \label{sec:qbert}
 
 Under robust Stage~A with greedy action selection (paper-default): $F\!=\!25$, $T\!=\!125$, $L\!=\!50$, every cell at zero variance. By Mann--Whitney $T > L$ at $p<10^{-3}$, but this is mechanical: with 12 identical scores per cell the ``test'' is just $125 > 50$.
@@ -182,15 +184,93 @@ Sample, $\tau=1.0$         & $66.7\pm71.7$  & $87.5\pm65.0$   & $\mathbf{250.0\p
 \bottomrule
 \end{tabular}\smallskip
 
-At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.51$, $p\!=\!0.61$). At $\tau\!=\!1.0$ \textbf{$L$ beats $T$ by $2.9\times$} (Welch's $t\!\approx\!3.2$, $p\!\approx\!0.006$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation (full per-temperature numbers in Appendix~\ref{app:decoder}).
+At $\tau\!=\!0.5$ the $T$\,vs\,$L$ gap narrows to $T\!\approx\!L$ (Welch's $t\!=\!0.51$, $p\!=\!0.61$). In this run at $\tau\!=\!1.0$, $L$ beats $T$ by $2.9\times$ (Welch's $t\!\approx\!3.2$, $p\!\approx\!0.006$). The headline ``Q*bert inversion'' from greedy decoding does not survive a decoder ablation (full per-temperature numbers in Appendix~\ref{app:decoder}). We caution that this $\tau\!=\!1.0$ cell is high-variance and did not replicate in the later full-grid run ($L\!=\!188$, $T\!=\!177$); the decoder-robust verdict for Q*bert is a \emph{tie} (\S\ref{sec:best_achievable}), not a latent win.
 
-\paragraph{Mechanistic explanation.} Bridge-token diagnostics (\S\ref{sec:bridge_content}) showed the bridge tokens differ by only 3--8\,\% across emissions of the same game. Under greedy decoding, this small per-emission variance is below the threshold needed to change the argmax---the head picks the same action regardless, producing the std=0 observation that gave $L\!=\!50$ on every episode. Under sampling, the small bridge variance can influence the action distribution; the per-emission strategic content the bridge carries gets exposed. The text channel's per-emission information is also exposed under sampling, but text's signal is apparently more sample-noise-fragile (T \emph{decreases} from $\tau\!=\!0.5$ to $\tau\!=\!1.0$, while $L$ \emph{increases}). At sufficient stochasticity the bridge wins.
+\paragraph{Mechanistic explanation.} Bridge-token diagnostics (\S\ref{sec:bridge_content}) showed the bridge tokens differ by only 3--8\,\% across emissions of the same game. Under greedy decoding, this small per-emission variance is below the threshold needed to change the argmax---the head picks the same action regardless, producing the std=0 observation that gave $L\!=\!50$ on every episode. Under sampling, the small bridge variance can influence the action distribution; the per-emission strategic content the bridge carries gets exposed. The text channel's per-emission information is also exposed under sampling, but \emph{on Q*bert} text's signal is the more sample-noise-fragile of the two (T \emph{decreases} from $\tau\!=\!0.5$ to $\tau\!=\!1.0$, while $L$ \emph{increases}), so at sufficient stochasticity the bridge wins. We stress this direction is \emph{game-specific}, not a law: on Seaquest the opposite holds---sampling lifts $T$ more than $L$ ($T\!:\!63\!\to\!143$ vs $L\!:\!80\!\to\!135$), erasing the greedy $L\!>\!T$ (above). The robust takeaway is only that greedy determinism makes the $L$-vs-$T$ sign unreliable on zero-variance cells; which channel a sampling decoder favors depends on the game.
 
-\paragraph{What this means for the headline.}
-The paper's main result (L beats T on 4 of 7 games) was obtained under greedy decoding and survives sampling on those 4 games (we did not re-run them, but per-episode variance was already $>0$ there, so the greedy-vs-sampling regime difference is small). The Q*bert counter-example, by contrast, was specifically a greedy-decoding outcome. Under sampling Q*bert joins the $L\!>\!T$ side---which changes the cross-game tally and removes our cleanest counter-example.
+\paragraph{What this means for the headline: decoder fragility cuts both ways.}
+The paper's greedy result is $L\!>\!T$ on four games. Of those four, three (MsPacman, RoadRunner, River~Raid) have non-zero per-episode variance in both the $T$ and $L$ cells, so they are not at risk of the greedy-determinism artifact and we did not re-run them. The fourth, \textbf{Seaquest}, is the exception: its reported (bare) $L$ cell is deterministic ($80\!\pm\!0$), the same std$=0$ regime that produced the Q*bert reversal. We therefore re-ran Seaquest/bare under $\tau\!=\!1.0$ sampling (same $n\!=\!12$ seeds, Appendix~\ref{app:other_sampling}), and the greedy win \emph{does not survive}: $F\!=\!63.3\pm35.0$, $T\!=\!143.3\pm37.0$, $L\!=\!135.0\pm40.1$, so $L\!\approx\!T$ (Welch $t\!=\!-0.53$, $p\!=\!0.60$; MWU $p\!=\!0.73$) with text nominally ahead by 6\%. Both bridges still beat $F$ by $>\!2\times$ ($p\!<\!10^{-3}$), so the slow channel still helps Seaquest---only the latent-over-text \emph{margin} was a greedy artifact. The two zero-variance greedy cells thus move in \emph{opposite} directions under sampling: Q*bert's greedy $T\!>\!L$ becomes a noisy $L\!\approx\!T$, Seaquest's greedy $L\!>\!T$ becomes $L\!\approx\!T$. Greedy determinism is unreliable in both directions. We do not try to patch the greedy tally game-by-game; the right resolution is to tune the decoder per channel and report the best-achievable comparison (\S\ref{sec:best_achievable}), where the latent significantly wins only the two high-margin games (MsPacman, RoadRunner) and ties the rest---neither Seaquest nor Q*bert is a latent win once decoders are made consistent and selection is held-out.
 
 \paragraph{The greedy-decoding bias is general, not Q*bert-specific.}
 We also re-ran the other three greedy-degenerate cells at $\tau\!=\!1.0$ (Appendix~\ref{app:other_sampling}). On SpaceInvaders, the bridges go from being below F at $\sim$15--18 (greedy) to near F at 108--117 (sampling); on Seaquest/robust, bridges go from 0 (greedy) to 33--42 (sampling). Greedy decoding had been systematically under-counting the bridge by suppressing its small per-emission variance. Enduro is the exception: sampling \emph{hurts} both bridges (T 5$\to$0.2, L 6$\to$0.6), suggesting Enduro's greedy advantage was real but fragile.
+
+\subsection{The decoder is a deployment hyperparameter: a best-achievable comparison}
+\label{sec:best_achievable}
+
+The decoder probes above expose a deeper methodological point: \textbf{the latent bridge's
+advantage over the text bridge is specific to greedy decoding.} We swept the four reported-variant
+winners across greedy and sampling temperatures $\tau\!\in\!\{0.3,0.5,0.7,1.0,1.5\}$ on the same
+checkpoints (greedy reproduces the headline exactly on MsPacman/River~Raid/Seaquest; full sweep in
+Appendix~\ref{app:decoder_sweep}). At \emph{every} fixed sampling temperature the greedy $L\!>\!T$
+advantage disappears---$L\!\approx\!T$ or significant $T\!>\!L$ on every game---because the latent's
+$3$--$8\%$ per-emission variance (\S\ref{sec:bridge_content}) nudges the deterministic \emph{argmax}
+but is drowned out the moment the decoder samples. Reporting a single fixed decoder is thus unfair,
+and---crucially---unfair to \emph{both} channels, because they peak at \emph{different} decoders.
+
+\paragraph{Best-achievable, selected on held-out seeds.} In any real deployment the action decoder
+is a hyperparameter one tunes (as in standard model selection). The fair comparison is therefore
+each channel at \emph{its own best decoder}. To avoid selecting the decoder on the same episodes we
+report (which would inflate the estimate), we use leave-one-seed-out selection: for each held-out
+seed we pick the decoder with the highest mean on the other two seeds, then score the held-out seed
+under that decoder; the reported number pools the three held-out folds (details in
+Appendix~\ref{app:heldout}). Table~\ref{tab:best_achievable} gives the result.
+
+\begin{table}[h]
+\centering\small
+\input{figures/best_achievable.tex}
+\caption{\textbf{Best-achievable F/T/L per game}, each channel at its own decoder selected on
+held-out seeds (leave-one-seed-out; $n\!=\!12$). The modal selected decoder is shown in parentheses.
+Under this protocol the latent is \emph{never significantly worse} than the text bridge and is
+significantly \emph{better} on 2 of 7 games (MsPacman, RoadRunner); the other 5 are statistical
+ties (no significant difference either way). The optimal decoder is channel-dependent (latent often
+greedy or high-$\tau$, text $\tau\!\approx\!0.5$). RoadRunner's level is hardware-specific
+(Appendix~\ref{app:decoder_sweep}); its $L\!>\!T$ direction is robust.}
+\label{tab:best_achievable}
+\end{table}
+
+\paragraph{Reading.} Tuned per channel, the latent is never significantly worse than text and is
+significantly better on 2 of 7 games---a \emph{more honest and decoder-robust} claim than the
+fixed-greedy headline, though a more \emph{modest} one (the significant wins shrink from 4 games to 2,
+and the rest become statistical ties rather than 26--82\% gaps). This is the correct reading: the
+greedy headline over-credited the latent. The finding that the two channels have \emph{different}
+optimal decoders also resolves the apparent contradiction with \S\ref{sec:qbert}: a single fixed
+decoder cannot be fair to a latent that peaks at greedy (MsPacman) and a text channel that peaks at
+$\tau\!\approx\!0.5$ (Q*bert) at once---and on the full grid Q*bert is itself a tie, not the latent
+win a single high-variance $\tau\!=\!1.0$ run had suggested. The task-level predictor
+(\S\ref{sec:predictor}) is unaffected---it compares each bridge to fast-only, and best-bridge beats
+best-$F$ exactly where slow reasoning helps ($T\!>\!F$).
+
+\subsection{Using both channels at once hurts: the channels interfere, not complement}
+\label{sec:combined}
+
+A natural follow-up to ``the latent and text channels prefer different decoders and win on different
+games'' is: \emph{use both at once.} We added a combined strategy $B$ that puts the slow model's text
+suffix in the prompt \emph{and} prepends its latent tokens in the same forward pass, and ran it across
+all 7 games at the same per-game decoder grid, with the same held-out best-achievable selection
+(Appendix~\ref{app:heldout}). Table~\ref{tab:combined} compares best-$B$ to the best \emph{single}
+channel per game.
+
+\begin{table}[h]
+\centering\small
+\input{figures/combined.tex}
+\caption{\textbf{Combining both channels (best $B$) vs.\ the best single channel}, held-out
+best-achievable, $n\!=\!12$. Combining is significantly \emph{worse} on 3 of 7 games, never
+significantly better, and on RoadRunner it is catastrophic ($-96\%$, near the $F\!=\!0$ floor). The
+channels \emph{interfere}.}
+\label{tab:combined}
+\end{table}
+
+\paragraph{The naive ``more context is better'' intuition fails.} Combining the channels never
+significantly beats the better single channel (0 of 7) and significantly \emph{hurts} on 3 of 7
+(MsPacman $-49\%$, River~Raid $-29\%$, RoadRunner $-96\%$); the other 4 are statistical ties. The
+damage concentrates exactly where one channel is strong on its own: latent-dominated MsPacman and
+RoadRunner, and text-dominated River~Raid all degrade when the second signal is added. The frozen
+action head is trained on a \emph{single} conditioning signal at a time (Stage~A sees a bare prompt or
+a suffix; Stage~C distills $L$ toward $T$), and handed both at once it produces a worse policy---on
+RoadRunner, where scoring hinges on one precise action, the confusion is total. \textbf{The design
+rule is therefore: couple via exactly one channel.} The predictor (\S\ref{sec:predictor}) says
+\emph{whether} to couple ($T\!>\!F$); if so, pick a single channel, with the latent the safe-or-better
+default---do not feed both.
 
 % --------------------------------------------------------------------------
 \section{Mechanism: Stage A action-head OOD-brittleness}
@@ -363,7 +443,9 @@ Bold points are the reported-variant cell per game (Pearson $r=0.92$, $n=8$; lea
 $r\!\in\![0.89,0.98]$, bootstrap 95\,\% CI $[0.81,1.0]$); faint grey points are all 16
 evaluated cells ($r=0.94$), showing the relationship does not depend on variant selection
 (Appendix~\ref{app:metadrive}). The bridge helps only in the upper-right quadrant ($T\!>\!F$ and
-$L\!>\!F$). MetaDrive (blue diamond) sits at the origin: neither channel beats fast-only. \emph{Right:} MetaDrive in both regimes---reactive lane-keeping and
+$L\!>\!F$). The plotted MetaDrive point (blue diamond) is the planning/greedy cell
+($T\!-\!F\!=\!L\!-\!F\!=\!-2.7$), which sits essentially at the origin: neither channel beats
+fast-only. \emph{Right:} MetaDrive in both regimes---reactive lane-keeping and
 planning-heavy intersections---slow reasoning ($T$, $L$) never exceeds fast-only ($F$), even when
 the task demands route planning.}
 \label{fig:predictor}
@@ -435,7 +517,24 @@ Q*bert is the only $y<0$ point with a large $T$, but Enduro and River Raid (lowe
 \subsection{Sharpened claims}
 
 \begin{finding}
-At matched 9\,B endpoint scale on 7 evaluable Atari games, a learned latent bridge beats a text bridge by 26--82\% on 4 games (2/4 significant by Welch $p<0.05$---RoadRunner, River Raid; the other two have a marginal or zero-variance cell; 4/4 by Mann--Whitney), and ties on 2 (Enduro, SpaceInvaders). The one apparent counter-example---Q*bert under greedy decoding ($T\!=\!125$, $L\!=\!50$)---inverts under multinomial sampling at $\tau\!=\!1.0$: $L\!=\!250 > T\!=\!88$, Welch $p\!\approx\!0.006$ (\S\ref{sec:qbert}). \textbf{We have a mechanism story for $L\!>\!T$} (slow-residual joint state survives a continuous channel; text serializes one element at a time); we now lack a credible game where greedy-decoding-corrected $T > L$ is a stable outcome.
+At matched endpoint scale (9\,B fast, 8\,B slow), under a \emph{fixed greedy} action decoder the
+latent bridge beats the text bridge by 26--82\% on 4 of 7 games. This advantage is
+\textbf{decoder-specific}: a full sweep (greedy, $\tau\!\in\!\{0.3,0.5,0.7,1.0,1.5\}$;
+\S\ref{sec:best_achievable}, Appendix~\ref{app:decoder_sweep}) shows it vanishes at every fixed
+sampling temperature, because the latent's $3$--$8\%$ per-emission variance nudges the deterministic
+argmax but is swamped once the decoder samples---the latent buys a better greedy \emph{policy}, not a
+more robustly informative channel. Because the two channels peak at \emph{different} decoders (the
+latent at greedy or high $\tau$, the text bridge at $\tau\!\approx\!0.5$), a single fixed decoder is
+unfair to both. Treating the decoder as a deployment hyperparameter and selecting it per channel on
+held-out seeds (Appendix~\ref{app:heldout}), the \textbf{best-achievable latent is never significantly
+worse than the text bridge on any of the 7 games and is significantly \emph{better} on 2}
+(MsPacman $+57\%$, RoadRunner $+28\%$); the other 5 are statistical ties (Table~\ref{tab:best_achievable}).
+This is a more modest claim than the greedy headline---the significant wins shrink from 4 to 2---but a
+decoder-robust one. We do \emph{not} claim an a~priori rule for which channel wins a given game; we
+claim that, tuned, the latent is never worse and is sometimes substantially better. RoadRunner additionally does not
+reproduce its headline magnitude across hardware ($L\!=\!967$ on H100 $\to$ $608$ on Blackwell, FP
+nondeterminism amplified by its $F\!=\!0$ baseline; Appendix~\ref{app:decoder_sweep}); its $L\!>\!T$
+direction is robust, its magnitude is not.
 \end{finding}
 
 \begin{finding}
@@ -467,7 +566,7 @@ confounds noted (Appendix~\ref{app:scaling_30b}).
 
 \subsection{Implications}
 
-For deployments where slow reasoning does not improve on fast reaction ($T\!\le\!F$, MetaDrive-like), neither bridge pays for itself, and the text channel is the cheaper way to find that out. For deployments where slow reasoning does help ($T\!>\!F$, RoadRunner-like), the text channel leaves 26--82\% of the latent bridge's score on the table at matched-scale endpoints. The architectural fix is not novel---LLaVA's pattern applied to a non-vision coupling problem---but the empirical demonstration at this scale, with a clear failure case and a methodological mechanism for the collapses, is new to our knowledge.
+For deployments where slow reasoning does not improve on fast reaction ($T\!\le\!F$, MetaDrive-like), neither bridge pays for itself, and the text channel is the cheaper way to find that out. For deployments where slow reasoning does help ($T\!>\!F$), the latent bridge is a safe-or-better drop-in for the text channel: tuned per channel, it is never significantly worse than text and wins by up to $+57\%$ on the games where it wins significantly (MsPacman, RoadRunner; statistical ties on the rest, \S\ref{sec:best_achievable}). Two caveats temper a stronger claim: the advantage is realized through better greedy action selection (it does not survive a \emph{fixed} stochastic decoder), and on the one game with a degenerate $F\!=\!0$ baseline (RoadRunner) the magnitude is hardware-sensitive. The architectural fix is not novel---LLaVA's pattern applied to a non-vision coupling problem---but the empirical demonstration at this scale, with an honest decoder-sensitivity analysis and a methodological mechanism for the collapses, is new to our knowledge.
 
 % --------------------------------------------------------------------------
 \section{Related Work}
@@ -486,10 +585,20 @@ For deployments where slow reasoning does not improve on fast reaction ($T\!\le\
 % --------------------------------------------------------------------------
 \section{Conclusion}
 
-A continuous latent bridge between two frozen multimodal LLMs at matched 9\,B scale beats the
-text bridge by 26--82\% on 4 of 7 evaluable Atari games under greedy decoding---5 of 7 once the
-one inversion (Q*bert) is corrected for a greedy-decoding artifact that suppresses the bridge's
-small per-emission variance (\S\ref{sec:qbert}). Most ``bridge collapsed'' cells trace to
+A continuous latent bridge between two frozen multimodal LLMs at matched scale (9\,B fast, 8\,B slow)
+beats the text bridge by 26--82\% on 4 of 7 evaluable Atari games under a fixed greedy decoder. We
+show this advantage is \emph{decoder-specific}---it disappears at every fixed sampling temperature
+because the latent's thin per-emission signal only sharpens the greedy argmax (\S\ref{sec:qbert},
+\S\ref{sec:best_achievable}). The right comparison treats the decoder as a tuned deployment
+hyperparameter: with each channel at its own best decoder, selected on held-out seeds, the latent is
+\textbf{never significantly worse than the text bridge and is significantly better on 2 of 7 games}
+(MsPacman, RoadRunner; the other 5 are statistical ties), and the two channels demonstrably prefer
+different decoders (Table~\ref{tab:best_achievable})---so the latent is a safe-or-better drop-in for
+the text channel, non-inferior everywhere and materially better where slow reasoning helps most,
+rather than a uniform winner at any single fixed decoder. Feeding \emph{both} channels to the frozen
+head at once does not combine their strengths---it interferes, never beating the better single channel
+and significantly hurting 3 of 7 games (RoadRunner catastrophically, $-96\%$; \S\ref{sec:combined})---so
+the design rule is to couple via exactly one channel. Most ``bridge collapsed'' cells trace to
 Stage~A action-head failures, chiefly OOD-brittleness under suffix/bridge inputs, and a targeted
 retraining fix recovers the largest single $L\!-\!T$ gap in the sweep (\S\ref{sec:ood}). The
 obvious objections do not hold: giving $T$ more text widens the gap rather than closing it
@@ -558,7 +667,16 @@ Both samples are $\sim$300 characters. RoadRunner's encodes simultaneous $\Delta
 \section{Stage A and Stage C details}
 \label{app:training}
 
-\paragraph{Stage A.} AdamW, lr $1\!\times\!10^{-4}$, 3 epochs, batch=1 with grad-accum=8. Bare val-accuracies on the game-state-only prompt: MsPacman 32\% (random 11\%), Seaquest 24\% (5.6\%), SpaceInvaders 33\% (17\%), Pong 25\% (17\%), RoadRunner 59\% (11\%). Robust Stage A is identical except half of training batches receive a synthetic slow-style text suffix appended (suffix-prob=0.5); bare val-acc barely changes (e.g., MsPacman 32$\to$33\%, SI 33$\to$30\%) but the policy is suffix-invariant.
+\paragraph{Stage A.} AdamW, lr $1\!\times\!10^{-4}$, 3 epochs, batch=1 with grad-accum=8. The action
+head has 18 outputs (full ALE action space) on every game; the random baseline below is $1/k$ for
+$k$ = the game's ALE \emph{minimal} action set (the only actions the SB3 expert emits, so the
+val-set classes). Bare val-accuracies on the game-state-only prompt: MsPacman 32\% (random 11.1\%,
+$k\!=\!9$), Seaquest 24\% (5.6\%, $k\!=\!18$), SpaceInvaders 33\% (16.7\%, $k\!=\!6$), Pong 25\%
+(16.7\%, $k\!=\!6$), RoadRunner 59\% (5.6\%, $k\!=\!18$), River~Raid 31\% (5.6\%, $k\!=\!18$),
+Enduro 49\% (11.1\%, $k\!=\!9$), Q*bert 34\% (16.7\%, $k\!=\!6$). Robust Stage A is identical except
+half of training batches receive a synthetic slow-style text suffix appended (suffix-prob=0.5);
+bare val-acc barely changes (e.g., MsPacman 32$\to$33\%, SI 33$\to$30\%) but the policy is
+suffix-invariant.
 
 \paragraph{Stage C.} 2-layer MLP projection (LayerNorm, Linear 4096$\to$4096, GELU, Linear 4096$\to$4096, LayerNorm), 33.6\,M parameters. AdamW, lr $5\!\times\!10^{-5}$, 1 epoch, batch=1 with grad-accum=4. KL temperature $\tau=1.0$. Slow residuals extracted at layer 24 of 36 (we did not ablate the layer choice). Default $N=8$ latent tokens, $\sim$5K (frame, slow text, slow residuals) tuples per game from Stage~B random-policy rollouts.
 
@@ -759,29 +877,91 @@ RoadRunner  & $w=3$         & $0.0\pm0.0$     &   0.0 &   0 &   0  \\
 \section{Sampling on other greedy-degenerate games (full numbers)}
 \label{app:other_sampling}
 
-Backing data for the ``greedy-decoding bias is general'' claim in \S\ref{sec:qbert}. Robust Stage A on each game, action-policy=sample at $\tau=1.0$, $n\!=\!12$ per cell, $\le\!500$ ticks per episode.
+Backing data for the ``greedy-decoding bias is general'' claim in \S\ref{sec:qbert}.
+Action-policy=sample at $\tau=1.0$, $n\!=\!12$ per cell, $\le\!500$ ticks per episode. The variant
+is robust Stage~A except for the \textbf{Seaquest (bare)} block, which is the \emph{headline}
+Seaquest variant (\S\ref{sec:results}) and the most consequential row: its greedy $L\!>\!T$ win
+does not survive sampling.
 
 \smallskip\noindent
 \begin{tabular}{llcc}
 \toprule
-Game          & Strategy & Greedy (paper)      & Sample $\tau=1.0$ \\
+Game (variant)        & Strategy & Greedy (paper)      & Sample $\tau=1.0$ \\
 \midrule
-SpaceInvaders & F        & $107.1\pm62.4$      & $106.7\pm26.0$ \\
-SpaceInvaders & T        & $18.3\pm18.6$       & $107.5\pm19.2$ \\
-SpaceInvaders & L        & $15.0\pm0.0$        & $\mathbf{116.7\pm14.5}$ \\
+\textbf{Seaquest (bare)} & F     & $41.7\pm19.9$       & $63.3\pm35.0$ \\
+\textbf{Seaquest (bare)} & T     & $63.3\pm11.5$       & $\mathbf{143.3\pm37.0}$ \\
+\textbf{Seaquest (bare)} & L     & $\mathbf{80.0\pm0.0}$ & $135.0\pm40.1$ \\
 \midrule
-Seaquest      & F        & $20.0\pm0.0$        & $\mathbf{110.0\pm38.7}$ \\
-Seaquest      & T        & $0.0\pm0.0$         & $41.7\pm37.8$ \\
-Seaquest      & L        & $0.0\pm0.0$         & $33.3\pm27.5$ \\
+SpaceInvaders (robust) & F        & $107.1\pm62.4$      & $106.7\pm26.0$ \\
+SpaceInvaders (robust) & T        & $18.3\pm18.6$       & $107.5\pm19.2$ \\
+SpaceInvaders (robust) & L        & $15.0\pm0.0$        & $\mathbf{116.7\pm14.5}$ \\
 \midrule
-Enduro        & F        & $0.8\pm1.1$         & $3.2\pm2.5$ \\
-Enduro        & T        & $4.9\pm5.9$         & $0.2\pm0.8$ \\
-Enduro        & L        & $5.8\pm2.6$         & $0.6\pm1.4$ \\
+Seaquest (robust) & F        & $20.0\pm0.0$        & $\mathbf{110.0\pm38.7}$ \\
+Seaquest (robust) & T        & $0.0\pm0.0$         & $41.7\pm37.8$ \\
+Seaquest (robust) & L        & $0.0\pm0.0$         & $33.3\pm27.5$ \\
+\midrule
+Enduro (robust)        & F        & $0.8\pm1.1$         & $3.2\pm2.5$ \\
+Enduro (robust)        & T        & $4.9\pm5.9$         & $0.2\pm0.8$ \\
+Enduro (robust)        & L        & $5.8\pm2.6$         & $0.6\pm1.4$ \\
 \bottomrule
 \end{tabular}\smallskip
 
 \paragraph{Reading.}
-SpaceInvaders is the clearest example of greedy under-counting the bridge: under greedy both bridges are at $\sim$15--18 (far below F=107), suggesting bridge-induced collapse; under sampling all three strategies cluster around 107--117. The bridges were never broken on SpaceInvaders---greedy was misrepresenting them. Seaquest/robust shows the same pattern less dramatically: T=L=0 (greedy) $\to$ 33--42 (sampling); the bridges are still below F=110 but no longer collapsed. Enduro inverts the pattern: under sampling the bridges \emph{drop} (T 5$\to$0.2, L 6$\to$0.6), so Enduro's greedy advantage was real but fragile. The general lesson is that greedy decoding at small action-space scale produces deterministic trajectories that can mask both the bridge's signal and the bridge's actual failure modes; comparing F/T/L should be done under a sampling decoder when per-episode variance is required for meaningful statistics.
+\textbf{Seaquest (bare) is the consequential row}: under greedy $L\!=\!80\!\pm\!0 > T\!=\!63$ (a
+$+26\%$ headline win), but the $L$ cell is deterministic; under sampling both bridges roughly
+double off $F$ ($F\!:\!42\!\to\!63$, $T\!:\!63\!\to\!143$, $L\!:\!80\!\to\!135$) and the ordering
+flips to $L\!\approx\!T$ with text nominally ahead (Welch $p\!=\!0.60$, MWU $p\!=\!0.73$). The
+slow channel still clearly helps ($T,L\!\gg\!F$, $p\!<\!10^{-3}$), but the latent-over-text margin
+was a greedy artifact---greedy had under-counted $T$ here more than $L$, the opposite of Q*bert.
+SpaceInvaders is the clearest example of greedy under-counting the bridge: under greedy both bridges are at $\sim$15--18 (far below F=107), suggesting bridge-induced collapse; under sampling all three strategies cluster around 107--117. The bridges were never broken on SpaceInvaders---greedy was misrepresenting them. Seaquest/robust shows the same pattern less dramatically: T=L=0 (greedy) $\to$ 33--42 (sampling); the bridges are still below F=110 but no longer collapsed. Enduro inverts the pattern: under sampling the bridges \emph{drop} (T 5$\to$0.2, L 6$\to$0.6), so Enduro's greedy advantage was real but fragile. The general lesson is that greedy decoding at small action-space scale produces deterministic trajectories that can mask both the bridge's signal and the bridge's actual failure modes \emph{and} the sign of the $L$-vs-$T$ comparison; comparing F/T/L should be done under a sampling decoder when per-episode variance is required for meaningful statistics.
+
+\section{Full decoder sweep (greedy / $\tau\in\{0.3,0.5,0.7,1.0,1.5\}$)}
+\label{app:decoder_sweep}
+
+Backing data for \S\ref{sec:best_achievable}. We re-ran the reported-variant cells at greedy and
+five sampling temperatures on the \emph{same} Stage~A/C checkpoints, $n\!=\!12$ ($3\!\times\!4$),
+$\le\!500$ ticks. Greedy reproduces the headline exactly on MsPacman, River~Raid, and Seaquest, and
+$F$ reproduces on every game (it never invokes the slow model)---so the greedy-vs-sampling difference
+is a genuine decoder effect, not checkpoint or code drift. The per-decoder means:
+
+\smallskip\noindent
+\input{figures/decoder_sweep.tex}
+\smallskip
+
+\paragraph{The $L\!>\!T$ advantage is greedy-specific.} On every game, the greedy $L\!>\!T$ margin
+vanishes under \emph{any} fixed sampling temperature: $L\!\approx\!T$ (MsPacman, Seaquest) or
+significant $T\!>\!L$ (River~Raid at $\tau\!=\!1.0$; RoadRunner collapses to the $F\!=\!0$ floor).
+The latent's small per-emission variance (\S\ref{sec:bridge_content}) shifts the deterministic
+argmax but is swamped once the decoder samples, so the latent yields a better \emph{greedy policy}
+rather than a more robustly informative channel.
+
+\paragraph{RoadRunner is also hardware-fragile.} RoadRunner greedy does \emph{not} reproduce the
+paper's headline ($L\!=\!967$, run on an H100 family per Appendix~\ref{app:latency}): on the
+Blackwell GPU used for these re-runs it gives a tight $L\!=\!608$. Because $F$ reproduces exactly
+and only the slow-model-dependent cells drift, and only on the one game whose $F\!=\!0$ makes the
+score hinge entirely on the slow emission triggering one precise action, the cause is floating-point
+nondeterminism in the (greedy, \texttt{do\_sample=False}) slow-model generation across hardware. The
+$L\!>\!T$ \emph{direction} is robust ($608$ vs $475$); the headline magnitude is hardware-specific.
+
+\section{Held-out decoder selection protocol}
+\label{app:heldout}
+
+For the best-achievable comparison (\S\ref{sec:best_achievable}, Table~\ref{tab:best_achievable}) we
+treat the action decoder as a deployment hyperparameter and select it per (game, channel) the honest
+way---tune on held-in data, report on held-out---using leave-one-seed-out over the 3 ALE seeds
+(4 episodes each):
+\begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
+\item For each held-out seed $s$: pick the decoder with the highest mean over the \emph{other} two
+seeds (8 episodes), then record that decoder's 4 episodes on seed $s$.
+\item The reported best-achievable cell pools the 3 held-out folds (12 episodes, each seed held out
+once). $L$ vs $T$ uses Welch's $t$ and Mann--Whitney on the two pooled held-out vectors.
+\end{itemize}
+This is an unbiased estimate of ``tune the decoder, then deploy,'' unlike an oracle max over decoders
+on the same episodes (which we report alongside as an optimistic upper bound). In practice the
+selection is stable---held-out $\approx$ oracle on most cells (e.g.\ MsPacman-$L$ picks greedy on all
+three folds)---so the unbiased estimate sits close to the optimistic one. The procedure is in
+\texttt{scripts/decoder\_select\_cv.py}; the table is generated by
+\texttt{scripts/make\_best\_achievable\_table.py}.
 
 \section{Bridge replacement control (full numbers)}
 \label{app:bridge_replace}
@@ -956,5 +1136,10 @@ reported-variant cells): leave-one-out Pearson $r$ stays in $[0.89, 0.98]$ for a
 (dropping the RoadRunner high-leverage point gives $r=0.89$); the rank correlation is Spearman
 $\rho=0.98$; a game-level bootstrap (10{,}000 resamples) gives a 95\,\% CI of $[0.81, 1.0]$; and
 excluding both dynamic-range extremes (RoadRunner and River~Raid) still gives $r=0.84$ ($n=6$).
+\emph{Decoder:} the predictor is about $L\!-\!F$ vs $T\!-\!F$, not $L$ vs $T$, so the
+Seaquest decoder-fragility finding (\S\ref{sec:qbert}) does not touch it---Seaquest stays in the
+upper-right helps-quadrant under both decoders ($T\!-\!F,L\!-\!F = (+22,+38)$ greedy,
+$(+80,+72)$ sampling), if anything reinforcing the relationship. What the decoder moves is the
+\emph{secondary} latent-vs-text tally, not the task-level predictor.
 
 \end{document}

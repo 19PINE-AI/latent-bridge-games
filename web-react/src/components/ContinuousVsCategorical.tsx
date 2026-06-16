@@ -2,9 +2,9 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, ResponsiveContainer, Toolti
          ReferenceLine, Label, Cell } from "recharts";
 import { EMISSION_STATS } from "../data/games";
 
-/** Quantitative axis: lexical diversity (unique whitespace tokens per slow emission)
- * vs (L − T)/T. The categorical-vs-continuous claim is falsifiable from emission
- * statistics alone — no Stage C training needed. */
+/** Quantitative axis we TESTED AND REJECTED: lexical diversity (unique whitespace tokens
+ * per slow emission) vs (L − T)/T. We hypothesised emission statistics would predict the
+ * sign of L − T; they do not (Pearson r ≈ +0.05, n.s.). Retained as a negative result. */
 export default function ContinuousVsCategorical() {
   const data = EMISSION_STATS
     .filter(d => d.delta_LT_pct !== null)
@@ -20,11 +20,12 @@ export default function ContinuousVsCategorical() {
   return (
     <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
       <div className="bg-panel rounded-2xl border border-border p-5">
-        <h3 className="font-semibold text-ink mb-1">Lexical diversity predicts L vs T</h3>
+        <h3 className="font-semibold text-ink mb-1">Lexical diversity does <em>not</em> predict L vs T</h3>
         <p className="text-xs text-muted mb-3">
           Each point is one game. <strong>x</strong> = unique whitespace tokens per slow emission
-          (seed-0 trajectory). <strong>y</strong> = (L − T) / T. Higher x = more continuous-rich
-          content; lower x = repetitive / categorical. Threshold flips around ~9 tokens/emission.
+          (seed-0 trajectory). <strong>y</strong> = (L − T) / T. We hypothesised more
+          continuous-rich emissions (higher x) would favour the latent — but the cloud is flat
+          (Pearson r ≈ +0.05). There is no threshold; emission statistics do not forecast the sign.
         </p>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">

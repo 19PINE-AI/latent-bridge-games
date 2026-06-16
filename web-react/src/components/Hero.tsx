@@ -40,7 +40,7 @@ export default function Hero() {
 
             <div className="mt-8 grid grid-cols-3 gap-4">
               <Stat label="Predictor" value="r = 0.92" sub="L−F tracks T−F across 8 tasks" />
-              <Stat label="Cleanest win" value="L = 967" sub="RoadRunner, vs F = 0 / T = 608" />
+              <Stat label="Latent, tuned" value="2/7 wins" sub="sig. beats text; ties 5, never loses" />
               <Stat label="Total trainable" value="33 M" sub="of ~17 B params, both frozen" />
             </div>
 
@@ -87,7 +87,7 @@ export default function Hero() {
             <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
               Full narrated tour with 3-way F/T/L clips for all 7 Atari games and MetaDrive,
               then the headline findings: Road Runner → Ms. Pac-Man → River Raid → Seaquest →
-              Q*bert (text wins) → Space Invaders → Enduro → MetaDrive (the controlled
+              Q*bert (decoder-dependent) → Space Invaders → Enduro → MetaDrive (the controlled
               negative) → the T &gt; F predictor (r = 0.92) → the bridge-replacement control.
               Interactive versions in <a href="#replay" className="text-link hover:underline">Replay</a> and
               {" "}<a href="#predictor" className="text-link hover:underline">Predictor</a> below.

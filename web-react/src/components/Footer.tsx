@@ -28,7 +28,8 @@ export default function Footer() {
         </Col>
         <Col title="Highlights">
           <li className="text-xs text-muted">8 games · 12 episodes/cell · 95 % bootstrap CIs</li>
-          <li className="text-xs text-muted">L &gt; T on 4 of 7 evaluable games (Welch <em>p</em> &lt; 0.05 on 3, p = 0.06 on the 4th)</li>
+          <li className="text-xs text-muted">Tuned per channel (held-out): latent sig. beats text on 2/7, ties 5/7, never loses</li>
+          <li className="text-xs text-muted">Using both channels at once <em>interferes</em> (−96 % on RoadRunner) — couple via one</li>
           <li className="text-xs text-muted">Largest gap: <span className="text-good">+82 %</span> (River Raid robust SA, Cohen's d = 1.21)</li>
           <li className="text-xs text-muted">Single RTX Pro 6000 96 GB</li>
         </Col>
