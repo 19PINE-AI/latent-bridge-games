@@ -7,9 +7,10 @@ separate `.bib` until paper-writing time.
 
 ## Dual-system architectures in robotics
 
-These projects converged on continuous-vector latent bridges between fast motor policies
-and slow reasoning models. Our work transfers the architectural pattern to symbolic /
-visual (game) domains where the slow model is a frozen text-reasoning LLM.
+These projects couple a fast motor policy to a slow reasoning model through a learned
+interface. Our work transfers the architectural pattern to symbolic / visual (game)
+domains where both models are frozen general-purpose LLMs and the coupling is a learned
+latent bridge whose value we test against a text bridge.
 
 - **Helix (Figure AI, 2025-2026):** S2 onboard VLM at 7-9 Hz emits latent semantic
   representations that S1 visuomotor policy consumes at 200 Hz to produce joint targets.
@@ -32,8 +33,8 @@ visual (game) domains where the slow model is a frozen text-reasoning LLM.
   us. S1 is **embedded within S2** by repurposing the final transformer blocks of the
   same VLM backbone. Co-trained with dual loss (next-token prediction for S2, diffusion
   for S1). Shared representations beat separate models. We cannot use this approach
-  directly because our slow model is frozen, but it sets the upper bound we measure
-  against.
+  directly because our slow model is frozen; it motivates why a learned bridge between
+  frozen models is the hard, open-model case.
   [FiS-VLA (2506.01953)](https://arxiv.org/html/2506.01953v1)
 
 ## Latent reasoning within single models
@@ -52,21 +53,55 @@ visual (game) domains where the slow model is a frozen text-reasoning LLM.
   evaluate this as one of the bridge variants.
   [Token Assorted (2502.03275)](https://arxiv.org/html/2502.03275)
 
+- **Pause Tokens / Implicit CoT / Quiet-STaR (2023-2024):** Other single-model latent- or
+  hidden-reasoning schemes — inserting learned "pause" compute tokens, internalizing CoT
+  into hidden states, or generating silent rationales before each token. Same family as
+  COCONUT: extra latent computation inside one model. We are the cross-model analog.
+
 - **Asynchronous Reasoning (Tian et al., 2025):** Training-free method that rearranges
   the KV cache to make multiple async reasoning streams appear as a single sequence.
   Important precedent for our async coupling design.
   [Async Reasoning (2512.10931)](https://arxiv.org/html/2512.10931v1)
 
+## Multimodal coupling (the v2 latent bridge pattern)
+
+Our latent bridge is a LLaVA-style projection: a learned MLP maps slow-model residual
+states into the fast model's input-embedding space. These vision-language projects
+established the pattern for *cross-encoder* coupling; v2 transfers it to *language-language*
+fast/slow coupling between two frozen LLMs.
+
+- **LLaVA (Liu et al., 2023):** A single linear/MLP projection maps a frozen vision
+  encoder's features into an LLM's embedding space. The direct template for our bridge.
+  [LLaVA (2304.08485)](https://arxiv.org/abs/2304.08485)
+
+- **BLIP-2 (Li et al., 2023):** Q-Former bridges a frozen image encoder and a frozen LLM
+  with a small learned querying transformer — both backbones frozen, only the bridge
+  trained, exactly our setting.
+  [BLIP-2 (2301.12597)](https://arxiv.org/abs/2301.12597)
+
+- **Flamingo (Alayrac et al., 2022):** Gated cross-attention injects visual features into
+  a frozen LM. Early demonstration that a learned adapter can couple frozen backbones.
+  [Flamingo (2204.14198)](https://arxiv.org/abs/2204.14198)
+
 ## Real-time interaction architectures
 
-- **Thinking Machines Lab Interaction Models (Mira Murati et al., May 2026):** The
-  direct comparison target. Trained-from-scratch full-duplex multimodal model with 200ms
-  micro-turns. Pairs with a separate asynchronous background reasoning model that
-  communicates via text. 0.40s turn-taking latency vs 1.18s for GPT-Realtime-2.0 and
-  0.57s for Gemini Live. Our claim: the text-channel handoff between their interaction
-  model and background reasoner leaves headroom that a latent bridge captures.
+- **Thinking Machines Lab Interaction Models (Mira Murati et al., 2026):** The closest
+  prior fast/slow split. A trained-from-scratch full-duplex multimodal interaction model
+  (200ms micro-turns) paired with a separate asynchronous background reasoner. Crucially,
+  the two are coupled via **natively shared context** inside a closed, jointly-trained
+  system — richer than, but akin to, our text channel. We neither use nor compare against
+  it; it is closed and not reproducible with open models. Open VLMs have no equivalent
+  fast/slow split, which is exactly the gap we target: we ask whether a *learned latent
+  bridge* between two *frozen, separately-trained* open models can recover some of what a
+  shared-context coupling provides. Reported turn-taking latency 0.40s vs 1.18s for
+  GPT-Realtime-2.0 and 0.57s for Gemini Live.
   [TML blog](https://thinkingmachines.ai/blog/interaction-models/),
   [Sean Goedecke analysis](https://www.seangoedecke.com/interaction-models/)
+
+- **Closed real-time agents (Gemini Live, OpenAI Realtime):** Closed, monolithic
+  voice/video systems with no exposed fast/slow decomposition. Related context only — we
+  do not compare against or take motivation from them; they illustrate that the
+  production real-time stack is closed.
 
 - **AsyncVoice Agent (2025):** Real-time explanation streaming for LLM planning. Closest
   prior art for "slow model thoughts surfaced to user in real time" but uses text channel
@@ -117,8 +152,12 @@ Our positioning, by what each prior work does NOT do:
   cannot retrain a state-of-the-art reasoning model.
 - **COCONUT / Token Assorted:** latent reasoning within a single model; we apply
   cross-model.
-- **TML interaction models:** dual-model split for voice/video, communication via text
-  channel; we propose latent bridge as the channel.
+- **TML interaction models:** the closest fast/slow split, but closed and jointly trained
+  with a natively-shared-context coupling; we instead bridge two frozen, separately-trained
+  open models and test a learned latent channel against text.
+- **Multimodal coupling (LLaVA / BLIP-2 / Flamingo / MiniCPM-o):** projects another
+  modality's encoder into an LLM's embedding space; we transfer the same projection
+  pattern to language-language fast/slow coupling.
 - **Atari DQN family:** fast-only agents trained end-to-end; no augmentation with
   external reasoning model.
 - **Agentic LLM game playing (Cradle, GameAgent):** uses the slow LLM directly for

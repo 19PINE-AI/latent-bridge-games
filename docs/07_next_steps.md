@@ -37,10 +37,12 @@ The order below balances paper value, user-stated priorities, and dependency str
    *direction* of the strategic-complexity claim. Need a new RAM decoder + prompt
    template.
 
-5. **Scaling ablation with `Qwen/Qwen3-VL-30B-A3B-Thinking-FP8`.** Tests the bandwidth
-   mechanism that the entire paper's central claim rests on. If L − T grows with slow
-   model size, the bridge methodology is doing what we theorized. If it shrinks, the
-   thesis fails. Most paper-load-bearing single experiment.
+5. **Slow-model capacity ablation with `Qwen/Qwen3-VL-30B-A3B-Thinking-FP8`.** Tests
+   whether more slow-model capacity widens L − T. The behavioral predictor says the
+   bridge helps iff slow reasoning helps (T > F), with L − F tracking T − F at r = 0.93;
+   a larger slow model that lifts T − F should, on this account, also lift L − T.
+   Confirming that link strengthens the predictor story. (This is a capacity question,
+   not a test of the retired "bandwidth"/latent-channel-width thesis.)
 
 6. **Stage D PPO.** System-completion item AND highest-information-gain experiment for
    SpaceInvaders (will it recover from L = 0 under PPO?). Biggest effort, biggest
@@ -62,11 +64,12 @@ The order below balances paper value, user-stated priorities, and dependency str
 - **2C.** Oracle O baseline on MsPacman (~30 min).
 - **2D.** Stage A mixed-prompt re-training on SpaceInvaders (~1h). Then re-eval T/L.
 
-### Phase 3 — Tier 1 + scaling ablation (~4h, after Phase 2 + download done)
+### Phase 3 — Tier 1 + capacity ablation (~4h, after Phase 2 + download done)
 - **3A.** Pong RAM decoder + prompt template. F + T eval (no Stage A needed if F
   scores baseline immediately; if F = 0 we add Stage A).
-- **3B.** Scaling ablation: T-collection with 30B slow, Stage C v2 retraining, F/T/L
-  eval on MsPacman.
+- **3B.** Slow-model capacity ablation: T-collection with 30B slow, Stage C v2
+  retraining, F/T/L eval on MsPacman. Check whether the larger slow model widens both
+  T − F and L − T.
 
 ### Phase 4 — Stage D PPO (~12-24h, after Phase 3)
 - **4A.** Implement PPO driver on top of existing `stage_d_rl.py` scaffold.
@@ -106,7 +109,8 @@ The order below balances paper value, user-stated priorities, and dependency str
 - `scripts/render_demo_mp4.py` — frames + overlay → MP4
 - `scripts/live_demo_server.py` — Flask + WebSocket live playback
 - `scripts/stage_a_mixed_prompt.sh` — robustness ablation pipeline
-- `scripts/scaling_ablation_30b.sh` — 30B slow-model scaling experiment
+- `scripts/scaling_ablation_30b.sh` — 30B slow-model capacity ablation (does more
+  slow-model capacity widen L − T?)
 - `scripts/ppo_pipeline.sh` — Stage D PPO orchestration
 - `src/env/atari_wrapper.py` — add Pong/Breakout decoders
 - `src/training/prompts.py` — add Pong/Breakout templates

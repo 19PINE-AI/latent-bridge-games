@@ -2,24 +2,20 @@
 
 ## Thesis
 
-Real-time interactive AI systems face a structural dilemma: reasoning models (Claude 4.7,
-GPT-5, Qwen3-VL-Thinking) deliberate excellently but cannot operate at 100-200ms tick
-rates; small streaming models hit the tick rate but lack reasoning depth. Current
-production systems address this with either (a) monolithic streaming models with shallow
-thinking (Gemini Live, OpenAI Realtime), or (b) two-model splits communicating via text
-prompts (Thinking Machines Lab's interaction model + asynchronous background reasoner).
+The long-term target is general computer use (GCU): an agent that must act continuously
+while reasoning over longer horizons. Real-time games are the hardest case of this —
+the agent must act every few tens of milliseconds while planning over seconds. No single
+open multimodal LLM does both: a reasoning VLM (Qwen3-VL-8B-Thinking) is ~1.5s too slow
+for the ~15Hz control loop, while a reactive VLM (MiniCPM-o 4.5) lacks deliberation. The
+fast/slow split is the fix. Thinking Machines Lab's "Interaction Models" make this split
+explicit, coupling the two via shared text/context; closed systems (Gemini Live, OpenAI
+Realtime) are streaming-only and appear here only as related work, not motivation.
 
-We argue the text-channel split — the most architecturally promising option — is
-bandwidth-limited. Text serialization carries hundreds of bits per call where a continuous
-latent channel could carry hundreds of thousands. This bottleneck shows up empirically as
-slow redirection of reasoning when the environment changes rapidly, shallow handling of
-substantive user interruptions, and inability to maintain tight slow-fast coupling under
-high-event-density conditions.
-
-This project investigates whether a **learned continuous-valued bridge** between a frozen
-real-time multimodal model and a frozen reasoning model can outperform the text-channel
-default, demonstrated on video games requiring both fast reflexes and long-horizon
-planning.
+We test an **open alternative** to text coupling: a **learned continuous latent bridge**
+that projects slow-model residuals into the fast model's input-embedding space (LLaVA-style).
+This project investigates whether such a bridge between a frozen real-time multimodal model
+and a frozen reasoning model can match or outperform the text-channel default, demonstrated
+on video games requiring both fast reflexes and long-horizon planning.
 
 ## Why games
 
@@ -46,39 +42,50 @@ Games are the cleanest empirical domain for this question:
 
 ## Hypotheses
 
-**H1 (capability).** On games requiring both reactive and strategic components, a
-MiniCPM-o 4.5 + Qwen3-VL-8B-Thinking system coupled via a learned latent bridge achieves
-significantly higher scores than (a) MiniCPM-o 4.5 alone, (b) the same pair coupled via a
-text channel. We make this claim with both endpoints at the same ~8-9B scale to isolate
-the channel from the capability gap; a scaling ablation with Qwen3-30B-A3B-Thinking on
-the slow side tests whether the latent advantage grows with slow-model reasoning depth.
+**H1 (best-achievable capability).** On games requiring both reactive and strategic
+components, a MiniCPM-o 4.5 (9B) + Qwen3-VL-8B-Thinking (8B) system coupled via a learned
+latent bridge is never significantly worse than the same pair coupled via a text channel,
+and is significantly better on some games — under the honest comparison that tunes the
+action decoder per channel on held-out seeds ("best-achievable"). Both endpoints are at
+the same ~8-9B scale to isolate the channel from the capability gap; the 33M-param bridge
+is the only trained component, both base models frozen. Caveat: the latent's apparent
+greedy advantage is decoder-specific (it vanishes at every fixed sampling temperature),
+so the headline must be stated under the best-achievable decoder, not a single fixed
+greedy decoder.
 
-**H2 (phase transition).** The latent-vs-text gap is small on games with low strategic
-load and grows with strategic complexity. There exists an identifiable complexity
-threshold above which text-channel splits saturate while latent bridges continue to scale.
+**H2 (latent helps iff slow reasoning helps).** The latent helps a task exactly when slow
+reasoning helps it (T>F). The per-game latent gain L−F tracks the slow-reasoning gain T−F
+at Pearson r≈0.93 (n=8). MetaDrive (driving sim) is the controlled negative where neither
+helps. (A latent token-count (N) ablation probes how few latent tokens suffice; this is
+NOT a "bandwidth" claim — that thesis is retired.)
 
 **H3 (training tractability).** A COCONUT-style staged curriculum (text → mixed → latent),
-trained only on LoRA adapters with both base models frozen, recovers most of a unified
-jointly-trained upper bound's capability — making the architecture deployable when the
-slow model cannot be retrained.
+training only the bridge with both base models frozen, recovers most of a unified
+jointly-trained upper bound's capability — making the architecture deployable when neither
+base model can be retrained.
+
+**Single-channel rule.** Combining both channels does not help; it interferes (never beats
+the better single channel, and hurts on some games). Couple via exactly one channel.
 
 ## Contributions if all hypotheses hold
 
 1. A reproducible cross-model latent-bridge architecture for non-physical real-time
    interaction.
-2. A phase-transition empirical result distinguishing where text-channel splits fail.
-3. A training recipe — COCONUT-curriculum + dual LoRA — runnable on a single 96GB GPU.
-4. Open-source release: code, LoRA checkpoints, eval harness, game-environment wrappers.
+2. An empirical result that the latent helps iff slow reasoning helps (L−F tracks T−F,
+   r≈0.93), under a best-achievable per-channel decoder — with the latent never
+   significantly worse than text and better on some games.
+3. A training recipe — COCONUT-curriculum + bridge-only training — runnable on a single
+   96GB GPU (NVIDIA RTX Pro 6000).
+4. Open-source release: code, bridge checkpoints, eval harness, game-environment wrappers.
 
 ## Scope
 
 **In scope:**
 - Atari-class games (ALE / Gymnasium) at 10-60Hz tick rates
 - MiniCPM-o 4.5 as the frozen fast model
-- Qwen3-VL-8B-Thinking as the frozen slow model (with Qwen3-30B-A3B-Thinking as a single
-  scaling-ablation configuration on Frostbite)
-- LoRA adapters on both for bridge endpoints
-- Four-strategy comparison: fast-only, slow-only-offline, text-bridge, latent-bridge
+- Qwen3-VL-8B-Thinking as the frozen slow model
+- A 33M-param latent bridge as the only trained component (both base models frozen)
+- Four-strategy comparison: fast-only (F), slow-only-offline (T), text-bridge, latent-bridge (L)
 
 **Out of scope (for this paper):**
 - Pretraining either base model
@@ -91,8 +98,13 @@ slow model cannot be retrained.
 
 - We do NOT claim to invent a new model architecture from scratch.
 - We do NOT claim to beat TML on absolute latency.
-- We do NOT claim general superiority of latent over text channels across all tasks; the
-  claim is bounded to tight-coupling regimes.
+- We do NOT claim general superiority of latent over text channels across all tasks; under
+  the best-achievable decoder the latent is never significantly worse than text and better
+  only on some games, and combining both channels interferes.
+- We do NOT claim a "bandwidth" advantage. The bandwidth/capacity-ceiling story is retired
+  (a 30B slow model does not widen the gap; longer text does not close it). Likewise the
+  continuous-vs-categorical hypothesis is retired (emission statistics do not predict
+  sign(L−T)).
 
 ## Failure modes the design must guard against
 

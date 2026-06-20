@@ -3,7 +3,31 @@
 This document summarizes the empirical findings from the v1 → v2 redesign cycle and
 points at the headline numbers, by experiment.
 
-## Headline result — L > T on both games
+## Headline — the predictor: the latent helps iff slow reasoning helps
+
+The current spine of the paper is a *predictor*, not a bandwidth claim: **the latent
+bridge helps exactly when slow reasoning helps the task (T > F).** Across the sweep,
+L − F tracks T − F at Pearson **r = 0.93** (n = 8 reported-variant cells; r = 0.96
+over all 16 cells). The bridge-replacement control confirms the mechanism — the
+learned latent content tracks T > F, and on a controlled negative where slow doesn't
+help (MetaDrive driving sim, T ≤ F) the latent is inert.
+
+**Decoder-sensitivity caveat (read before any L > T number below).** The per-game
+F/T/L tables below are the *greedy* (argmax) view. The latent's edge over text under
+greedy decoding is **decoder-specific**: it vanishes at every fixed sampling
+temperature — the thin per-emission latent signal only sharpens the greedy argmax.
+The honest comparison tunes the action decoder per channel on held-out seeds
+("best-achievable"): under that protocol the latent is **never significantly worse
+than text, and significantly better on 2 of 7 games (MsPacman, RoadRunner)**; the
+other 5 are ties. A single fixed greedy decoder makes it look like **4 of 7
+(26–82 %)** but over-credits the latent. Every "L > T on N-of-7" statement carries
+this caveat.
+
+**Combining channels interferes.** Running text + latent in one forward pass never
+beats the better single channel and hurts 3 of 7 games (RoadRunner −96 %). Rule:
+couple via exactly one channel.
+
+## Per-game greedy view (with the decoder caveat above)
 
 ### MsPacman (Tier 2; 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Best | Latency (ms) |
@@ -104,21 +128,18 @@ prompt distribution. Either should recover SI.
 | Bare Stage A | 25 ± 0 | 0 ± 0 | 0 ± 0 |
 | **Robust Stage A (suffix-prob=0.5)** | 25 ± 0 | **125 ± 0** | **50 ± 0** |
 
-Robust Stage A broke the T/L collapse, but **T beats L** on Q*bert (T=125 vs
-L=50). This is the first game in our sweep where text bridge wins over latent.
+Robust Stage A broke the T/L collapse; under greedy decoding T > L on Q*bert
+(T=125 vs L=50). Under tuned-decoder ("best-achievable") evaluation Q*bert is a
+tie like most games.
 
-**Why?** Plausible: Q*bert's slow-model guidance is highly *categorical* — "jump
-UP-RIGHT to color tile at row 3, col 2." That kind of guidance compresses
-losslessly into the 200-character text channel. The latent channel's
-compression introduces noise that hurts a discrete-decision game more than it
-helps a continuous-strategy game like MsPacman or RoadRunner.
-
-**Implication for the bandwidth thesis:** the latent advantage manifests when
-the slow's reasoning has *continuous* structure (fuel levels, spatial
-distances, multi-entity coordinates) that compresses *lossy* through text.
-Games with purely categorical strategic content show text > latent. This
-refines the framing from "L always > T" to "L > T when slow content is
-continuous-rich; L ≈ T or L < T when content is discrete-and-text-friendly."
+**Note — the "continuous-vs-categorical" hypothesis is retired.** We originally
+read Q*bert as evidence that L > T only when the slow's reasoning is
+*continuous-rich* (fuel/distances/coordinates) and T ≥ L when it is categorical
+("jump UP-RIGHT to tile row 3, col 2"). That hypothesis does **not** survive: the
+slow model's emission statistics do not predict sign(L − T) — lexical diversity
+correlates with the gap at only r = +0.05 (n.s.). The sign of L − T is governed by
+whether slow reasoning helps the task (the predictor, T > F), not by whether its
+content is continuous or discrete.
 
 ### Enduro (Tier 2; scrolling racing — 12 episodes per cell)
 | Variant | F | T | L |
@@ -144,43 +165,43 @@ the partial trajectories. The L > T direction is consistent with RoadRunner
 but absolute scores are tiny. The robust-Stage-A retry (in the Q*bert
 section above) gave a modest +18 % L over T.
 
-### RoadRunner (Tier 3; bandwidth-claim test — 12 episodes per cell)
+### RoadRunner (Tier 3; 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Best |
 |---|---|---|---|
-| F (fast only) | **0 ± 0** | 0 | 0 |
+| F (fast only, bare Stage A) | **0 ± 0** | 0 | 0 |
 | T (text bridge) | 475 ± 160 | 500 | — |
 | **L (latent bridge)** | **608 ± 29** | 600 | — |
 
-**L > T by +28 %** (vs MsPacman's +54 %, Seaquest's +26 %) — a clean L-T gap on a
-reward-symmetric game (the reported L = 608 is the reproducible value; an earlier
-run scored 967, but the F = 0 baseline makes the magnitude run-to-run-unstable). And the inverse pattern of SI/RR: F can't play
-(score=0) but the slow's contextual guidance unlocks the policy. This is **the
-cleanest example yet** of fast/slow collaboration: the fast model has the reflex
-machinery but lacks the direction-bias to use it; the slow tells it "head right
-to escape the Coyote" and the agent suddenly plays at high score.
+**Greedy L > T by +28 %** (d = 1.16), reproducible at L = 608. RoadRunner is one of
+the two games (with MsPacman) where the latent stays significantly above text under
+the tuned-decoder protocol, so the L > T direction here is robust. The *magnitude* is
+not: an earlier run scored L = 967, but the F = 0 baseline (a bare-Stage-A artifact;
+see the robust-SA section below) makes the absolute score run-to-run-unstable under
+FP nondeterminism. **967 is a noted high-water mark only — never the canonical value,
+and "+59 %" should not be reported.** RoadRunner is **not** the largest L − T gap:
+River Raid's greedy +82 % is larger (and is a tie under tuned decoders).
 
-Stage A val_acc on RoadRunner was the highest of any game (58.5 %), so the
-action head is competent — it just needs the slow's directional context to break
-out of a stationary failure mode. This is the bandwidth thesis in its purest
-visible form on Atari: continuous strategic context (Coyote distance + pellet
-priority + obstacle layout) unlocks behavior that neither model alone can
-produce.
+The bare-Stage-A inverse pattern is the demo's visual draw — F can't play (score = 0)
+yet the slow's directional context ("head right to escape the Coyote") unlocks a
+high-scoring policy. But note F = 0 is itself a Stage A bare-prompt artifact: under
+robust Stage A all three channels tie near the ceiling (F = 958, T = 1000, L = 925;
+see below). Stage A val_acc on RoadRunner was the highest of any game (58.5 %), so the
+action head is competent.
 
 MI diagnostic: I(b;a) − baseline = −0.05 (negative on the training trajectory)
 yet deployed L = 608 — interesting discrepancy. The bridge's value at deployment
 isn't captured by static action-prediction on the bare training distribution; it
 emerges from the joint slow-fast computation.
 
-### River Raid (Tier 3; bandwidth-claim test — 12 episodes per cell)
+### River Raid (Tier 3; 12 episodes per cell)
 | Strategy | Mean ± Std | Median | Bridge MI minus baseline |
 |---|---|---|---|
 | F (fast only) | **1067 ± 84** | 1060 | — |
 | T (text bridge) | 383 ± 57 | 390 | — |
 | L (latent bridge) | 360 ± 0 | 360 | I(b;a) = −0.0006, I(b;r) = +0.003 |
 
-River Raid was selected as the bandwidth-claim test: 4 interacting objectives
-(fuel / dodging / shooting / path), continuous long-horizon state. Predicted
-L > T > F.
+River Raid has 4 interacting objectives (fuel / dodging / shooting / path) and
+continuous long-horizon state. Predicted L > T > F.
 
 **Observed pattern: another Stage A OOD-brittleness case.** F plays well (Stage A
 val_acc 31.5 %); but the slow-text suffix and bridge tokens both *degrade* the
@@ -190,12 +211,10 @@ the game requires precision (dodging + targeting), even a small distribution
 shift from the suffix flips a working policy into a failing one. MI on the
 bridge is near zero, confirming nothing useful was encoded.
 
-**Implication for the bandwidth claim:** the experiment was designed to test L
-vs T at the bandwidth bottleneck, but Stage A OOD-brittleness pre-empts the
-test — F is much higher than T, and L is bounded above by T's KL anchor. The
-honest reading: the bandwidth thesis can only be tested *after* the Stage A
-distribution mismatch is fixed (via Stage A robustness training, à la the SI
-fix, or Stage D PPO under deployment).
+**Implication:** under bare Stage A, OOD-brittleness pre-empts any L-vs-T reading —
+F is much higher than T, and L is bounded above by T's KL anchor. The L vs T
+comparison only becomes meaningful *after* the Stage A distribution mismatch is fixed
+(via Stage A robustness training, à la the SI fix, or Stage D PPO under deployment).
 
 **Update (robust Stage A retry, 2026-05-18):** retraining Stage A with
 `--suffix-prob=0.5` (the same fix that broke SI's L=0 collapse) recovers River
@@ -206,10 +225,12 @@ Raid dramatically:
 | RR bare Stage A | 1067 ± 84 | 383 ± 57 | 360 ± 0 | collapse |
 | **RR robust Stage A** | 1033 ± 19 | **337 ± 77** | **612 ± 297** | **+82 %** |
 
-L over T by **+82 %** — the largest L−T gap on any game we've tested. The
+Greedy L over T by **+82 %** — the largest greedy L − T gap on any game we've tested
+(though under the tuned-decoder protocol River Raid is a **tie**, so this gap is
+decoder-specific and does not count toward the "significantly better" tally). The
 OOD-brittleness diagnosis is now confirmed *with the same fix recipe* on two
-distinct games (SI + RR). The bandwidth-claim test was indeed bottlenecked
-by Stage A; once unblocked, L > T is recovered exactly as predicted.
+distinct games (SI + RR): once Stage A is unblocked, the greedy L > T direction
+returns as predicted.
 
 ### Pong (Tier 1; reactive-only — 12 episodes per cell)
 | Strategy | Mean | Median | Comment |
@@ -234,18 +255,23 @@ can fix it.** This is the upstream analogue of the SpaceInvaders finding
 (which was Stage A OOD-brittleness; this is Stage A under-fitting).
 
 ### Cross-game summary
-- **H1 ✅ Confirmed on 2/3 games**: L > T on MsPacman (+54 %) and Seaquest (+26 %); L
-  = T = 0 on SpaceInvaders (both collapse).
-- **H2 (gap grows with strategic complexity) — REFUTED**: the L-T gap is *smaller* on
-  Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). Why: the Seaquest Stage A
-  teacher is weaker (24 % val acc vs MsPacman's 32 %), bottlenecking both T and L on
-  action-head capacity. The bridge contribution still helps but saturates.
-- **New finding (SpaceInvaders): the bridge methodology assumes symmetric-reward
-  action distributions.** Games where only one or two actions carry reward signal need
-  expert-data Stage C (vs random-policy T-trajectories), or reward-weighted KL.
-- The honest interpretation is: **L > T transfers across symmetric-reward games, but
-  the size of the bridge advantage depends on Stage A teacher quality, and the entire
-  approach breaks on reward-asymmetric games under random-policy KL.**
+- **Predictor (the spine):** the latent helps iff slow reasoning helps (T > F). L − F
+  tracks T − F at r = 0.93 (n = 8) / r = 0.96 (n = 16). MetaDrive is the controlled
+  negative (T ≤ F → latent inert).
+- **Best-achievable (tuned-decoder) tally:** the latent is never significantly worse
+  than text; significantly better on **2 of 7** games (MsPacman, RoadRunner); the
+  other 5 tie. A single fixed greedy decoder inflates this to **4 of 7 (26–82 %)** —
+  that view over-credits the latent and must carry the decoder-sensitivity caveat.
+- **Combining channels interferes** — text + latent in one pass never beats the better
+  single channel and hurts 3 of 7 (RoadRunner −96 %); couple via exactly one channel.
+- **Stage A OOD-brittleness gates everything (SpaceInvaders, River Raid, bare
+  RoadRunner):** when only one or two actions carry reward, adding a bridge/suffix to a
+  bare-prompt-trained head drives the policy off-distribution and can collapse T/L to
+  0. Robust Stage A (suffix-prob=0.5) fixes it on the collapsed games but hurts the
+  ones that already worked — it is targeted, not universal.
+- The honest interpretation is: **the latent matches or modestly beats text under the
+  best decoder for each, the direction is predicted by whether slow helps, and the
+  approach is bounded above by the OOD robustness of the frozen Stage A head.**
 
 ## What changed from v1 (the design that failed)
 
@@ -276,9 +302,10 @@ reuse its existing sequence-processing pipeline.
 
 | H | Claim | Status |
 |---|---|---|
-| H1 | L > T on games needing both reflex + planning | ✅ **CONFIRMED on MsPacman** (+54 % mean). Seaquest result running. |
-| H2 | L-T gap *grows* with strategic complexity (phase transition) | ⏳ Seaquest (Tier 3) running. If L-T gap on Seaquest > 54 %, H2 supported. |
-| H3 | COCONUT-style frozen-base + LoRA-adapter recovers most of unified bound | ✅ **CONFIRMED**. Only the slow ThoughtProjection (~33.6 M params) is trained; fast model entirely frozen. |
+| Predictor | The latent helps iff slow reasoning helps (T > F) | ✅ **CONFIRMED**. L − F tracks T − F at r = 0.93 (n = 8) / r = 0.96 (n = 16); MetaDrive is the controlled negative. This is the paper's spine. |
+| Best-achievable L ≥ T | Under a per-channel tuned decoder, the latent is never significantly worse than text | ✅ **CONFIRMED**, and significantly better on 2 of 7 (MsPacman, RoadRunner). The greedy-only 4-of-7 view over-credits the latent. |
+| Frozen-base coupling | COCONUT-style frozen-base + adapter recovers most of the unified bound | ✅ **CONFIRMED**. Only the slow ThoughtProjection (~33.6 M params) is trained; fast model entirely frozen. |
+| ~~Bandwidth / capacity ceiling~~ | ~~Text is bandwidth-limited; the gap grows with strategic complexity~~ | ❌ **RETIRED** (see Latent token-count ablation below). 30B slow doesn't widen the gap; longer text doesn't close it; deploy-only N = 16 scores best; used capacity ≪ nominal. No capacity ceiling. |
 
 ## Stage A (behavioral cloning) results
 
@@ -310,9 +337,16 @@ condition for deployment success — confirmed empirically by v1, where KL=0.004
 preceded deployment catastrophe. v2 succeeds in deployment *also* because the
 architectural privileges match the LLM's pretraining.
 
-## Bandwidth ablations
+## Latent token-count (N) ablation
 
-### Phase 1: deployment-time bandwidth scan (fixed projection)
+This was originally run as a "bandwidth ablation" to test a capacity-ceiling thesis.
+**That thesis is retired: there is no capacity ceiling.** More latent tokens at
+deploy is *not* monotonically better (N = 8 beats N = 16 when both are trained), the
+30B slow model does not widen the gap, and longer text does not close it — the latent
+uses far less than its nominal capacity. What follows is the token-count sweep, read
+purely as an N hyperparameter study (not as evidence for or against bandwidth).
+
+### Phase 1: deployment-time N scan (fixed projection)
 
 We trained Stage C v2 with `LB_BRIDGE_N_TOKENS=4/8/16` env var, but because Stage C
 uses *cached* residuals from T-trajectory files (always saved with N=8) and the seed
@@ -321,23 +355,26 @@ measured: *given a projection trained on 8 tokens, how does eval-time token coun
 
 | Deploy N | L mean ± std | L median | Note |
 |---|---|---|---|
-| 4 | 232 ± 49 | 190 | Projection under-utilized; bridge collapses below F |
+| 4 | 232 ± 49 | 190 | Projection under-utilized at deploy; bridge collapses below F |
 | **8** | **628 ± 341** | **550** | Matches training |
 | **16** | **720 ± 117** | **770** | Same projection; more tokens at deploy still helps + lower variance |
 
 Result: more inference-time tokens helps even when the projection was trained on fewer.
 Variance also drops substantially at N=16 (117 vs 341).
 
-### Phase 2: true bandwidth ablation (matched train + deploy N)
+### Phase 2: matched train + deploy N
 
 | N | KL converged | L mean ± std | L median | Comment |
 |---|---|---|---|---|
-| 4 | 0.020 | 296 ± 63 | 260 | Above F=256 but below T=408 — bandwidth-bottlenecked |
+| 4 | 0.020 | 296 ± 63 | 260 | Above F=256 but below T=408 |
 | **8** | 0.026 | **628 ± 341** | **550** | **Sweet spot** — best mean |
-| 16 | 0.021 | 259 ± 71 | 290 | Worse than F! — over-bandwidth dilutes |
+| 16 | 0.021 | 259 ± 71 | 290 | Worse than F! — more tokens dilute |
 
-**Surprising finding: bandwidth is Goldilocks, not monotonic.** Both N=4 and N=16
-underperform N=8.
+**Finding: N is Goldilocks, not monotonic.** Both N=4 and N=16 underperform N=8.
+This is the opposite of what a capacity-ceiling ("more bandwidth is better") story
+predicts, and is one of the reasons that story is retired: the deploy-only N=16 run
+(Phase 1) actually scores *best* of all, so the limiting factor is the training
+distribution, not channel capacity.
 
 Why N=16 hurts:
 - The slow model generates ~96 tokens per emission. The "last 8" positions contain
@@ -350,10 +387,10 @@ Why N=16 hurts:
   because the projection learned the high-info 8-position distribution AND received
   extra tokens at inference.
 - Phase 2 N=16 train+deploy: L = 259. Training the projection on lower-info positions
-  *and* deploying at that bandwidth gives the worst-of-both-worlds.
+  *and* deploying at that N gives the worst-of-both-worlds.
 
 The practical recipe: **train on N=8, deploy with N=8-16**. The training distribution
-matters more than the deployment bandwidth.
+matters more than the deployment N.
 
 ## MI diagnostic
 
@@ -547,7 +584,7 @@ flag these as "future work pending GPU availability."
 
 ## What's queued / running
 
-- (all overnight experiments complete — Seaquest, SpaceInvaders, true bandwidth
+- (all overnight experiments complete — Seaquest, SpaceInvaders, latent token-count (N)
   ablation, MI on all three bridges)
 
 ## What's still future work
@@ -556,9 +593,9 @@ flag these as "future work pending GPU availability."
   needed for the headline claim, but would push L scores higher and is the natural
   next step.
 - **Latency** — vision-token caching to hit 67 ms / 15 Hz.
-- **Scaling ablation** — 30B-A3B slow model to test the bandwidth claim.
-- **More games** — Qbert (planning-heavy Tier 2), Hero (exploration Tier 3 with SB3
-  expert), additional reaffirmation of H2.
+- **Scaling ablation** — the 30B-A3B slow model has been run; it does **not** widen
+  the L − T gap, which is part of the evidence retiring the capacity-ceiling thesis.
+- **More games** — additional cells to tighten the predictor correlation.
 - **Demo video** — F/T/L side-by-side playthrough.
 
 ## Files of record

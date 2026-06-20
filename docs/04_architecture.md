@@ -56,7 +56,7 @@ to learn a new modality from scratch with cross-attention surgery.
 | Bridge entry point | Cross-attn at LLM layers 12 & 24 | **Input embedding (all 36 layers attend)** |
 | Bridge dim | 256 | **4096 (LLM hidden size)** |
 | Bridge tokens per emission | 16-entry ring buffer, 256-d each | **N=8 tokens, 4096-d each (latest emission only)** |
-| Trainable bridge params | Q/K/V/O cross-attn (71M) | **ThoughtProjection only (~32M, slow side)** |
+| Trainable bridge params | Q/K/V/O cross-attn (71M) | **ThoughtProjection only (~33M, slow side)** |
 | LLM modification | Mid-layer cross-attn injection | **None — just concat tokens to input** |
 | Inductive bias | None (random 256-d) | **Inherits LLM's full sequence-token prior** |
 
@@ -79,17 +79,18 @@ text enjoys.
 - Trainable adapters:
   - LoRA on Qwen3-8B backbone's attention layers (rank 16, alpha 32) — for action-head
     behavior adaptation
-  - **New cross-attention layers** inserted at depths 12 and 24 of the Qwen3-8B backbone,
-    attending over the thought-vector ring buffer (these are not LoRA — they're added
-    layers initialized to identity-via-zero-init output projection so the model behaves
-    identically to the base at init)
+  - **No bridge modules on the fast side (v2)**: the latent bridge enters as prepended
+    input tokens, so the fast model needs no added cross-attention layers. (The v1 design
+    inserted dedicated cross-attention layers at depths 12 and 24; these were removed in
+    v2 — see "What changed from v1" above.)
 - Input modalities used: video frames at 15Hz (Atari 84x84 RGB upsampled to 224x224)
 - Output: action token (one of 18 ALE actions), emitted every 67ms
 
-**Why cross-attn rather than concat into context:** the thought buffer has K=16 entries.
-Concatenating into the context would push the buffer into the same attention space as
-recent input tokens, contaminating the attention budget. Dedicated cross-attn layers
-keep the bridge readable without budget pressure on the main attention.
+**Why prepended tokens rather than mid-layer cross-attn (v2):** prepending latent tokens
+to `inputs_embeds` lets all 36 LLM layers attend over the bridge through the exact code
+path text uses, inheriting the frozen LLM's full sequence-token prior. The v1 cross-attn
+approach exposed the bridge to only 2 of 36 layers and had no pretraining inductive bias,
+and it failed at deployment.
 
 ## Slow model: Qwen3-VL-8B-Thinking
 
@@ -103,7 +104,7 @@ keep the bridge readable without budget pressure on the main attention.
     Maps slow model's residual at layer 24 to bridge tokens in the **fast model's
     input embedding space**. Takes the last `N=8` token positions from the slow's
     emission (these contain the slow model's "conclusion" closest to its answer).
-    This is the **only trainable bridge parameter** in v2 (~32M params).
+    This is the **only trainable bridge parameter** in v2 (~33M params, a 2-layer MLP).
   - **Cross-attention LoRA** at layer 20: reads the perception buffer (Stage C3 only)
 - Input: 1Hz frame snapshot + rolling 4-second window of (a) compact text game state
   (RAM-derived entity positions, score, lives, level) and (b) perception summaries from
@@ -121,15 +122,16 @@ selective re-encoding, not a cross-architecture mapping.
 
 For one Tier-3 game (Frostbite), we additionally run T and L with Qwen3-30B-A3B-Thinking
 as the slow model. This 30B-A3B MoE has 3B active params per token and a 5120-dim residual
-stream. It uses a slightly different projection head (5120→256 with a 512-dim hidden
-layer). Purpose: test whether the latent-vs-text gap grows with slow-model capability,
-evidencing the bandwidth claim. See `docs/03_experiment_plan.md` for protocol.
+stream. It uses a projection head whose input dim is 5120 (rather than 4096) but whose
+output is still the fast model's 4096-d input embedding space. Purpose: test whether the
+latent-vs-text gap changes with slow-model capability. See `docs/03_experiment_plan.md`
+for protocol.
 
-**Why projection rather than direct residual stream:** the residual stream is too
-high-dimensional and unstructured for the fast model to attend over efficiently. A
-learned projection compresses to 256-dim while preserving task-relevant information,
-trained via the COCONUT-style curriculum (reconstruction against text-channel
-predictions).
+**Why a learned projection rather than the raw residual stream:** the slow model's residual
+stream is not natively in the fast model's input-embedding space, so it cannot be prepended
+as tokens directly. The trainable `ThoughtProjection` MLP re-encodes the selected residuals
+into that space, trained via the COCONUT-style curriculum (reconstruction against
+text-channel predictions).
 
 ## The bridge (v2 — LLaVA-style)
 
@@ -143,10 +145,10 @@ predictions).
 - These tokens are **prepended** to the fast model's `inputs_embeds` sequence (before
   the image and text tokens). All 36 LLM layers attend over them through full causal
   attention — exactly the same code path as text.
-- Bandwidth: 1 emission/s × 8 tokens × 4096 dim × bf16 ≈ **524 Kbps**, ~60× the v1
-  bandwidth. But because the model uses the bandwidth via its existing attention
-  machinery (no new modules), the *effective* signal capacity is much higher than the
-  raw bit-rate suggests.
+- Latent token count: N=8 by default. A latent token-count (N) ablation finds that
+  matched N=8 is a Goldilocks point at matched train/deploy, but a deploy-only N=16
+  scores best — i.e., the model uses far less capacity than the nominal token budget
+  provides, so there is no capacity/bandwidth ceiling driving the latent-vs-text gap.
 
 ### Why we replaced the v1 ring buffer
 
@@ -185,7 +187,7 @@ needed.
 ### Training (Stage C / D, primary configuration)
 | Component | size |
 |---|---|
-| MiniCPM-o frozen + LoRA + cross-attn | 21GB |
+| MiniCPM-o frozen + LoRA | 21GB |
 | Qwen3-VL-8B frozen + LoRA + projection | 19GB |
 | Optimizer state (LoRA + projection only) | 2GB |
 | Activations + gradients (peak, bs=4) | 8GB |
@@ -232,8 +234,8 @@ Stage D training in this configuration is tight; mitigations:
 ## Configuration files
 
 All hyperparameters live under `configs/`:
-- `configs/fast_model.yaml` — LoRA ranks, cross-attn insertion depths, learning rates
+- `configs/fast_model.yaml` — LoRA ranks, learning rates
 - `configs/slow_model.yaml` — LoRA on output proj, projection-head dim
-- `configs/bridge.yaml` — buffer sizes, emission rates, age-encoding scheme
+- `configs/bridge.yaml` — latent token count (N), emission rates, capture layer
 - `configs/training.yaml` — per-stage hyperparameters, optimizer, schedule
 - `configs/eval.yaml` — game list, seed counts, metric definitions

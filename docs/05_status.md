@@ -81,16 +81,18 @@
     (`scripts/spaceinvaders_expert_t_retry.sh`).
   - Pipeline orchestration: `scripts/spaceinvaders_pipeline.sh` (7 steps end-to-end).
 
-- [x] **True bandwidth ablation (2026-05-16)** — fresh T-collection at N=4 and N=16
-  matched with train+deploy at the same bandwidth.
+- [x] **Latent token-count (N) ablation (2026-05-16)** — fresh T-collection at N=4
+  and N=16 matched with train+deploy at the same N.
   - N=4 train+deploy: L = 296 ± 63 (median 260) — above F=256 but below T=408.
-  - **N=8 train+deploy: L = 628 ± 341** (sweet spot; unchanged from headline).
-  - N=16 train+deploy: L = 259 ± 71 (median 290) — *worse than F*! Over-bandwidth
-    dilutes attention.
-  - **Bandwidth is Goldilocks, not monotonic.** N=8 is empirically the sweet spot
-    for our slow-model emission length (~96 tokens). At N=16, the projection has to
-    learn more variation from the same training data, AND the fast LLM's attention
-    is split across more bridge tokens.
+  - **N=8 train+deploy: L = 628 ± 341** (matched-train+deploy figure here).
+  - N=16 train+deploy: L = 259 ± 71 (median 290) — worse than the N=8 cell.
+  - **SUPERSEDED BY current paper framing:** the original "bandwidth is Goldilocks,
+    not monotonic / N=8 sweet spot / over-bandwidth dilutes attention" interpretation
+    is part of the now-retired *bandwidth / capacity-ceiling* thesis and must NOT be
+    presented as a live finding. Reframed: this is a **latent token-count (N) ablation**,
+    not a bandwidth study, and there is **no capacity ceiling**. When N is tuned on the
+    deploy side only, **N=16 is best**; the matched-train+deploy numbers above reflect
+    training-data variance at higher N, not an attention-dilution ceiling.
 
 - [x] **Seaquest end-to-end (2026-05-16)** — Tier-3 H2 test data point.
   - SB3-DQN expert collection at epsilon 0.1: 10 episodes, ~5K frames, mean score
@@ -99,12 +101,17 @@
   - **F = 42 ± 19, T = 63 ± 11, L = 80 ± 0** (12 episodes per cell). L > T by 26 %.
     L is fully deterministic (std=0) — locked into a stable exploit-style policy
     that kills exactly 8 enemies per episode for 80 points.
-  - **H2 (gap grows with tier) REFUTED**: L-T gap is *smaller* on Seaquest than
-    MsPacman (+26 % vs +54 %). Root cause: weaker Stage A teacher on Seaquest
-    (24 % vs 32 % val acc) bottlenecks both T and L on action-head capacity. The
-    bridge contribution still helps but saturates. Honest interpretation: L > T
-    transfers across symmetric-reward games, but the size of the bridge advantage
-    depends on Stage A teacher quality, not directly on game tier.
+  - **SUPERSEDED BY current paper framing:** this Seaquest L>T is a **greedy-decoder
+    artifact**, not a real per-channel advantage. Under sampling the gap collapses
+    (L ≈ T), and under the decoder-robust ("best-achievable", decoder tuned per channel
+    on held-out seeds) protocol Seaquest is a **tie**, not an L>T win. The decoder-robust
+    L>T wins are only MsPacman and RoadRunner (2 of 7), with the remaining games tied.
+    Treat the std=0 determinism above as a symptom of the greedy lock-in, not evidence
+    of a stable advantage.
+  - **H2 (gap grows with tier) REFUTED** still holds as a negative result. But the
+    secondary gloss ("L > T transfers across symmetric-reward games") is retired: under
+    the decoder-robust protocol the latent is never significantly *worse* than text and
+    significantly *better* on only 2 of 7 games — there is no general L>T transfer claim.
 
 - [x] Established random-policy floor: MsPacman 290 ± 134, Frostbite 78 ± 37, etc.
   (matches published Atari-random baselines). Stored at `results/random_baseline.json`.
@@ -178,6 +185,17 @@
   This is the central paper result. The text channel does work (+59% over F),
   but the latent channel **also works and works better than text** when given
   LLM-native architectural privileges.
+
+  - **CAVEAT (current paper framing):** the latent's greedy edge over text is
+    **decoder-specific**. The +54% L>T figure above is a single fixed greedy decoder.
+    Tuned per channel on held-out seeds ("best-achievable"), the latent is never
+    significantly *worse* than text and significantly *better* on **2 of 7 games
+    (MsPacman, RoadRunner), 5 ties**. A single fixed greedy decoder looks like 4 of 7
+    (26–82%) but over-credits the latent. MsPacman remains a genuine L>T win under the
+    decoder-robust protocol, so this headline survives — but any "L>T on 4-of-7 /
+    5-of-7" phrasing must carry the decoder-sensitivity caveat.
+  - **Combining both channels interferes** (hurts 3 of 7, RoadRunner −96%); the design
+    couples the slow model to the fast model via exactly one channel, not both.
 
 - [x] **EXPANDED EVAL: three L variants vs F vs T** (each 12 ep, MsPacman):
 

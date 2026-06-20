@@ -37,11 +37,12 @@ just runs slower than realtime during data generation. The slow model emits at *
 | **L** (latent bridge) | MiniCPM-o 4.5 | Qwen3-VL-8B-Thinking | continuous vectors | LoRA on both + bridge |
 
 **Why same-size on both sides:** the thesis is about the *channel* (latent vs text), not a
-capability gap between the two endpoints. Using two ~8-9B models with the slow side just
-operating at a slower tick + with a CoT "thinking" budget isolates the bridge as the
-load-bearing architectural choice and avoids the confound "the big model was just better."
-Same-size also fits comfortably in 96GB with headroom for PPO at Stage D. Capability
-scaling is addressed separately as a single ablation (see below).
+capability gap between the two endpoints. Using the 9B fast (MiniCPM-o 4.5) and the 8B slow
+(Qwen3-VL-8B-Thinking) at matched scale — both frozen, the slow side just operating at a
+slower tick + with a CoT "thinking" budget — isolates the 33M-param bridge as the only
+trained part and avoids the confound "the big model was just better." Same-size also fits
+comfortably in 96GB with headroom for PPO at Stage D. Capability scaling is addressed
+separately as a single ablation (see below).
 
 **S is a control showing slow-only is too slow:** the slow model produces actions at its
 emission rate (1-2Hz), with the game advancing 15+ frames per action. Score will be low
@@ -60,20 +61,20 @@ KL=0.004 on offline data (see `docs/05_status.md` for details). The v2 redesign 
 motivated by analysis of how LLaVA / BLIP-2 / MiniCPM-o themselves succeed at multimodal
 coupling: text and visual tokens both enter at the LLM's input embedding and share the
 attention stack. v2 gives the latent bridge the same architectural privileges. Only the
-slow model's `ThoughtProjection` is trainable (~32M params); everything else is frozen.
+33M-param bridge (the slow model's `ThoughtProjection`) is trainable; both base models are
+frozen.
 
 We also include **O (oracle)**: pre-computed slow-model analysis injected as fast-model
 context. Cheating, but bounds the upper limit of what *any* fast/slow coupling can buy.
 
 ### Capability-scaling ablation (one configuration)
 
-In addition to the four-strategy main sweep, we run **one** scaling configuration on
-Frostbite (Tier 3) only, with Qwen3-30B-A3B-Thinking as the slow model under both T and L.
-This is *not* the main result. Its purpose is to show whether the latent-vs-text gap
-*grows* when the slow model has more reasoning depth to compress — directly evidencing
-the bandwidth claim in the framing doc. Run as `T-30B` and `L-30B` cells; 3 seeds × 30
-episodes per cell. Expected: the absolute scores go up under both, but the L–T delta is
-*at least as large* as in the 8B–8B configuration, and probably larger.
+In addition to the four-strategy main sweep, we run **one** cross-scale configuration with
+Qwen3-30B-A3B-Thinking as the slow model under both T and L. This is *not* the main result.
+Its purpose is to check whether the picture survives a stronger slow model: under the
+current spine (latent helps iff slow reasoning helps), a more capable slow model that
+raises T over F should also raise L. Run as `T-30B` and `L-30B` cells; 3 seeds × 30
+episodes per cell.
 
 ## Training stages
 
@@ -116,22 +117,25 @@ fast model's context as text. Measure score ceiling.
 - **Mean episode score** (3 seeds × 30 episodes per game per condition)
 - **Mean episode length** (survival time)
 - **Score at 10K training steps** (sample efficiency)
-- **Phase-transition lift L over T** as function of game complexity tier
+- **L−F vs T−F** across games (predictor: latent helps iff slow reasoning helps)
 
-### Game complexity tiers (for the phase-transition sweep)
-- **Tier 1 (low strategic load):** Pong, Breakout, Beam Rider — fast model alone should
-  saturate
-- **Tier 2 (medium):** Ms. Pac-Man (✅ tested, L +54 % over T), Space Invaders (✅
-  tested, surfaced a methodology finding — random-policy T-trajectories fail on
-  reward-asymmetric games; expert-T retry running)
-- **Tier 3 (high):** Seaquest (✅ tested, L +26 % over T); Frostbite, Montezuma's
-  Revenge (subset), Pitfall (future work; need scratch-trained experts)
+### Game coverage (for the cross-game sweep)
+The games span a range of strategic load, used to test where slow reasoning helps at all:
+- **Low strategic load:** Pong, Breakout, Beam Rider — fast model alone should saturate
+- **Medium:** Ms. Pac-Man, Space Invaders (SpaceInvaders surfaced a methodology finding —
+  random-policy T-trajectories fail on reward-asymmetric games; Stage A OOD-brittleness)
+- **High:** Seaquest, RoadRunner, RiverRaid, Qbert; Frostbite, Montezuma's Revenge
+  (subset), Pitfall (future work; need scratch-trained experts)
 
-Original prediction: L ≫ T on Tier 3, L ≈ T on Tier 1. **Refuted by data**: the L-T
-gap was *smaller* on Tier-3 Seaquest (+26 %) than Tier-2 MsPacman (+54 %), because
-the Seaquest Stage A teacher is weaker (24 % val acc vs 32 %), bottlenecking both T
-and L on action-head capacity. The bridge contribution is bounded above by the
-teacher quality. See `docs/06_results.md` "Hypothesis status" for the full revision.
+**Current spine (predictor):** the latent helps *iff* the slow model's reasoning helps
+(T > F). L−F tracks T−F at r = 0.93 (n = 8; 0.96 over 16 cells); MetaDrive is the controlled
+negative. The original "phase transition by complexity tier" / bandwidth prediction is
+**retired** — the latent's greedy edge over text is decoder-specific. Tuning the decoder per
+channel on held-out seeds ("best-achievable"), the latent is never significantly worse than
+text and is significantly better on 2 of 7 games (MsPacman, RoadRunner), 5 ties; a single
+fixed greedy decoder makes it look like 4 of 7 (26–82 %), over-crediting the latent.
+Combining both channels interferes (hurts 3 of 7; RoadRunner −96 %), so we couple via
+exactly one channel. See `docs/06_results.md` "Hypothesis status" for the full revision.
 
 ### Latency / on-clock fraction
 Wall-clock per-tick latency for each strategy. Confirms that F, T, L all meet the 67ms
@@ -161,9 +165,10 @@ held-out trajectories.
 ### Week 3 (Days 15-21): Stage D + ablations + Stage E
 - Day 15-17: Stage D joint LoRA RL with PPO on game score
 - Day 18-19: Run full four-strategy benchmark on 8 games × 3 seeds × 30 episodes
-- Day 20-21: Ablations (bridge bandwidth, slow emission rate, staleness tolerance)
+- Day 20-21: Ablations (latent token-count N, decoder sweep, slow emission rate, staleness tolerance)
 
-**Gate:** L beats T by ≥10% mean score on Tier 3 games, p < 0.05 across seeds.
+**Gate:** on at least one game where the slow model raises T over F, the best-achievable
+latent decoder matches or beats text (never significantly worse), p < 0.05 across seeds.
 
 ### Week 4 (Days 22-28): Eval + paper
 - Day 22-23: Generate demo video (3-way side-by-side: F, T, L)
@@ -175,7 +180,7 @@ held-out trajectories.
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | Joint 8B+9B inference doesn't fit | Very low | ~34GB weights; mitigation N/A |
-| Same-size slow model too weak to show L–T gap on Tier 3 | Medium | Run the 30B-A3B scaling ablation on Frostbite to disambiguate |
+| Same-size slow model too weak to raise T over F | Medium | Run the 30B-A3B cross-scale ablation to disambiguate |
 | 30B-A3B scaling ablation doesn't fit alongside 9B fast | Low | MoE → 60GB weights; quantize to AWQ-4bit if needed (saves ~30GB) |
 | Fast-only saturates on chosen games | Medium | Pre-screen on Tier 1; if saturated, shift to Tier 3 only |
 | Slow model emission too slow | Medium | Reduce emission rate to 0.5Hz; rely on staleness-tolerant buffer |
