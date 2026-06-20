@@ -39,14 +39,28 @@ GAMES = [
     ("SpaceInvaders", "spaceinvaders_robust"),
 ]
 
+# A few grid cells were evaluated into a different results dir than RESDIR (earlier
+# re-runs predating the consolidated grid). Listed explicitly---not a blanket glob---so
+# regeneration finds them without risking cross-game contamination. Seaquest bare
+# tau=1.0 is the Appendix "sampling on greedy-degenerate games" run
+# (F=63.3, T=143.3, L=135.0), which lives under results/rev_seaquest/.
+EXTRA_SOURCES = {
+    ("seaquest_bare", "sample_t1"): "results/rev_seaquest/seaquest_bare_sample_t1.json",
+}
+
 def load(tag):
     """game tag -> {decoder_label: {strategy: {base_seed: [4 episode scores]}}}.
     F/T/L come from <tag>_<suffix>.json; the combined channel B (if present) comes from the
-    separate <tag>_B_<suffix>.json, merged under the same decoder label."""
+    separate <tag>_B_<suffix>.json, merged under the same decoder label. A handful of
+    misplaced grid cells are pulled in via EXTRA_SOURCES."""
     out = {}
     for lab, suf in DECODERS:
         bystrat = defaultdict(lambda: defaultdict(list))
-        for path in (f"{RESDIR}/{tag}_{suf}.json", f"{RESDIR}/{tag}_B_{suf}.json"):
+        paths = [f"{RESDIR}/{tag}_{suf}.json", f"{RESDIR}/{tag}_B_{suf}.json"]
+        extra = EXTRA_SOURCES.get((tag, suf))
+        if extra:
+            paths.append(extra)
+        for path in paths:
             if not os.path.exists(path):
                 continue
             for c in json.load(open(path))["cells"]:

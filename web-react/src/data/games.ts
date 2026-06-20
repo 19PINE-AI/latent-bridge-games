@@ -37,11 +37,11 @@ export const GAMES: GameResult[] = [
     tier: 3,
     variant: "bare",
     F: 0, F_std: 0, F_ci: [0, 0],
-    T: 608, T_std: 250, T_ci: [467, 733],
-    L: 967, L_std: 49, L_ci: [942, 992],
-    L_vs_T_pct: 59,
-    pvalue: 0.0004,
-    cohensD: 1.99,
+    T: 475, T_std: 160, T_ci: [375, 542],
+    L: 608, L_std: 29, L_ci: [600, 625],
+    L_vs_T_pct: 28,
+    pvalue: 0.015,
+    cohensD: 1.16,
     notes: "Bare F sits at NOOP and cannot escape the Coyote. Slow's directional commitment unlocks the rightward escape; L preserves the joint (Coyote, pellet, obstacles) where T can only enumerate.",
     category: "win-L",
     isHeadline: true,
@@ -247,7 +247,7 @@ export interface BridgeReplacePoint {
   verdict: "learned" | "inert" | "harmful";
 }
 export const BRIDGE_REPLACE: BridgeReplacePoint[] = [
-  { game: "RoadRunner",    trained: 967, zero: 0,    random: 8,    tmf: 608,  verdict: "learned" },
+  { game: "RoadRunner",    trained: 608, zero: 0,    random: 8,    tmf: 475,  verdict: "learned" },
   { game: "MsPacman",      trained: 666, zero: 408,  random: 410,  tmf: 152,  verdict: "learned" },
   { game: "Seaquest",      trained: 100, zero: 28,   random: 5,    tmf: 22,   verdict: "learned" },
   { game: "Qbert",         trained: 123, zero: 63,   random: 117,  tmf: 100,  verdict: "inert" },
@@ -311,10 +311,10 @@ export const BEST_ACHIEVABLE: BestAchievable[] = [
   { game: "MsPacman",      T: 401, Tdec: "τ0.5", L: 628, Ldec: "greedy", B: 319, ltVerdict: "L",   combineEffect: "interferes", combinePct: -49 },
   { game: "RoadRunner",    T: 475, Tdec: "greedy", L: 608, Ldec: "greedy", B: 25, ltVerdict: "L",   combineEffect: "interferes", combinePct: -96 },
   { game: "River Raid",    T: 639, Tdec: "τ0.5", L: 566, Ldec: "τ0.7",   B: 452, ltVerdict: "tie", combineEffect: "interferes", combinePct: -29 },
-  { game: "Seaquest",      T: 120, Tdec: "τ0.5", L: 130, Ldec: "τ0.7",   B: 138, ltVerdict: "tie", combineEffect: "neutral",    combinePct:  +6 },
-  { game: "Q*bert",        T: 185, Tdec: "τ1.5", L: 146, Ldec: "τ1.0",   B: 125, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -33 },
-  { game: "Enduro",        T:   3, Tdec: "τ0.5", L:   2, Ldec: "greedy", B:   4, ltVerdict: "tie", combineEffect: "neutral",    combinePct: +25 },
-  { game: "SpaceInvaders", T: 162, Tdec: "τ1.0", L: 142, Ldec: "τ1.0",   B: 142, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -13 },
+  { game: "Seaquest",      T: 143, Tdec: "τ1.0", L: 125, Ldec: "τ0.7",   B: 138, ltVerdict: "tie", combineEffect: "neutral",    combinePct:  -3 },
+  { game: "Q*bert",        T: 185, Tdec: "τ1.5", L: 146, Ldec: "τ1.0",   B: 125, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -32 },
+  { game: "Enduro",        T:   3, Tdec: "τ0.5", L:   2, Ldec: "greedy", B:   4, ltVerdict: "tie", combineEffect: "neutral",    combinePct: +33 },
+  { game: "SpaceInvaders", T: 162, Tdec: "τ1.0", L: 142, Ldec: "τ1.0",   B: 142, ltVerdict: "tie", combineEffect: "neutral",    combinePct: -12 },
 ];
 // Headline of the best-achievable analysis: 2 significant latent wins, 5 ties, 0 losses;
 // combining both channels significantly INTERFERES on 3/7 and never helps → couple via one channel.
@@ -327,7 +327,7 @@ export const BEST_ACHIEVABLE_SUMMARY = {
 // 7 Atari games + a non-Atari driving domain (MetaDrive). Numbers read from the
 // eval JSONs; canonical = best-L Stage-A variant per game (a tuned hyperparameter).
 // MetaDrive uses the planning-heavy regime.
-// Pearson r(T−F, L−F) = 0.92 (n=8 best-variant); 0.94 over all 16 game/variant cells.
+// Pearson r(T−F, L−F) = 0.93 (n=8 best-variant); 0.96 over all 16 game/variant cells.
 export interface PredictorPoint {
   game: string;
   domain: "atari" | "driving";
@@ -348,8 +348,8 @@ export const PREDICTOR: PredictorPoint[] = [
   { game: "Riverraid",     domain: "atari",   variant: "robust", F: 1032.5, T: 336.7, L: 611.7, TmF: -695.8, LmF: -420.8 },
 ];
 
-export const PREDICTOR_R = 0.92;
-export const PREDICTOR_R_ALL = 0.94;  // all 16 game/variant cells, no selection
+export const PREDICTOR_R = 0.93;
+export const PREDICTOR_R_ALL = 0.96;  // all 16 game/variant cells, no selection
 
 // MetaDrive (non-Atari driving) — the controlled negative. Numbers from the
 // eval JSONs (n=8, robust head). The bridge-replacement control shows the latent

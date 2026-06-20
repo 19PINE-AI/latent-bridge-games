@@ -148,11 +148,12 @@ section above) gave a modest +18 % L over T.
 | Strategy | Mean ± Std | Median | Best |
 |---|---|---|---|
 | F (fast only) | **0 ± 0** | 0 | 0 |
-| T (text bridge) | 608 ± 240 | 650 | — |
-| **L (latent bridge)** | **967 ± 47** | 1000 | — |
+| T (text bridge) | 475 ± 160 | 500 | — |
+| **L (latent bridge)** | **608 ± 29** | 600 | — |
 
-**L > T by +59 %** (vs MsPacman's +54 %, Seaquest's +26 %) — the largest L-T gap we
-have on any reward-symmetric game. And the inverse pattern of SI/RR: F can't play
+**L > T by +28 %** (vs MsPacman's +54 %, Seaquest's +26 %) — a clean L-T gap on a
+reward-symmetric game (the reported L = 608 is the reproducible value; an earlier
+run scored 967, but the F = 0 baseline makes the magnitude run-to-run-unstable). And the inverse pattern of SI/RR: F can't play
 (score=0) but the slow's contextual guidance unlocks the policy. This is **the
 cleanest example yet** of fast/slow collaboration: the fast model has the reflex
 machinery but lacks the direction-bias to use it; the slow tells it "head right
@@ -166,7 +167,7 @@ priority + obstacle layout) unlocks behavior that neither model alone can
 produce.
 
 MI diagnostic: I(b;a) − baseline = −0.05 (negative on the training trajectory)
-yet deployed L = 967 — interesting discrepancy. The bridge's value at deployment
+yet deployed L = 608 — interesting discrepancy. The bridge's value at deployment
 isn't captured by static action-prediction on the bare training distribution; it
 emerges from the joint slow-fast computation.
 
@@ -429,7 +430,7 @@ or **targeted to OOD-collapsed games**.
 
 | Game | Bare F / T / L | Robust F / T / L | Direction |
 |---|---|---|---|
-| RoadRunner | 0 / 608 / **967** | 958 / **1000** / 925 | F recovered; T slightly > L |
+| RoadRunner | 0 / 475 / **608** | 958 / **1000** / 925 | F recovered; T slightly > L |
 | MsPacman | 256 / 408 / **628** | 325 / 61 / 60 | **L collapsed** |
 | Seaquest | 42 / 63 / **80** | 20 / 0 / 0 | **L collapsed** |
 
@@ -450,12 +451,11 @@ Don't use it when:
 **Surprise on RoadRunner**: F jumped from 0 to 958 under robust SA. This
 implies the original "F = 0" wasn't a fundamental policy-stuckness — it was
 Stage A overfitting to the exact bare-prompt structure. The robust head's
-prompt-augmentation regularization fixed F. L stayed similar (~925-967),
-suggesting the slow's contribution was bounded by the same regularization
-effect.
+prompt-augmentation regularization fixed F. Robust L = 925 (bare L = 608),
+so under robust SA all three strategies tie near the ceiling.
 
 The RoadRunner robust headline becomes: **F = 958, T = 1000, L = 925** — T
-beats L slightly, and the F = 0 → L = 967 inversion is no longer the
+beats L slightly, and the F = 0 → L = 608 inversion is no longer the
 demo's centerpiece. The bare-Stage-A RoadRunner remains the most visually
 striking result in the demos directory (and is honest — that *is* what
 happens with bare Stage A on RoadRunner).

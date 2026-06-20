@@ -38,12 +38,12 @@ export const STRATEGIES: StrategyRow[] = [
   },
 ];
 
-// Bandwidth ablation (MsPacman, 12 episodes, true retrain)
+// Latent token-count (N) ablation (MsPacman, 12 episodes, matched train=deploy)
 export interface BandwidthRow { N: number; L: number; comment: string; }
 export const BANDWIDTH: BandwidthRow[] = [
-  { N: 4, L: 296, comment: "Above F=256 but below T=408 — bandwidth-bottlenecked" },
-  { N: 8, L: 628, comment: "Sweet spot" },
-  { N: 16, L: 259, comment: "Worse than F! — over-bandwidth dilutes attention" },
+  { N: 4, L: 296, comment: "Above F=256 but below T=408" },
+  { N: 8, L: 628, comment: "Best at matched N" },
+  { N: 16, L: 259, comment: "Below F at matched N (deploy-only N=16 instead gives 720 — no capacity ceiling)" },
 ];
 
 // Vision-cache latency sweep (F MsPacman)

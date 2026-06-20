@@ -50,7 +50,7 @@ export default function BridgeReplaceChart() {
           The trained latent beats both controls on exactly the three games where slow reasoning
           helps the task (<span className="text-good">RoadRunner, Seaquest, MsPacman</span> — all
           T &gt; F). On RoadRunner the latent is <em>almost entirely</em> learned: zeroing it drops
-          the score from 967 to 0.
+          the score from 608 to 0.
         </p>
         <p className="text-muted mt-3">
           Where slow reasoning does <em>not</em> help (<span className="text-bad">River Raid,
@@ -59,7 +59,7 @@ export default function BridgeReplaceChart() {
         </p>
         <p className="text-muted mt-3">
           So <span className="text-ink">how much of L is learned content is itself predicted by
-          T &gt; F</span> — the mechanistic complement to the r = 0.92 predictor. This is the control
+          T &gt; F</span> — the mechanistic complement to the r = 0.93 predictor. This is the control
           that separates a genuinely informative latent channel from a hollow one.
         </p>
       </div>

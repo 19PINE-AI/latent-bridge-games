@@ -15,22 +15,22 @@ export default function Footer() {
           </p>
         </div>
         <Col title="Resources">
-          <FootLink href="https://github.com/bojieli/latent-bridge-games"
+          <FootLink href="https://github.com/19PINE-AI/latent-bridge-games"
                     icon={<Code2 size={12} />}>GitHub repo</FootLink>
-          <FootLink href="paper/main.pdf" icon={<FileText size={12} />}>Paper (PDF, 9 pages)</FootLink>
-          <FootLink href="https://github.com/bojieli/latent-bridge-games/blob/main/docs/06_results.md"
+          <FootLink href="paper/main.pdf" icon={<FileText size={12} />}>Paper (PDF)</FootLink>
+          <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/blob/main/docs/06_results.md"
                     icon={<ExternalLink size={12} />}>Full results doc</FootLink>
         </Col>
         <Col title="Reproduction">
-          <FootLink href="https://github.com/bojieli/latent-bridge-games/blob/main/README.md">README</FootLink>
-          <FootLink href="https://github.com/bojieli/latent-bridge-games/blob/main/docs/04_architecture.md">Architecture spec</FootLink>
-          <FootLink href="https://github.com/bojieli/latent-bridge-games/tree/main/scripts">Pipeline scripts</FootLink>
+          <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/blob/main/README.md">README</FootLink>
+          <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/blob/main/docs/04_architecture.md">Architecture spec</FootLink>
+          <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/tree/main/scripts">Pipeline scripts</FootLink>
         </Col>
         <Col title="Highlights">
           <li className="text-xs text-muted">8 games · 12 episodes/cell · 95 % bootstrap CIs</li>
           <li className="text-xs text-muted">Tuned per channel (held-out): latent sig. beats text on 2/7, ties 5/7, never loses</li>
           <li className="text-xs text-muted">Using both channels at once <em>interferes</em> (−96 % on RoadRunner) — couple via one</li>
-          <li className="text-xs text-muted">Largest gap: <span className="text-good">+82 %</span> (River Raid robust SA, Cohen's d = 1.21)</li>
+          <li className="text-xs text-muted">Largest <em>greedy</em> gap: <span className="text-good">+82 %</span> (River Raid robust SA, d = 1.21; a tie under tuned decoders)</li>
           <li className="text-xs text-muted">Single RTX Pro 6000 96 GB</li>
         </Col>
       </div>

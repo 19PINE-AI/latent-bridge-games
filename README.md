@@ -24,20 +24,33 @@ gave the higher L score):
 |---|---|---|---|---|
 | MsPacman | 256 ± 24 | 408 ± 88 | **628 ± 341** | **+54 %** |
 | Seaquest | 42 ± 19 | 63 ± 11 | **80 ± 0** | **+26 %** |
-| RoadRunner | 0 ± 0 | 608 ± 240 | **967 ± 47** | **+59 %** |
+| RoadRunner | 0 ± 0 | 475 ± 160 | **608 ± 29** | **+28 %** |
 | River Raid (robust SA) | 1033 ± 19 | 337 ± 77 | **612 ± 297** | **+82 %** |
 | SpaceInvaders (robust SA) | 107 ± 60 | 18 ± 18 | 15 ± 0 | recovered from 0 |
 | Enduro (robust SA) | 0.8 ± 1.0 | 4.9 ± 5.6 | **5.8 ± 2.5** | +18 % |
 | Q*bert (robust SA) | 25 ± 0 | **125 ± 0** | 50 ± 0 | T > L (categorical content) |
 | Pong | −21 ± 0 | −21 ± 0 | −21 ± 0 | reactive floor |
 
-**Refined claim**: L > T when the slow model's strategic content is
-*continuous-rich* (fuel levels, spatial coordinates, multi-entity tracking);
-L ≈ T or L < T when the content is *discrete-and-text-friendly* (Q*bert's
-"jump UP-RIGHT to tile row 3, col 2" fits in 200 chars without loss).
+> ⚠️ **These are fixed-*greedy*-decoder numbers.** The latent's advantage over
+> text is decoder-specific: a full decoder sweep (greedy, τ∈{0.3…1.5}) shows it
+> vanishes at every fixed sampling temperature. The honest comparison tunes the
+> action decoder per channel on held-out seeds (*best-achievable*): there the latent
+> is **never significantly worse than text and significantly better on 2 of 7**
+> (MsPacman, RoadRunner); the other 5 are ties. See the paper (`paper/main.pdf`)
+> for the decoder-robust tables. The continuous-vs-categorical hypothesis these
+> per-game scores once motivated is **retired** — emission statistics do not predict
+> sign(L−T) (lexical-diversity r=+0.05, n.s.).
 
-The largest L-T gap (+82 %) is on **River Raid** after robust Stage A. The
-most visually striking is **RoadRunner**: F=0 vs L=967, the centerpiece demo.
+**Current claim (decoder-robust)**: the latent bridge helps *if and only if* slow
+reasoning helps the task (T > F) — `L−F` tracks `T−F` at **Pearson r = 0.93** across
+7 Atari games + MetaDrive (the controlled negative). Whether to couple is a property
+of the task, not the channel; if you couple, use exactly one channel (text+latent
+together *interferes*, −96 % on RoadRunner).
+
+The largest *greedy* L−T gap (+82 %) is on **River Raid** after robust Stage A (a tie
+under tuned decoders). The cleanest qualitative demo is **RoadRunner**: F=0 vs L=608
+(reproducible; an earlier run scored 967, but the F=0 baseline makes the magnitude
+run-to-run-unstable — the L>T direction is robust).
 
 ### Stage A robustness recipe (the second-order finding)
 
@@ -53,7 +66,7 @@ dominated the suffix-robustness gain. The recipe is:
 - Use robust SA when T/L collapse to ~0 (SI, RR-bare, Q*bert, Enduro)
 - Don't use it when T/L already win (MsPacman, Seaquest)
 - Surprise: RoadRunner F=0 under bare SA was overfitting, not policy
-  stuckness — robust SA recovered F to 958 but L stayed flat (~925-967)
+  stuckness — robust SA recovered F to 958 and all three strategies tie (~925-1000)
 
 ### Detailed SpaceInvaders breakdown (diagnostic chain)
 | Strategy | bare Stage A | robust Stage A |
@@ -68,8 +81,10 @@ T and L to nonzero). Bridge MI under expert-T was +0.024 nats — the bridge
 *did* learn structure — but the deployed policy still collapsed because of
 the action head's OOD-brittleness, not the bridge itself.
 
-- L > T claim now: confirmed on 4-of-7 games (excluding Pong loss-floor
-  and Q*bert categorical-content exception).
+- L > T claim: under fixed greedy decoding, 4-of-7 games; under the
+  decoder-robust best-achievable comparison (tune decoder per channel on
+  held-out seeds), the latent significantly wins 2-of-7 (MsPacman, RoadRunner),
+  ties the other 5, and never significantly loses.
 - SpaceInvaders diagnosis end-to-end validated: L=T=0 under bare Stage A;
   L=15, T=18 under robust Stage A. The bridge mechanism was never broken;
   Stage A OOD-brittleness was. PPO under deployment distribution
@@ -126,10 +141,11 @@ and using the full attention stack.
 
 ## Hypotheses
 
-- **H1**: Latent bridge > text bridge on games needing both reflex + planning.
-  **✅ Confirmed on 2/3 games**: +54 % MsPacman, +26 % Seaquest. SpaceInvaders failure
-  is methodology-driven (random-policy KL on reward-asymmetric game), not
-  architectural.
+- **H1**: Latent bridge ≥ text bridge on games needing both reflex + planning.
+  **✅ Decoder-robust**: tuned per channel (held-out decoder selection), the latent is
+  never significantly worse than text and significantly better on 2/7 (MsPacman,
+  RoadRunner). The original greedy "L > T on 4/7" over-credited the latent — the
+  advantage is greedy-specific (see the decoder-sensitivity note above).
 - **H2**: Latent-vs-text gap *grows* with strategic complexity. **❌ Refuted** — the
   L-T gap is smaller on Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). The
   bottleneck is Stage A teacher quality, not game tier.
@@ -220,13 +236,13 @@ A single scaling ablation with Qwen3-30B-A3B-Thinking (~60GB) fits at inference 
       reward-asymmetric games)
 - [x] MI diagnostic on all three games (informative on MsPacman & Seaquest, collapsed
       on SpaceInvaders — consistent with score outcomes)
-- [x] True bandwidth ablation N=4/8/16 (Goldilocks at N=8)
+- [x] Latent token-count (N) ablation N=4/8/16 (Goldilocks at N=8 at matched N; deploy-only N=16 scores best — no capacity ceiling)
 - [x] Vision-token cache (latency option)
 - [ ] **Demo: recorded MP4 + live web playback (top priority)** — see `docs/07_next_steps.md`
 - [ ] Stage A robustness ablation (validates SI diagnosis)
 - [ ] Slow-only S + Oracle O baselines (paper completeness)
 - [ ] Tier-1 game (Pong/Breakout) — H2 direction check
-- [ ] Scaling ablation with `Qwen3-VL-30B-A3B-Thinking-FP8` (tests bandwidth mechanism)
+- [ ] Scaling ablation with `Qwen3-VL-30B-A3B-Thinking-FP8` (tests whether more slow-model capacity widens L−T)
 - [ ] Stage D PPO (online RL; will it recover SI?)
 - [ ] Interactive website with demos and side-by-side comparisons
 ```

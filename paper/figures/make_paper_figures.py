@@ -427,8 +427,8 @@ def fig_headline():
 def fig_roadrunner():
     fig, ax = plt.subplots(figsize=(5.0, 3.0))
     conditions = ["S\n(slow only)", "F\n(fast only)", "T\n(text bridge)", "L\n(latent bridge)"]
-    scores = [None, 0, 608, 967]  # no S baseline for RoadRunner
-    errs   = [None, 0, 240, 47]
+    scores = [None, 0, 475, 608]  # no S baseline for RoadRunner (reproducible re-run)
+    errs   = [None, 0, 160, 29]
     colors = [C_S, C_F, C_T, C_L]
     x = np.arange(len(conditions))
     valid = [s is not None for s in scores]
@@ -447,12 +447,12 @@ def fig_roadrunner():
     ax.set_xticks(x)
     ax.set_xticklabels(conditions)
     ax.set_ylabel("RoadRunner score (12 episodes)")
-    ax.set_title("RoadRunner: F cannot score → L unlocks scoring policy (+59% L over T)",
+    ax.set_title("RoadRunner: F cannot score → L unlocks scoring policy (+28% L over T)",
                  fontsize=10)
     ax.set_ylim(-50, 1200)
     # callout
     ax.annotate("F has the reflex machinery\nbut not the directional bias.\nThe slow's compressed\nstrategic context unlocks it.",
-                xy=(3, 967), xytext=(0.5, 700),
+                xy=(3, 608), xytext=(0.5, 800),
                 fontsize=7.5, style="italic", color=C_ACC,
                 arrowprops=dict(arrowstyle="->", color=C_ACC, lw=0.8))
     fig.tight_layout()

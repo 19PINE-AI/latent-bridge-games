@@ -11,11 +11,13 @@ export default function BandwidthChart() {
   }));
   return (
     <div className="bg-panel rounded-2xl border border-border p-5">
-      <h3 className="font-semibold text-ink mb-1">Bridge bandwidth ablation (MsPacman)</h3>
+      <h3 className="font-semibold text-ink mb-1">Latent token-count (N) ablation (MsPacman)</h3>
       <p className="text-xs text-muted mb-3">
-        <strong>True sweep</strong> (train and deploy both at the same N).
-        Goldilocks shape with N = 8 as the sweet spot. Three points fit any U-shape; we
-        present this as consistent with — not a sharp identification of — a peak.
+        <strong>Matched sweep</strong> (train and deploy both at the same N).
+        Goldilocks shape with N = 8 best at matched N. Three points fit any U-shape; we
+        present this as consistent with — not a sharp identification of — a peak. This is
+        <em> not</em> a bandwidth/capacity story: training at N = 8 and deploying at N = 16
+        scores best of all (720), so used capacity sits far below nominal.
       </p>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">

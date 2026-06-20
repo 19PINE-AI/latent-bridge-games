@@ -15,10 +15,10 @@
     "game": "RoadRunner",
     "variant": "bare",
     "F": 0.0,
-    "T": 608.3,
-    "L": 966.7,
-    "TmF": 608.3,
-    "LmF": 966.7,
+    "T": 475.0,
+    "L": 608.3,
+    "TmF": 475.0,
+    "LmF": 608.3,
     "domain": "atari"
    },
    {
@@ -82,7 +82,7 @@
     "domain": "driving"
    }
   ],
-  "pearson": 0.92,
+  "pearson": 0.926,
   "n": 8
  },
  "all_cells": {
@@ -129,13 +129,13 @@
    },
    {
     "cell": "roadrunner",
-    "TmF": 608.3,
-    "LmF": 966.7
+    "TmF": 475.0,
+    "LmF": 608.3
    },
    {
     "cell": "roadrunner_robust",
-    "TmF": 41.7,
-    "LmF": -33.3
+    "TmF": 475.0,
+    "LmF": 608.3
    },
    {
     "cell": "seaquest",
@@ -168,7 +168,7 @@
     "LmF": -2.7
    }
   ],
-  "pearson": 0.937,
+  "pearson": 0.958,
   "n": 16
  }
 }

@@ -2,7 +2,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, ResponsiveContainer, Toolti
          ReferenceLine, ReferenceArea, Label, Cell } from "recharts";
 import { PREDICTOR, PREDICTOR_R, PREDICTOR_R_ALL, METADRIVE } from "../data/games";
 
-/** Signed-sqrt transform so RoadRunner (+967) doesn't crush the cluster near 0,
+/** Signed-sqrt transform so RoadRunner (+608) doesn't crush the cluster near 0,
  * while keeping sign and ordering honest. Ticks are relabelled to true deltas. */
 const sst = (v: number) => Math.sign(v) * Math.sqrt(Math.abs(v));
 const TRUE_TICKS = [-700, -100, -10, 0, 10, 100, 700];
@@ -146,7 +146,7 @@ export default function PredictorSection() {
           Replacing the trained latent with zeros or random vectors does <strong>not</strong>{" "}
           lower the score — the latent is <strong>inert</strong>. Run on all 7 Atari games, this
           control shows the trained latent carries real learned content (L<sub>trained</sub> ≫
-          L<sub>random</sub>) on exactly the games where slow reasoning helps (RoadRunner 967 vs 8,
+          L<sub>random</sub>) on exactly the games where slow reasoning helps (RoadRunner 608 vs 8,
           Seaquest 100 vs 5, MsPacman 666 vs 410) and is inert/harmful where it does not
           (River Raid, Space Invaders) — so even <em>how much of L is learned</em> is governed
           by the T &gt; F predictor.

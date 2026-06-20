@@ -39,7 +39,10 @@ EVAL_FILES = {
     ("Qbert", "robust"): "eval_v2_qbert_robust.json",
     ("RiverRaid", "bare"): "eval_v2_riverraid.json",
     ("RiverRaid", "robust"): "eval_v2_riverraid_robust.json",
-    ("RoadRunner", "bare"): "eval_v2_roadrunner.json",
+    # Reproducible greedy re-run (L=608). The original eval_v2_roadrunner.json scored
+    # L=967, but that magnitude does not reproduce run-to-run (FP nondeterminism amplified
+    # by the F=0 baseline); we report the conservative reproducible value as canonical.
+    ("RoadRunner", "bare"): "rev_sampling/roadrunner_bare_greedy_reconfirm.json",
     ("RoadRunner", "robust"): "eval_v2_roadrunner_robust.json",
     ("Seaquest", "bare"): "eval_v2_seaquest.json",
     ("Seaquest", "robust"): "eval_v2_seaquest_robust.json",

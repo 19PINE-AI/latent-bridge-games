@@ -1,36 +1,82 @@
-\documentclass[10pt]{article}
-\usepackage{neurips_arxiv}
+\documentclass[11pt]{article}
 
-\title{\textbf{The Latent Bridge: \\
-A Continuous Channel Between Slow Reasoning and Fast Reactive Models}}
+% Encoding
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 
-\author[1]{Bojie Li}
-\affil[1]{\texttt{bojieli@gmail.com}}
+% Professional preprint style: Palatino body + matching math, Helvetica-clone
+% sans headings, refined centered title block, slim ruled running header.
+\usepackage{arxiv}
+
+% Content packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+
+% hyperref loaded late, then coloured to match the palette.
+\usepackage{hyperref}
+\usepackage{url}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=arxivaccent,
+  citecolor=arxivaccent,
+  urlcolor=arxivaccent,
+  filecolor=arxivaccent,
+  breaklinks=true,
+}
+
+% One-line key-finding callout box, matched to the palette.
+\newtcolorbox{finding}{
+  colback=arxivaccent!7,
+  colframe=arxivaccent,
+  boxrule=0.5pt, arc=2pt,
+  left=8pt,right=8pt,top=4pt,bottom=4pt,
+  before skip=8pt,after skip=8pt,
+}
+
+\title{The Latent Bridge: A Continuous Slow--Fast Channel for Real-Time Game Agents}
+
+\author{
+  Bojie Li \\
+  Pine AI
+}
 \date{}
+\runningtitle{The Latent Bridge: A Continuous Slow--Fast Channel for Real-Time Game Agents}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Real-time interactive AI systems couple deliberative reasoning to reactive action selection through a text prompt (Gemini Live, OpenAI Realtime). We test an alternative: a learned continuous-valued \emph{latent bridge} that projects slow-model residuals into the fast model's input embedding space, LLaVA-style. We couple a frozen 9\,B reactive multimodal model to a frozen 8\,B reasoning model at matched scale on 7 Atari games and a driving domain (MetaDrive). Under a fixed \emph{greedy} action decoder---our original convention---the latent bridge beats the text bridge by 26--82\% on 4 of 7 games. We show this advantage is \emph{decoder-specific}: under any fixed sampling temperature it disappears, because the latent's thin per-emission signal ($3$--$8\%$ variance) improves the deterministic argmax but is swamped once the decoder samples. The honest comparison therefore treats the action decoder as a deployment hyperparameter and evaluates each channel at \emph{its own best decoder}, selected on held-out seeds (leave-one-seed-out) so the estimate is unbiased. Under this best-achievable protocol the latent is \textbf{never significantly worse than the text bridge on any of the 7 games and is significantly \emph{better} on 2} (MsPacman $+57\%$, RoadRunner $+28\%$); the other 5 are statistical ties. The optimal decoder is itself \emph{channel-dependent} (the latent prefers greedy or high temperature, the text bridge $\tau\!\approx\!0.5$), which is exactly why comparing them at a single fixed decoder is unfair to both. The latent is thus a safe-or-better drop-in for the text channel---non-inferior everywhere, materially better where slow reasoning helps most---rather than a uniform winner. \emph{Combining} both channels in one forward pass does \emph{not} help: it never beats the better single channel and significantly \emph{interferes} on 3 of 7 games (catastrophically on RoadRunner, $-96\%$), so the design rule is to couple via exactly \emph{one} channel. The decoder-robust, task-level finding is a behavioral predictor: pooling the 7 Atari games with MetaDrive, latent and text benefits over fast-only track at Pearson $r=0.92$---the bridge helps if and only if slow reasoning beats reaction ($T\!>\!F$). MetaDrive is a controlled negative where it does not, with a bridge-replacement control confirming the latent is inert there. We also find no bandwidth ceiling (a 30B slow model does not widen the gap; more text does not close it). We release F/T/L replay recordings for all 8 experiments and reproducible pipelines.
-
-\textbf{Code, data, demos}: \url{https://github.com/bojieli/latent-bridge-games}
+A real-time agent operating a phone or desktop---general computer use, with games the hardest case---must act every few tens of milliseconds while planning over seconds. The two regimes pull against each other: a \emph{reasoning} VLM (Qwen3-VL-8B-Thinking) deliberates but is $\sim$1.5\,s per response---too slow for a 15\,Hz control loop---while a \emph{reactive} VLM (MiniCPM-o~4.5) acts in milliseconds but, lacking deliberation, leaves reward on the table on planning-heavy games (MsPacman $256\!\to\!628$ once reasoning is coupled in). We couple the two at matched scale (9\,B fast, 8\,B slow), both frozen, so the \emph{channel} is the load-bearing variable, and ask how the slow model's deliberation should reach the fast one. The standard answer is a \emph{text channel}: the slow model writes a suffix the fast model reads. We test a learned continuous \emph{latent bridge} that projects the slow model's residuals into the fast model's input-embedding space, LLaVA-style, with no text round-trip. On 7 Atari games and a driving domain (MetaDrive), tuning the action decoder per channel on held-out seeds, the latent is never significantly worse than the text bridge and is significantly better on 2 (MsPacman $+57\%$, RoadRunner $+28\%$), with 5 ties---a safe-or-better drop-in. (A single fixed \emph{greedy} decoder flatters the latent to 4 wins, but that advantage is decoder-specific.) Combining both channels interferes (RoadRunner $-96\%$), so couple via exactly one. Across all 8 evals the bridge helps if and only if slow reasoning beats reaction ($T\!>\!F$; latent and text benefits over fast-only track at $r=0.93$); MetaDrive is the controlled negative, with a bridge-replacement control confirming the latent is inert there. We release F/T/L replay recordings and reproducible pipelines.
 \end{abstract}
+
+\begin{center}
+\small
+Code: \url{https://github.com/19PINE-AI/latent-bridge-games} \\[2pt]
+Website: \url{https://01.me/research/latent-bridge-games}
+\end{center}
+\vspace{-0.6em}
 
 % --------------------------------------------------------------------------
 \section{Introduction}
 
-A reasoning model deliberates; a reactive model reacts. Their tick rates differ by an order of magnitude (seconds vs.\ tens of milliseconds), and the production answer for coupling them is to have the slow model emit text that the fast model reads. We test the alternative: a learned continuous-valued channel between two frozen models.
+We want agents that operate a computer the way a person does---\emph{general computer use} (GCU): read the screen, issue low-level inputs, close the loop, repeat. The hardest instance of GCU is playing a real-time video game on a phone or desktop: the agent sees raw pixels and must commit an action every few tens of milliseconds, while also pursuing a goal that requires planning over seconds. This couples two regimes---fast reaction and slow deliberation---that a single model is bad at holding at once.
 
-\paragraph{Setting.} Both endpoints are general-purpose multimodal LLMs at matched scale (9\,B fast, 8\,B slow), deliberately chosen so the channel (not a capability gap) is the load-bearing variable. The fast model picks actions at $\sim$15\,Hz; the slow emits at $\sim$1\,Hz; the bridge is the only learned component. Our domain is Atari~\cite{atari}, where slow/fast coupling is visible to the eye---100\,ms ghost-dodging meets 10\,s route-planning.
+\paragraph{A single model is forced to choose.} Open-source multimodal LLMs come in two flavors, and each gives up one side of the trade-off. A \emph{reasoning} VLM (e.g.\ Qwen3-VL-8B-Thinking~\cite{qwen3vl}) deliberates with an explicit chain of thought but takes $\sim$1.5\,s per response---tens of frames late for a $\sim$15\,Hz control loop, so it simply cannot sit in the reactive path, whatever its quality. A \emph{reactive} VLM (e.g.\ MiniCPM-o~4.5~\cite{minicpmo}) answers in tens of milliseconds but has no deliberation: on planning-heavy games its fast-only policy leaves reward on the table (e.g.\ MsPacman $256$ vs.\ $628$ once a reasoning model is coupled in). The latency gap is the hard constraint---a model good enough to plan is too slow to react---so the fast/slow split real-time gameplay needs cannot come from a single model. The natural fix is to run \emph{both}---a fast reactive model in the loop and a slow reasoning model alongside, overlapping asynchronously---and pass the slow model's deliberation to the fast model. This split is increasingly the industry answer for real-time interaction: Thinking Machines Lab's recent \emph{Interaction Models}~\cite{interaction_models} pair a live interaction model with an asynchronous background reasoner, coupling them by streaming a ``rich context package''---i.e.\ shared text/context. Those systems are closed and jointly trained; we instead couple two \emph{frozen, open} general-purpose models and ask \emph{how} the slow model's deliberation should reach the fast one---in particular, whether a learned continuous channel beats the text/context coupling those systems use.
+
+\paragraph{Text channel vs.\ latent channel.} The obvious coupling is a \emph{text channel} ($T$): the slow model writes its conclusion and the fast model reads it as a prompt suffix. We test the alternative: a learned continuous-valued \emph{latent bridge} ($L$) that projects the slow model's residual stream into the fast model's input-embedding space, LLaVA-style, and prepends a handful of tokens---no text round-trip. Both endpoints are frozen, general-purpose multimodal LLMs at matched scale (9\,B fast, 8\,B slow), deliberately chosen so the \emph{channel}, not a capability gap, is the load-bearing variable; the bridge is the only learned component. The fast model picks actions at $\sim$15\,Hz, the slow emits at $\sim$1\,Hz, and we study the coupling where it is directly measurable: Atari~\cite{atari}, where 100\,ms ghost-dodging meets 10\,s route-planning, plus a driving simulator (MetaDrive) as a controlled negative.
 
 \paragraph{What this paper claims, sharpened.}
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
 \item \textbf{Architecture matters.} A first attempt (v1) using 256-d cross-attention at 2 of 36 LLM layers converged to KL=0.004 on offline data but \emph{failed} at deployment. The fix (v2) is the LLaVA pattern: project slow residuals into the fast LLM's 4096-d input embedding space and prepend, letting all layers attend via standard causal attention.
 \item \textbf{Tuned per channel, the latent is never significantly worse than text and is significantly better on 2 of 7 games} (\S\ref{sec:best_achievable}, Table~\ref{tab:best_achievable}). Under a fixed greedy decoder the latent beats text by 26--82\% on 4 of 7 games (Figure~\ref{fig:headline})---but \emph{this is greedy-specific}: a full decoder sweep (greedy, $\tau\!\in\!\{0.3,0.5,0.7,1.0,1.5\}$) shows the advantage vanishes at every fixed sampling temperature, because the latent's thin per-emission signal only sharpens the deterministic argmax (\S\ref{sec:qbert}). Since the action decoder is a deployment hyperparameter one tunes, the fair comparison is each channel at its own best decoder, selected on held-out seeds: there the latent significantly wins MsPacman ($+57\%$) and RoadRunner ($+28\%$), is a statistical tie on the other 5 games, and never significantly loses---and the two channels prefer \emph{different} decoders (latent greedy/high-$\tau$, text $\tau\!\approx\!0.5$), which is why a single fixed decoder is unfair to both.
 \item \textbf{Using both channels at once \emph{hurts}---couple via exactly one} (\S\ref{sec:combined}, Table~\ref{tab:combined}). Feeding the text suffix and latent tokens to the frozen head in one forward pass never beats the better single channel (0 of 7) and significantly \emph{interferes} on 3 of 7 (MsPacman $-49\%$, River~Raid $-29\%$, RoadRunner $-96\%$). The naive ``more context is better'' intuition fails: the head, trained on one conditioning signal at a time, gets a worse policy from two. The recommendation is to couple via a single channel (latent as the safe default), not both.
-\item \textbf{When it helps is a property of the task, not the channel.} Across 7 Atari games and a non-Atari driving domain (MetaDrive), the latent's benefit over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at Pearson $r=0.92$ (and $r=0.94$ over all 16 evaluated cells, so it does not depend on variant selection): the bridge pays off exactly when slow reasoning beats fast reaction on the task ($T\!>\!F$). MetaDrive is a controlled negative---even with a planning-heavy route, $T\!\le\!F$, and a bridge-replacement control confirms the latent is inert. We frame the contribution this way rather than as a ``text is bandwidth-limited'' claim: our own ablations (a 30B slow does not widen the gap; a longer text suffix does not close it; the latent uses far less than its nominal capacity) do not support a bandwidth ceiling as the operative mechanism.
+\item \textbf{When it helps is a property of the task, not the channel.} Across 7 Atari games and a non-Atari driving domain (MetaDrive), the latent's benefit over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at Pearson $r=0.93$ (and $r=0.96$ over all 16 evaluated cells, so it does not depend on variant selection): the bridge pays off exactly when slow reasoning beats fast reaction on the task ($T\!>\!F$). MetaDrive is a controlled negative---even with a planning-heavy route, $T\!\le\!F$, and a bridge-replacement control confirms the latent is inert. We frame the contribution this way rather than as a ``text is bandwidth-limited'' claim: our own ablations (a 30B slow does not widen the gap; a longer text suffix does not close it; the latent uses far less than its nominal capacity) do not support a bandwidth ceiling as the operative mechanism.
 \item \textbf{Most collapsed cells are not bridge failures.} Of 14 (game, Stage-A-variant) cells, 5 have a strategy ($F$, $T$, or $L$) at zero (per-game triage in Appendix~\ref{app:collapse}). We trace these to Stage~A action-head failures---chiefly OOD-brittleness under the suffix/bridge inputs the head meets at deployment---not to the bridge. A targeted Stage A retraining at suffix-probability 0.5 produces the largest $L$\,$-$\,$T$ gap in the paper (River Raid, +82\%).
 \item \textbf{The latent advantage is not always an absolute win.} On several games where $L$ beats $T$, $F$ (fast-only) still beats $L$. The latent bridge improves over the text bridge \emph{at matched architecture}; it does not always justify a slow model at all.
 \end{itemize}
@@ -84,8 +130,8 @@ $5.8$) but $T\!=\!0$, so we report robust ($T\!=\!5$, $L\!=\!6$)---a \emph{conse
 that lowers, not raises, Enduro's reported $L$. Because the rule maximizes $L$ (the deployed
 quantity) and is blind to the $L\!-\!T$ \emph{gap}, it cannot inflate the text-vs-latent
 comparison. Both variants for every game are tabulated in Appendix~\ref{app:full}, and the
-cross-game predictor (\S\ref{sec:predictor}) holds with no selection at all: $r=0.92$ over the
-8 reported cells, $r=0.94$ over all 16 evaluated cells. The choice is itself a finding:
+cross-game predictor (\S\ref{sec:predictor}) holds with no selection at all: $r=0.93$ over the
+8 reported cells, $r=0.96$ over all 16 evaluated cells. The choice is itself a finding:
 robustness \emph{rescues} games whose bare head the suffix degrades or collapses (River~Raid
 $L\!:\!360\!\to\!612$, Q*bert $0\!\to\!50$) but \emph{harms} games whose bare head already works
 (MsPacman $628\!\to\!60$, Seaquest $80\!\to\!0$)---a direct consequence of the Stage~A OOD
@@ -127,7 +173,7 @@ Game (reported var.) & F & T & L & $\Delta_{L-T}$ (\%, $p$) \\
 \midrule
 MsPacman (bare)         & $256\pm25$  & $408\pm92$  & $\mathbf{628\pm356}$ & +54\,\% (W $.06$, MWU $.003$)\\
 Seaquest (bare)         & $42\pm20$   & $63\pm12$   & $\mathbf{80\pm0}$    & +26\,\% (MWU $<.001$)$^{\dagger}$\\
-RoadRunner (bare)       & $0\pm0$     & $608\pm250$ & $\mathbf{967\pm49}$  & +59\,\% (W $<.001$)\\
+RoadRunner (bare)       & $0\pm0$     & $475\pm160$ & $\mathbf{608\pm29}$  & +28\,\% (W $.015$)\\
 River Raid (robust)$^*$ & $1032\pm20$ & $337\pm81$  & $\mathbf{612\pm310}$ & +82\,\% (W $.01$)\\
 Enduro (robust)$^*$     & $1\pm1$     & $5\pm6$     & $6\pm3$              & +19\,\% (W $.63$)\\
 SpaceInvaders (rob)$^*$ & $107\pm62$  & $\mathbf{18\pm19}$ & $15\pm0$      & $-18$\,\% (MWU $.27$)$^{\dagger}$\\
@@ -139,12 +185,13 @@ Bold marks the better of $T$/$L$. W = Welch's two-sided $t$ $p$-value; MWU = Man
 $^{\dagger}$ One cell has zero variance; Welch undefined or unreliable, so MWU is the principal test.
 $^{\ddagger}$ Both cells have zero variance (all 12 episodes identical); the comparison is deterministic-trajectory, not statistical---we report it for completeness (see \S\ref{sec:qbert}).
 Seaquest's greedy $L\!>\!T$ rests on its zero-variance $L$ cell ($80\!\pm\!0$) and \emph{does not survive sampling} ($L\!=\!135$ vs $T\!=\!143$, n.s., \S\ref{sec:qbert})---the mirror image of Q*bert.
+RoadRunner's reported $L\!=\!608$ is the \emph{reproducible} value; an earlier run scored as high as $967$, so the $F\!=\!0$ baseline makes the absolute magnitude run-to-run-unstable under floating-point nondeterminism, though the $L\!>\!T$ direction is robust (Appendix~\ref{app:decoder_sweep}). Its $F\!=\!0$ is a \emph{bare}-Stage-A artifact a robust head removes ($F\!=\!958$, Appendix~\ref{app:full}).
 Full table including bare-vs-robust pairs in Appendix~\ref{app:full}.}
 \label{tab:headline}
 \end{table}
 
 \paragraph{$L\!>\!T$ on four games under greedy decoding, but one is decoder-fragile.}
-RoadRunner (+59\%, $d=1.99$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann--Whitney. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann--Whitney ($p=0.003$): the $L$ distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test. Seaquest (+26\% greedy) is significant by Mann--Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$); we re-ran it under sampling and the greedy $L\!>\!T$ \emph{does not survive}---$L\!=\!135$ vs $T\!=\!143$ (Welch $p\!=\!0.60$, MWU $p\!=\!0.73$), a tie (\S\ref{sec:qbert}). So the decoder-robust latent wins are the three games with non-degenerate greedy cells (RoadRunner, River~Raid, MsPacman); Seaquest is a greedy-only win.
+RoadRunner (+28\%, $d=1.16$) and River Raid (+82\%, $d=1.21$) are significant by both Welch and Mann--Whitney. MsPacman (+54\%) is marginal by Welch ($p=0.06$) and clearly significant by Mann--Whitney ($p=0.003$): the $L$ distribution is bimodal (8/12 episodes 390--690, 4/12 above 1000, best 1740), so MWU is the more appropriate test. Seaquest (+26\% greedy) is significant by Mann--Whitney ($p<.001$) but its $L$ cell has zero variance ($80\pm0$), so Welch is unreliable (Table~\ref{tab:headline}, $^{\dagger}$); we re-ran it under sampling and the greedy $L\!>\!T$ \emph{does not survive}---$L\!=\!135$ vs $T\!=\!143$ (Welch $p\!=\!0.60$, MWU $p\!=\!0.73$), a tie (\S\ref{sec:qbert}). So the three games whose greedy $L\!>\!T$ rests on non-degenerate cells (RoadRunner, River~Raid, MsPacman) are not at risk of the greedy-determinism artifact, while Seaquest is a greedy-only win. Of the three, only RoadRunner and MsPacman survive as \emph{significant} latent wins under the best-achievable decoder selection of \S\ref{sec:best_achievable}; River~Raid's greedy $+82\%$ becomes a tie there (best $L\!=\!566$ vs $T\!=\!639$), so it is a clean greedy effect but not a decoder-robust win.
 
 \paragraph{Two non-significant: Enduro and SpaceInvaders.}
 Enduro/robust has tiny absolute scores ($T\!=\!5$, $L\!=\!6$); both cells are at floor. SpaceInvaders/robust has $T\!=\!18$, $L\!=\!15$, $p\!=\!0.27$. We do not claim these as $L$ wins or $T$ wins.
@@ -160,11 +207,11 @@ On River Raid and SpaceInvaders (both using robust Stage A), $F$ outscores both 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.65\textwidth]{figures/fig_roadrunner.pdf}
-\caption{\textbf{RoadRunner: F cannot score; L unlocks the policy.} Under bare Stage~A, the action head's most-confident output is NOOP even when the Coyote is closing. The slow's guidance (``head right'') breaks the local maximum. $L=967$ vs $T=608$, +59\%.}
+\caption{\textbf{RoadRunner: F cannot score; L unlocks the policy.} Under bare Stage~A, the action head's most-confident output is NOOP even when the Coyote is closing. The slow's guidance (``head right'') breaks the local maximum. $L=608$ vs $T=475$, +28\%.}
 \label{fig:roadrunner}
 \end{figure}
 
-RoadRunner is the effect at its sharpest (Figure~\ref{fig:roadrunner}): $F=0$ (the head literally cannot score), and the slow's emission is rich joint state (Coyote $\Delta_x$, multiple obstacle coordinates, pellet position). $L$ recovers 967, $T$ recovers 608; the +59\% gap with $d=1.99$ is our largest statistically clean effect. Direct inspection of the trained bridge (\S\ref{sec:bridge_content}, Appendix~\ref{app:bridge_diag}) shows the latent encodes mostly game identity plus a thin per-emission strategic residual, rather than a text-like message---the channel is non-lexical but game-conditioned.
+RoadRunner is the cleanest qualitative demonstration (Figure~\ref{fig:roadrunner}): $F=0$ (the head literally cannot score), and the slow's emission is rich joint state (Coyote $\Delta_x$, multiple obstacle coordinates, pellet position). $L$ recovers 608, $T$ recovers 475; the +28\% gap ($d=1.16$, $p=0.015$) is statistically clean. Two caveats keep this honest. First, $F\!=\!0$ is specific to the \emph{bare} action head: a robust Stage~A head scores $F\!=\!958$ on RoadRunner and all three strategies tie at $\sim\!925$--$1000$ (\S\ref{sec:ood}), so this demonstration shows the bridge rescuing a brittle baseline, not a fundamental planning limit of the fast model. Second, we report the \emph{reproducible} $L\!=\!608$: an earlier run scored $967$, so the absolute magnitude is run-to-run-unstable (floating-point nondeterminism amplified by $F\!=\!0$), though the $L\!>\!T$ direction is robust (Appendix~\ref{app:decoder_sweep}). Direct inspection of the trained bridge (\S\ref{sec:bridge_content}, Appendix~\ref{app:bridge_diag}) shows the latent encodes mostly game identity plus a thin per-emission strategic residual, rather than a text-like message---the channel is non-lexical but game-conditioned.
 
 \subsection{Greedy decoding flips low-variance cells---both ways (Q*bert and Seaquest)}
 \label{sec:qbert}
@@ -223,7 +270,7 @@ held-out seeds (leave-one-seed-out; $n\!=\!12$). The modal selected decoder is s
 Under this protocol the latent is \emph{never significantly worse} than the text bridge and is
 significantly \emph{better} on 2 of 7 games (MsPacman, RoadRunner); the other 5 are statistical
 ties (no significant difference either way). The optimal decoder is channel-dependent (latent often
-greedy or high-$\tau$, text $\tau\!\approx\!0.5$). RoadRunner's level is hardware-specific
+greedy or high-$\tau$, text $\tau\!\approx\!0.5$). RoadRunner's level is run-to-run-variable
 (Appendix~\ref{app:decoder_sweep}); its $L\!>\!T$ direction is robust.}
 \label{tab:best_achievable}
 \end{table}
@@ -334,7 +381,7 @@ RoadRunner  & $608 \pm 250$         & $8 \pm 28$       & $\mathbf{0 \pm 0}$ \\
 \end{tabular}\smallskip
 
 \paragraph{Result: monotonic decline on MsPacman, catastrophic collapse on RoadRunner.}
-On MsPacman the mean drops by 14\,\% from $w\!=\!1$ to $w\!=\!3$; on RoadRunner it drops by 100\,\%---every single one of 12 episodes scored zero at $w\!=\!3$. The $L$ scores stay where they were ($L_{\text{MsPacman}}\!=\!628$, $L_{\text{RoadRunner}}\!=\!967$), so the $L\!>\!T$ gaps (+54\,\% and +59\,\%) \emph{widen} as $T$'s text budget is increased. The objection ``$T$ just needs more text'' is empirically false on these two games.
+On MsPacman the mean drops by 14\,\% from $w\!=\!1$ to $w\!=\!3$; on RoadRunner it drops by 100\,\%---every single one of 12 episodes scored zero at $w\!=\!3$. Since $L$ transmits only the most-recent emission, its score is unchanged by $w$, so the $L\!>\!T$ gap only \emph{widens} as $T$'s text budget is increased. The objection ``$T$ just needs more text'' is empirically false on these two games.
 
 \paragraph{Interpretation.}
 Older emissions are stale---they describe game state that no longer holds---and the action head appears to be unable to disambiguate the time ordering of suffix content. On RoadRunner the effect is dramatic because the strategy is moment-to-moment (which obstacle is closing now); on MsPacman, where the slow's content is slower-changing (which pellet cluster to chase), the effect is gentler but still negative. The latent bridge sidesteps this because it transmits only the most-recent emission's projected residuals; the text bridge would need explicit time-tagging or a learned attention over emissions to compete.
@@ -422,7 +469,7 @@ unlike Atari planning games whose slower dynamics reward deliberation.
 
 Pooling all eight game-evals (Figure~\ref{fig:predictor}, left), the latent bridge's benefit
 over fast-only ($L\!-\!F$) tracks the text bridge's benefit ($T\!-\!F$) at \textbf{Pearson
-$r=0.92$} (reported variant per game; $r=0.94$ over all 16 evaluated cells, so the relationship
+$r=0.93$} (reported variant per game; $r=0.96$ over all 16 evaluated cells, so the relationship
 is not an artifact of variant selection, \S\ref{sec:setup_variant}). The bridge pays off exactly
 when slow reasoning beats reaction on the task ($T\!>\!F$: RoadRunner, MsPacman, Seaquest,
 Q*bert; Enduro sits at floor, with $T\!-\!F$ a few points either side of zero depending on
@@ -439,9 +486,9 @@ that separates a genuinely informative latent
 \caption{\textbf{The latent bridge helps if and only if the slow model helps the task.}
 \emph{Left:} per-game latent benefit $L\!-\!F$ vs.\ text benefit $T\!-\!F$ across 7 Atari games
 and MetaDrive (driving), on a signed-$\sqrt{\cdot}$ axis (true reward deltas on the ticks).
-Bold points are the reported-variant cell per game (Pearson $r=0.92$, $n=8$; leave-one-out
-$r\!\in\![0.89,0.98]$, bootstrap 95\,\% CI $[0.81,1.0]$); faint grey points are all 16
-evaluated cells ($r=0.94$), showing the relationship does not depend on variant selection
+Bold points are the reported-variant cell per game (Pearson $r=0.93$, $n=8$; leave-one-out
+$r\!\in\![0.89,0.95]$, bootstrap 95\,\% CI $[0.81,1.0]$); faint grey points are all 16
+evaluated cells ($r=0.96$), showing the relationship does not depend on variant selection
 (Appendix~\ref{app:metadrive}). The bridge helps only in the upper-right quadrant ($T\!>\!F$ and
 $L\!>\!F$). The plotted MetaDrive point (blue diamond) is the planning/greedy cell
 ($T\!-\!F\!=\!L\!-\!F\!=\!-2.7$), which sits essentially at the origin: neither channel beats
@@ -469,7 +516,7 @@ caveats in Appendix~\ref{app:bridge_replace}).
 \toprule
 Game & $L_{\text{train}}$ & $L_{\text{zero}}$ & $L_{\text{rand}}$ & verdict & $T\!-\!F$ \\
 \midrule
-RoadRunner    & $\mathbf{967}$ & 0     & 8     & learned & $+608$ \\
+RoadRunner    & $\mathbf{608}$ & 0     & 8     & learned & $+475$ \\
 Seaquest      & $\mathbf{100}$ & 28    & 5     & learned & $+22$  \\
 MsPacman      & $\mathbf{666}$ & 408   & 410   & learned & $+152$ \\
 Enduro        & 7.8            & 1.4   & 4.7   & trend only (at floor) & $-3$ \\
@@ -532,15 +579,16 @@ worse than the text bridge on any of the 7 games and is significantly \emph{bett
 This is a more modest claim than the greedy headline---the significant wins shrink from 4 to 2---but a
 decoder-robust one. We do \emph{not} claim an a~priori rule for which channel wins a given game; we
 claim that, tuned, the latent is never worse and is sometimes substantially better. RoadRunner additionally does not
-reproduce its headline magnitude across hardware ($L\!=\!967$ on H100 $\to$ $608$ on Blackwell, FP
-nondeterminism amplified by its $F\!=\!0$ baseline; Appendix~\ref{app:decoder_sweep}); its $L\!>\!T$
+reproduce a stable absolute magnitude run-to-run ($L$ ranges $608$--$967$ across runs of the same
+host, floating-point nondeterminism in the greedy slow-model generation amplified by its $F\!=\!0$
+baseline; we report the conservative $608$, Appendix~\ref{app:decoder_sweep}); its $L\!>\!T$
 direction is robust, its magnitude is not.
 \end{finding}
 
 \begin{finding}
 \textbf{The latent bridge helps iff the slow model helps the task.} Pooling 7 Atari games and a
-driving domain (MetaDrive), $L\!-\!F$ tracks $T\!-\!F$ at Pearson $r=0.92$ ($n=8$ reported-variant,
-$r=0.94$ over all 16 evaluated cells; Figure~\ref{fig:predictor}). Because Stage~C distills $L$ toward $T$ ($\mathrm{KL}(\pi_L\|\pi_T)$),
+driving domain (MetaDrive), $L\!-\!F$ tracks $T\!-\!F$ at Pearson $r=0.93$ ($n=8$ reported-variant,
+$r=0.96$ over all 16 evaluated cells; Figure~\ref{fig:predictor}). Because Stage~C distills $L$ toward $T$ ($\mathrm{KL}(\pi_L\|\pi_T)$),
 the latent's ceiling is the text teacher: the bridge is worthwhile exactly when slow reasoning
 beats reaction ($T\!>\!F$), and is inert/harmful otherwise. MetaDrive is the controlled negative
 ($T\!\le\!F$ even in a planning-heavy regime), with the bridge-replacement control confirming the
@@ -552,10 +600,10 @@ property of the task's bottleneck (deliberation vs.\ perception--action), not of
 
 \begin{itemize}[topsep=0pt,itemsep=0pt,leftmargin=*]
 \item \textbf{Small $n$.} 12 episodes per cell. Several cells have zero per-episode variance (greedy decoding + deterministic policy + small action space); on those, parametric statistics are not meaningful and we report MWU or just note the deterministic outcome.
-\item \textbf{Per-game variant selection.} The headline reports, per game, the Stage~A variant with the higher deployment $L$ among variants whose $T$ has not collapsed (\S\ref{sec:setup_variant}); this is a per-game choice. We report both variants for every game in Appendix~\ref{app:full}, and show the cross-game predictor holds with no selection ($r=0.94$ over all 16 evaluated cells).
+\item \textbf{Per-game variant selection.} The headline reports, per game, the Stage~A variant with the higher deployment $L$ among variants whose $T$ has not collapsed (\S\ref{sec:setup_variant}); this is a per-game choice. We report both variants for every game in Appendix~\ref{app:full}, and show the cross-game predictor holds with no selection ($r=0.96$ over all 16 evaluated cells).
 \item \textbf{The token-count ($N$) ablation is three points.} The deploy-only result complicates the Goldilocks story, as noted in \S\ref{sec:bandwidth}.
 \item \textbf{Per-emission information content is not measured directly.} We show in \S\ref{sec:bridge_content} that the bridge is strongly game-conditioned but only weakly per-emission-conditioned; a quantitative bound on the latent's per-emission information content is the natural next step.
-\item \textbf{Beyond Atari: one driving domain, a controlled negative.} We ported the pipeline to MetaDrive (\S\ref{sec:metadrive}, Appendix~\ref{app:metadrive}); the bridge does not help there, and the bridge-replacement control shows why (the latent is inert because the slow model's guidance never beats fast-only, $T\!\le\!F$). This is consistent with the $(T\!-\!F, L\!-\!F)$ predictor ($r=0.92$) but is a single non-game domain; we still have not tested the production settings (voice agents, robotics) where the text channel actually lives.
+\item \textbf{Beyond Atari: one driving domain, a controlled negative.} We ported the pipeline to MetaDrive (\S\ref{sec:metadrive}, Appendix~\ref{app:metadrive}); the bridge does not help there, and the bridge-replacement control shows why (the latent is inert because the slow model's guidance never beats fast-only, $T\!\le\!F$). This is consistent with the $(T\!-\!F, L\!-\!F)$ predictor ($r=0.93$) but is a single non-game domain; we still have not tested the motivating target setting---real-time computer-use and game agents on phone and desktop, with their much larger action and observation spaces.
 \end{itemize}
 
 Two further negative results bound the claims but are findings rather than limitations: giving
@@ -566,13 +614,13 @@ confounds noted (Appendix~\ref{app:scaling_30b}).
 
 \subsection{Implications}
 
-For deployments where slow reasoning does not improve on fast reaction ($T\!\le\!F$, MetaDrive-like), neither bridge pays for itself, and the text channel is the cheaper way to find that out. For deployments where slow reasoning does help ($T\!>\!F$), the latent bridge is a safe-or-better drop-in for the text channel: tuned per channel, it is never significantly worse than text and wins by up to $+57\%$ on the games where it wins significantly (MsPacman, RoadRunner; statistical ties on the rest, \S\ref{sec:best_achievable}). Two caveats temper a stronger claim: the advantage is realized through better greedy action selection (it does not survive a \emph{fixed} stochastic decoder), and on the one game with a degenerate $F\!=\!0$ baseline (RoadRunner) the magnitude is hardware-sensitive. The architectural fix is not novel---LLaVA's pattern applied to a non-vision coupling problem---but the empirical demonstration at this scale, with an honest decoder-sensitivity analysis and a methodological mechanism for the collapses, is new to our knowledge.
+For deployments where slow reasoning does not improve on fast reaction ($T\!\le\!F$, MetaDrive-like), neither bridge pays for itself, and the text channel is the cheaper way to find that out. For deployments where slow reasoning does help ($T\!>\!F$), the latent bridge is a safe-or-better drop-in for the text channel: tuned per channel, it is never significantly worse than text and wins by up to $+57\%$ on the games where it wins significantly (MsPacman, RoadRunner; statistical ties on the rest, \S\ref{sec:best_achievable}). Two caveats temper a stronger claim: the advantage is realized through better greedy action selection (it does not survive a \emph{fixed} stochastic decoder), and on the one game with a degenerate $F\!=\!0$ baseline (RoadRunner) the magnitude is run-to-run-sensitive (floating-point nondeterminism in the slow-model generation). The architectural fix is not novel---LLaVA's pattern applied to a non-vision coupling problem---but the empirical demonstration at this scale, with an honest decoder-sensitivity analysis and a methodological mechanism for the collapses, is new to our knowledge.
 
 % --------------------------------------------------------------------------
 \section{Related Work}
 \label{sec:related}
 
-\paragraph{Text-channel fast-slow systems.} Gemini Live~\cite{gemini_live} and OpenAI Realtime~\cite{openai_realtime} use monolithic streaming models with shallow thinking. SayCan~\cite{saycan} and Inner Monologue~\cite{inner_monologue} couple LLM planners to skill policies via natural-language sub-goals; RT-2~\cite{rt2} unifies them with a discrete-token action head. Our setting holds the architecture fixed and varies only the channel between two general-purpose LLMs at matched scale.
+\paragraph{Real-time and computer-use agents.} Closed streaming systems---Gemini Live~\cite{gemini_live}, OpenAI Realtime~\cite{openai_realtime}---fold perception and shallow thinking into one model. Closest in spirit is Thinking Machines Lab's \emph{Interaction Models}~\cite{interaction_models}, which make the fast/slow split explicit---a live interaction model plus an asynchronous background reasoner---but couple them through \emph{natively shared context} (the background model receives the full conversation), a richer mechanism than---though akin in spirit to---the text suffix our $T$ channel feeds a frozen reader, and within a single closed, jointly-trained system rather than two independent frozen models. We neither use nor compare against these directly; we note only that open-source VLMs expose no equivalent fast/slow split, which is the gap our coupling fills, and that we test a \emph{learned latent} channel as the alternative to their text/context coupling. Computer-use and GUI agents (operating a phone or desktop from pixels) inherit exactly this tension between a tight perception--action loop and goal-level planning. SayCan~\cite{saycan} and Inner Monologue~\cite{inner_monologue} couple LLM planners to skill policies via natural-language sub-goals; RT-2~\cite{rt2} unifies them with a discrete-token action head. Our setting holds the architecture fixed and varies only the \emph{channel} between two frozen general-purpose multimodal LLMs at matched scale.
 
 \paragraph{Multimodal coupling.} LLaVA~\cite{llava}, BLIP-2~\cite{blip2}, Flamingo~\cite{flamingo}, MiniCPM-o~\cite{minicpmo} couple vision and language by prepending projected visual tokens to an LLM's input. BLIP-2 ablates query-token count, the closest prior analog to our $N$ sweep. Our v2 transfers this pattern to language-language fast/slow coupling.
 
@@ -608,7 +656,7 @@ of its advantage where it wins (\S\ref{sec:bridge_replace}).
 Rather than a ``text is bandwidth-limited'' story---which our own ablations do not support
 (\S\ref{sec:bandwidth}, Appendix~\ref{app:scaling_30b})---we land on a sharper claim:
 \textbf{the latent bridge helps if and only if slow reasoning helps the task}. $L\!-\!F$ tracks
-$T\!-\!F$ at $r=0.92$ across 7 Atari games and a driving domain ($r=0.94$ over all 16 evaluated
+$T\!-\!F$ at $r=0.93$ across 7 Atari games and a driving domain ($r=0.96$ over all 16 evaluated
 cells); MetaDrive is a controlled negative where the slow model never beats fast-only and the
 latent is correspondingly inert; and the per-game learned-content verdicts track the same
 variable (\S\ref{sec:predictor}).
@@ -616,8 +664,10 @@ variable (\S\ref{sec:predictor}).
 The cleanest follow-ups are (i) an emission-discrimination auxiliary loss during Stage~C to push
 more per-tick state into the bridge---the trained latent is non-lexical and strongly
 game-conditioned but only weakly per-emission-conditioned, so its used capacity is far below its
-nominal $8\!\times\!4096$ (\S\ref{sec:bridge_content})---and (ii) testing the comparison in the
-production settings (voice agents, robotics) where the text channel actually lives.
+nominal $8\!\times\!4096$ (\S\ref{sec:bridge_content})---and (ii) scaling the comparison to the
+target setting that motivates it: real-time computer-use and game agents on phone and desktop,
+where the same fast-react/slow-plan tension holds but the action and observation spaces are far
+larger than Atari.
 
 \bibliographystyle{plain}
 \bibliography{refs}
@@ -690,7 +740,7 @@ Atari Annotated RAM Interface~\cite{atariari}.
 \section{Latency breakdown}
 \label{app:latency}
 
-Per-tick wall-clock on a contended-GPU host (vLLM workers sharing the same H100 family):
+All experiments run on a single NVIDIA RTX Pro 6000 (96\,GB). Per-tick wall-clock on this host, with vLLM workers sharing the same GPU (hence contended):
 \smallskip\noindent
 \begin{tabular}{lccc}
 \toprule
@@ -872,7 +922,7 @@ RoadRunner  & $w=3$         & $0.0\pm0.0$     &   0.0 &   0 &   0  \\
 \bottomrule
 \end{tabular}\smallskip
 
-\paragraph{Reading.} On MsPacman, doubling/tripling the $T$ budget gives a small monotonic decline ($-14$\,\% from $w\!=\!1$ to $w\!=\!3$). On RoadRunner, $w\!=\!2$ collapses to near-zero and $w\!=\!3$ collapses to exact zero on every episode. Older emissions appear to be stale and to mislead the action head; the fast model does not learn an implicit time-ordering of the concatenated emissions. The $L$ scores stay at their paper values ($L_{\text{MsPacman}}\!=\!628$, $L_{\text{RoadRunner}}\!=\!967$), so the $L\!-\!T$ gap widens monotonically with $w$.
+\paragraph{Reading.} On MsPacman, doubling/tripling the $T$ budget gives a small monotonic decline ($-14$\,\% from $w\!=\!1$ to $w\!=\!3$). On RoadRunner, $w\!=\!2$ collapses to near-zero and $w\!=\!3$ collapses to exact zero on every episode. Older emissions appear to be stale and to mislead the action head; the fast model does not learn an implicit time-ordering of the concatenated emissions. The $L$ scores are unchanged by $w$ ($L$ uses only the latest emission), so the $L\!-\!T$ gap widens monotonically with $w$ as $T$ collapses.
 
 \section{Sampling on other greedy-degenerate games (full numbers)}
 \label{app:other_sampling}
@@ -935,13 +985,14 @@ The latent's small per-emission variance (\S\ref{sec:bridge_content}) shifts the
 argmax but is swamped once the decoder samples, so the latent yields a better \emph{greedy policy}
 rather than a more robustly informative channel.
 
-\paragraph{RoadRunner is also hardware-fragile.} RoadRunner greedy does \emph{not} reproduce the
-paper's headline ($L\!=\!967$, run on an H100 family per Appendix~\ref{app:latency}): on the
-Blackwell GPU used for these re-runs it gives a tight $L\!=\!608$. Because $F$ reproduces exactly
-and only the slow-model-dependent cells drift, and only on the one game whose $F\!=\!0$ makes the
-score hinge entirely on the slow emission triggering one precise action, the cause is floating-point
-nondeterminism in the (greedy, \texttt{do\_sample=False}) slow-model generation across hardware. The
-$L\!>\!T$ \emph{direction} is robust ($608$ vs $475$); the headline magnitude is hardware-specific.
+\paragraph{RoadRunner greedy is run-to-run-fragile in magnitude.} RoadRunner greedy $L$ is unstable
+across runs of the same host (a single RTX Pro 6000, Appendix~\ref{app:latency}): this decoder-sweep
+run gives a tight $L\!=\!608\pm29$---the value we report as canonical---while an earlier run scored
+$L\!=\!967$. Because $F$ reproduces exactly and only the slow-model-dependent cells drift, and only on
+the one game whose $F\!=\!0$ makes the score hinge entirely on the slow emission triggering one precise
+action, the cause is floating-point nondeterminism in the (greedy, \texttt{do\_sample=False})
+slow-model generation across runs (batched vLLM generation is not bitwise-deterministic). The
+$L\!>\!T$ \emph{direction} is robust ($608$ vs $475$); the absolute magnitude is not.
 
 \section{Held-out decoder selection protocol}
 \label{app:heldout}
@@ -1006,7 +1057,7 @@ $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$ by $>\!10
 \toprule
 Game & $L_{\text{train}}$ & $L_{\text{zero}}$ & $L_{\text{rand}}$ & verdict & $T\!-\!F$ \\
 \midrule
-RoadRunner    & $\mathbf{967}$ & 0     & 8     & learned (Welch $t\!=\!58$) & $+608$ \\
+RoadRunner    & $\mathbf{608}$ & 0     & 8     & learned (Welch $t\!\approx\!71$) & $+475$ \\
 Seaquest      & $\mathbf{100}$ & 28    & 5     & learned ($t\!=\!36$)       & $+22$  \\
 MsPacman      & $\mathbf{666}$ & 408   & 410   & learned ($t\!=\!2.3$)      & $+152$ \\
 Enduro        & 7.8            & 1.4   & 4.7   & trend only (tiny, $t\!=\!1.1$) & $-3$ \\
@@ -1017,7 +1068,7 @@ River Raid    & 360            & 1013  & 1003  & \emph{harmful}             & $-
 \end{tabular}\smallskip
 
 \paragraph{Reading: learned content tracks the predictor.}
-The trained latent carries genuinely learned, behavior-relevant content---$L_{\text{trained}}\!\gg\!\max(L_{\text{zero}},L_{\text{random}})$---on \textbf{RoadRunner, Seaquest, and MsPacman}, exactly the games where slow reasoning helps ($T\!>\!F$); on RoadRunner the latent is \emph{almost entirely} learned (controls drop to the floor, $0$ and $8$). On the games where slow reasoning does not help ($T\!\le\!F$: River~Raid, SpaceInvaders), the trained latent is \emph{harmful}---zeroing or randomizing it scores \emph{better}---the same inert/harmful pattern as MetaDrive (\S\ref{sec:metadrive}). Two off-diagonal cases are benign: Enduro's scores are too small for the comparison to be meaningful ($t\!=\!1.1$, n.s.), and Q*bert---the one decoder-fragile game (\S\ref{sec:qbert})---shows trained$\approx$random under sampling, consistent with its thin per-emission signal. So the MsPacman ``$\sim$60\,\% learned / $\sim$40\,\% architectural'' decomposition is \emph{not} universal: the learned fraction ranges from $\sim$100\,\% (RoadRunner) to negative (River~Raid), and its sign is predicted by whether $T\!>\!F$. This is the mechanistic complement to the $r\!=\!0.92$ predictor: the latent helps where---and only where---it has carried real content from a slow channel that itself beats fast-only.
+The trained latent carries genuinely learned, behavior-relevant content---$L_{\text{trained}}\!\gg\!\max(L_{\text{zero}},L_{\text{random}})$---on \textbf{RoadRunner, Seaquest, and MsPacman}, exactly the games where slow reasoning helps ($T\!>\!F$); on RoadRunner the latent is \emph{almost entirely} learned (controls drop to the floor, $0$ and $8$). On the games where slow reasoning does not help ($T\!\le\!F$: River~Raid, SpaceInvaders), the trained latent is \emph{harmful}---zeroing or randomizing it scores \emph{better}---the same inert/harmful pattern as MetaDrive (\S\ref{sec:metadrive}). Two off-diagonal cases are benign: Enduro's scores are too small for the comparison to be meaningful ($t\!=\!1.1$, n.s.), and Q*bert---the one decoder-fragile game (\S\ref{sec:qbert})---shows trained$\approx$random under sampling, consistent with its thin per-emission signal. So the MsPacman ``$\sim$60\,\% learned / $\sim$40\,\% architectural'' decomposition is \emph{not} universal: the learned fraction ranges from $\sim$100\,\% (RoadRunner) to negative (River~Raid), and its sign is predicted by whether $T\!>\!F$. This is the mechanistic complement to the $r\!=\!0.93$ predictor: the latent helps where---and only where---it has carried real content from a slow channel that itself beats fast-only.
 
 \section{30B-A3B cross-scale ablation (full numbers)}
 \label{app:scaling_30b}
@@ -1128,11 +1179,11 @@ even when the task demands route planning.
 
 \paragraph{Robustness of the predictor.}
 The $(T\!-\!F, L\!-\!F)$ correlation (Figure~\ref{fig:predictor}) is robust to both variant
-selection and individual games. \emph{Variant selection:} $r=0.92$ over the 8 reported-variant cells
-and $r=0.94$ over all 16 (game, variant) cells with no selection---the 16 are the 14 bare/robust
+selection and individual games. \emph{Variant selection:} $r=0.93$ over the 8 reported-variant cells
+and $r=0.96$ over all 16 (game, variant) cells with no selection---the 16 are the 14 bare/robust
 Atari cells, a SpaceInvaders expert-data cell (\S\ref{sec:ood}), and MetaDrive---so the choice of
 which Stage~A variant to headline does not create the relationship. \emph{Individual games} (on the 8
-reported-variant cells): leave-one-out Pearson $r$ stays in $[0.89, 0.98]$ for all 8 deletions
+reported-variant cells): leave-one-out Pearson $r$ stays in $[0.89, 0.95]$ for all 8 deletions
 (dropping the RoadRunner high-leverage point gives $r=0.89$); the rank correlation is Spearman
 $\rho=0.98$; a game-level bootstrap (10{,}000 resamples) gives a 95\,\% CI of $[0.81, 1.0]$; and
 excluding both dynamic-range extremes (RoadRunner and River~Raid) still gives $r=0.84$ ($n=6$).

@@ -32,7 +32,10 @@ def main():
         if len(L) and len(T):
             p = stats.ttest_ind(L, T, equal_var=False).pvalue
             u = stats.mannwhitneyu(L, T, alternative="two-sided").pvalue
-            dm = 100 * (np.mean(L) - np.mean(T)) / np.mean(T) if np.mean(T) else float("nan")
+            # compute the displayed % from the rounded means we actually print, so the
+            # table is internally self-consistent (matters for floor cells like Enduro).
+            mL, mT = round(np.mean(L)), round(np.mean(T))
+            dm = 100 * (mL - mT) / mT if mT else float("nan")
             if np.mean(L) > np.mean(T) and min(p, u) < 0.05:   v = r"\textbf{L}"
             elif np.mean(T) > np.mean(L) and min(p, u) < 0.05: v = r"\textbf{T}"
             else:                                              v = "tie"
@@ -76,7 +79,9 @@ def make_combined_table():
         else:                            single, sv = "L", hoL
         p = stats.ttest_ind(hoB, sv, equal_var=False).pvalue
         u = stats.mannwhitneyu(hoB, sv, alternative="two-sided").pvalue
-        dm = 100 * (np.mean(hoB) - np.mean(sv)) / np.mean(sv) if np.mean(sv) else float("nan")
+        # % from the rounded means we print, for internal consistency (see best-achievable note).
+        mB, mS = round(np.mean(hoB)), round(np.mean(sv))
+        dm = 100 * (mB - mS) / mS if mS else float("nan")
         sig = min(p, u) < 0.05
         if dm < 0 and sig:   eff = r"\textbf{interferes}"
         elif dm > 0 and sig: eff = r"\textbf{complements}"

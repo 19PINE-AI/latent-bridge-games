@@ -35,7 +35,7 @@ export default function Header() {
              className="text-muted hover:text-ink flex items-center gap-1.5 transition">
             <FileText size={14} /> Paper
           </a>
-          <a href="https://github.com/bojieli/latent-bridge-games"
+          <a href="https://github.com/19PINE-AI/latent-bridge-games"
              target="_blank" rel="noreferrer"
              className="text-muted hover:text-ink flex items-center gap-1.5 transition">
             <Code2 size={14} /> GitHub

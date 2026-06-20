@@ -22,10 +22,13 @@ export default function Hero() {
               reasoning model — and a sharp answer to <em>when</em> it helps.
             </h2>
             <p className="mt-6 text-ink/90 leading-relaxed">
-              Real-time interactive AI is structurally torn: reasoning models tick too slowly
-              for 60 Hz environments; streaming models lack reasoning depth. Production splits
-              the workload by having the slow model emit <em>text</em> the fast model reads. We
-              test the alternative — a trainable <strong>33 M-param latent bridge</strong>{" "}
+              We want agents that operate a computer like a person — read the screen, issue
+              inputs, close the loop — and real-time games are the hardest case: act every few
+              tens of milliseconds while planning over seconds. No single open model does both: a
+              reasoning VLM is ~1.5 s too slow for the <strong>~15 Hz</strong> control loop, while
+              a reactive VLM has no deliberation. The fast/slow split is the fix — Thinking
+              Machines' <em>Interaction Models</em> make it explicit via shared text/context. We
+              test an open alternative — a trainable <strong>33 M-param latent bridge</strong>{" "}
               prepended LLaVA-style to the fast model's input embedding, carrying the slow
               model's residuals instead of its words.
             </p>
@@ -33,13 +36,13 @@ export default function Hero() {
               Across 7 Atari games and a driving simulator (MetaDrive), the headline is not
               &ldquo;latent beats text&rdquo; — it is a <strong>predictor</strong>: the latent
               bridge helps <em>if and only if</em> slow reasoning beats fast reaction on the task
-              (T &gt; F), at Pearson <strong>r = 0.92</strong>. A bridge-replacement control on
+              (T &gt; F), at Pearson <strong>r = 0.93</strong>. A bridge-replacement control on
               every game confirms the latent carries real learned content exactly where it helps,
               and is inert or harmful where it does not — MetaDrive being the controlled negative.
             </p>
 
             <div className="mt-8 grid grid-cols-3 gap-4">
-              <Stat label="Predictor" value="r = 0.92" sub="L−F tracks T−F across 8 tasks" />
+              <Stat label="Predictor" value="r = 0.93" sub="L−F tracks T−F across 8 tasks" />
               <Stat label="Latent, tuned" value="2/7 wins" sub="sig. beats text; ties 5, never loses" />
               <Stat label="Total trainable" value="33 M" sub="of ~17 B params, both frozen" />
             </div>
@@ -88,7 +91,7 @@ export default function Hero() {
               Full narrated tour with 3-way F/T/L clips for all 7 Atari games and MetaDrive,
               then the headline findings: Road Runner → Ms. Pac-Man → River Raid → Seaquest →
               Q*bert (decoder-dependent) → Space Invaders → Enduro → MetaDrive (the controlled
-              negative) → the T &gt; F predictor (r = 0.92) → the bridge-replacement control.
+              negative) → the T &gt; F predictor (r = 0.93) → the bridge-replacement control.
               Interactive versions in <a href="#replay" className="text-link hover:underline">Replay</a> and
               {" "}<a href="#predictor" className="text-link hover:underline">Predictor</a> below.
             </p>
