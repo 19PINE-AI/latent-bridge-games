@@ -1,21 +1,33 @@
-# Latent Bridge: Fast-Slow Model Coupling for Real-Time Agents
+# The Latent Bridge: A Continuous Slow–Fast Channel for Real-Time Game Agents
 
-> 🎬 **Project goal: a working demo.** The fast/slow architecture is the means; the
+> 🎬 **Deliverable: a working demo.** The fast/slow architecture is the means; the
 > deliverable is a real-time agent you can watch play and replay. Recorded MP4 + live
 > web playback + interactive website are the primary outputs; the experiments in
-> `docs/06_results.md` ground the demo's claims. Roadmap: `docs/07_next_steps.md`.
+> [`docs/06_results.md`](docs/06_results.md) ground the demo's claims (roadmap:
+> [`docs/07_next_steps.md`](docs/07_next_steps.md)).
+>
+> **Paper:** [`paper/main.pdf`](paper/main.pdf) · **Website:** <https://01.me/research/latent-bridge-games>
 
+We want agents that operate a computer like a person — read the screen, issue inputs, close
+the loop — and **real-time games are the hardest case**: the agent must act every few tens of
+milliseconds while pursuing a goal that needs planning over seconds. No single open multimodal
+LLM does both: a **reasoning** VLM (Qwen3-VL-8B-Thinking, 8B) is ~1.5 s too slow for the ~15 Hz
+control loop, while a **reactive** VLM (MiniCPM-o 4.5, 9B) has no deliberation. The fast/slow
+split is the fix — Thinking Machines' [Interaction Models](https://thinkingmachines.ai/blog/interaction-models/)
+make it explicit via shared text/context; we test an **open** alternative.
 
-A research project investigating whether continuous-valued **latent bridges** between a
-frozen real-time multimodal model (MiniCPM-o 4.5, 9B) and a frozen reasoning model
-(Qwen3-VL-8B-Thinking, 8B) can outperform **text-channel** splits for tasks requiring both
-sub-200ms reactive output and long-horizon deliberation. Both endpoints are at matched
-~8-9B scale so the channel — not a capability gap — is the load-bearing variable.
+This project investigates whether a learned continuous-valued **latent bridge** — project the
+slow model's residuals into the fast model's input-embedding space, LLaVA-style — beats the
+standard **text channel** (the slow model writes a prompt suffix the fast model reads) between
+two **frozen** models at matched ~8–9 B scale, so the *channel*, not a capability gap, is the
+load-bearing variable. The 33 M-param bridge is the only trained component.
 
-**Centerpiece scenario:** Atari-class video games requiring fast reflexes AND strategic
-planning (Ms. Pac-Man, Seaquest, Space Invaders).
+**Headline finding:** the latent bridge helps *if and only if* slow reasoning helps the task
+(**T > F**) — `L−F` tracks `T−F` at **Pearson r = 0.93**. Tuned per channel, the latent is never
+significantly worse than the text bridge and significantly better on **2 of 7** games; combining
+both channels *interferes*, so couple via exactly **one**. Details below.
 
-## 🎯 Headline cross-game table — 9 games, 12 episodes per cell
+## 🎯 Per-game scores — 9 games, 12 episodes per cell (fixed-greedy view)
 
 The best L vs T result per game (using whichever Stage A — bare or robust —
 gave the higher L score):
@@ -28,7 +40,7 @@ gave the higher L score):
 | River Raid (robust SA) | 1033 ± 19 | 337 ± 77 | **612 ± 297** | **+82 %** |
 | SpaceInvaders (robust SA) | 107 ± 60 | 18 ± 18 | 15 ± 0 | recovered from 0 |
 | Enduro (robust SA) | 0.8 ± 1.0 | 4.9 ± 5.6 | **5.8 ± 2.5** | +18 % |
-| Q*bert (robust SA) | 25 ± 0 | **125 ± 0** | 50 ± 0 | T > L (categorical content) |
+| Q*bert (robust SA) | 25 ± 0 | **125 ± 0** | 50 ± 0 | T > L (greedy; tie under tuned decoders) |
 | Pong | −21 ± 0 | −21 ± 0 | −21 ± 0 | reactive floor |
 
 > ⚠️ **These are fixed-*greedy*-decoder numbers.** The latent's advantage over
@@ -98,9 +110,11 @@ the action head's OOD-brittleness, not the bridge itself.
 | T (text bridge) | 408 ± 88 | Slow guides fast via text |
 | **L (latent bridge)** | **628 ± 341** | Slow guides fast via latents |
 
-The ordering **S < F < T < L** is the four-strategy story: slow-only is too slow
-for real-time, fast-only lacks planning, text bridges help, latent bridges help
-more.
+On MsPacman the ordering is **S < F < T < L** — slow-only is too slow for real-time,
+fast-only lacks planning, and both bridges help (the latent most, under greedy decoding).
+This is *not* a universal law: whether either bridge beats fast-only is task-dependent
+(the **T > F** predictor), and the latent's edge over text is decoder-specific (see the
+caveat above).
 
 The full story (v1 cross-attn → v2 LLaVA-style redesign) is in
 [`docs/06_results.md`](docs/06_results.md).
@@ -116,7 +130,7 @@ and MiniCPM-o itself use for multimodal coupling.
 ```
 slow model (Qwen3-VL-8B-Thinking)
    └─ residuals at layer 24, last N=8 positions
-       └─ ThoughtProjection (4096 → 4096 → 4096 + LayerNorm, ~32M params trainable)
+       └─ ThoughtProjection (4096 → 4096 → 4096 + LayerNorm, ~33M params trainable)
             └─ N=8 latent tokens in fast model's embedding space
                  └─ PREPENDED to fast model's input embedding sequence
                       └─ fast model (MiniCPM-o 4.5) — all 36 LLM layers attend
@@ -146,12 +160,13 @@ and using the full attention stack.
   never significantly worse than text and significantly better on 2/7 (MsPacman,
   RoadRunner). The original greedy "L > T on 4/7" over-credited the latent — the
   advantage is greedy-specific (see the decoder-sensitivity note above).
-- **H2**: Latent-vs-text gap *grows* with strategic complexity. **❌ Refuted** — the
-  L-T gap is smaller on Tier-3 Seaquest (+26 %) than on Tier-2 MsPacman (+54 %). The
-  bottleneck is Stage A teacher quality, not game tier.
-- **H3**: Frozen base + COCONUT curriculum recovers most of a unified upper bound.
-  **✅ Confirmed**: only 33.6 M slow-projection params trainable; everything else
-  frozen.
+- **H2**: Latent-vs-text gap *grows* with strategic complexity. **❌ Refuted** — emission
+  statistics don't predict sign(L−T) (lexical-diversity *r* = +0.05, n.s.; the
+  continuous-vs-categorical hypothesis is retired). What *does* gate the bridge is the
+  behavioral predictor: it pays off iff slow reasoning beats reaction on the task (**T > F**).
+- **H3**: A frozen base + a small trained channel recovers most of a unified upper bound.
+  **✅ Confirmed**: only the ~33 M-param slow-projection bridge trains; both base models are
+  frozen. (The latent's ceiling is its text teacher — Stage C distills L toward T.)
 
 ## Repo layout
 
@@ -164,7 +179,10 @@ latent-bridge-games/
 │   ├── 03_experiment_plan.md    # experiment plan (updated for v2)
 │   ├── 04_architecture.md       # v2 LLaVA-style bridge spec
 │   ├── 05_status.md             # session-by-session findings log
-│   └── 06_results.md            # paper-style results summary
+│   ├── 06_results.md            # paper-style results summary
+│   └── 07_next_steps.md         # roadmap
+├── paper/                          # LaTeX source + generated figures (main.pdf)
+├── web-react/                      # interactive website source (Vite/React)
 ├── src/
 │   ├── env/atari_wrapper.py     # ALE wrapper + MsPacman/Frostbite/Seaquest RAM decoders
 │   ├── models/fast_model.py     # MiniCPM-o + v2 bridge-token prepend + vision cache
@@ -228,21 +246,19 @@ A single scaling ablation with Qwen3-30B-A3B-Thinking (~60GB) fits at inference 
 ## Status
 
 - [x] Joint inference validation (34GB VRAM, ~270ms cold tick)
-- [x] Stage A behavioral cloning (MsPacman 32 %, Seaquest 24 %, SpaceInvaders 33 %)
+- [x] Stage A behavioral cloning + the **v2 Stage C latent bridge** (the core channel)
 - [x] Stage B text-bridge baseline (T = +59 % over F on MsPacman)
-- [x] **v2 Stage C latent bridge (L = +54 % over T on MsPacman)** ← headline
-- [x] Seaquest end-to-end (L = +26 % over T)
-- [x] SpaceInvaders end-to-end (negative finding: random-policy KL fails on
-      reward-asymmetric games)
-- [x] MI diagnostic on all three games (informative on MsPacman & Seaquest, collapsed
-      on SpaceInvaders — consistent with score outcomes)
-- [x] Latent token-count (N) ablation N=4/8/16 (Goldilocks at N=8 at matched N; deploy-only N=16 scores best — no capacity ceiling)
-- [x] Vision-token cache (latency option)
-- [ ] **Demo: recorded MP4 + live web playback (top priority)** — see `docs/07_next_steps.md`
-- [ ] Stage A robustness ablation (validates SI diagnosis)
-- [ ] Slow-only S + Oracle O baselines (paper completeness)
-- [ ] Tier-1 game (Pong/Breakout) — H2 direction check
-- [ ] Scaling ablation with `Qwen3-VL-30B-A3B-Thinking-FP8` (tests whether more slow-model capacity widens L−T)
-- [ ] Stage D PPO (online RL; will it recover SI?)
-- [ ] Interactive website with demos and side-by-side comparisons
+- [x] Cross-game sweep: 7 Atari games + MetaDrive (the controlled negative)
+- [x] Stage A robustness recipe (`--suffix-prob=0.5`) — validates the OOD-brittleness diagnosis
+- [x] Decoder-sensitivity sweep + held-out **best-achievable** per-channel selection (2-of-7 sig. wins)
+- [x] Combined-channel (T+L) experiment — *interferes*; couple via exactly one channel
+- [x] **Behavioral predictor**: L−F tracks T−F, r = 0.93 (0.96 over all 16 cells)
+- [x] Bridge-replacement control (learned content tracks T > F)
+- [x] 30B-A3B cross-scale ablation (more slow-model capacity does **not** widen L−T)
+- [x] Latent token-count (N) ablation N=4/8/16 (deploy-only N=16 best — no capacity ceiling)
+- [x] MI diagnostic; vision-token cache (latency option)
+- [x] Recorded MP4 demos + interactive website (`web-react` → `web-dist`)
+- [ ] Stage D PPO (online RL; will it recover SpaceInvaders?)
+- [ ] Slow-only S + Oracle O baselines tabulated for all games
+- [ ] Scale to the motivating target: real-time computer-use / game agents on phone & desktop
 ```
