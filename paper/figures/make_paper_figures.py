@@ -86,134 +86,137 @@ OUT = Path(__file__).parent
 # ---------------------------------------------------------------------------
 
 def fig_system():
-    fig = plt.figure(figsize=(7.4, 5.8))
-    gs = fig.add_gridspec(2, 1, height_ratios=[3.4, 1.0], hspace=0.10)
+    # Wider-than-tall, sized close to \textwidth so on-page downscaling is mild
+    # and the labels stay legible. Two stacked panels: runtime loop + training.
+    fig = plt.figure(figsize=(8.6, 6.7))
+    gs = fig.add_gridspec(2, 1, height_ratios=[3.7, 1.0], hspace=0.20)
     ax = fig.add_subplot(gs[0])
     axt = fig.add_subplot(gs[1])
     for a in (ax, axt):
         a.axis("off")
-        a.set_xlim(0, 14)
-    ax.set_ylim(0, 9.9)
-    axt.set_ylim(0, 2.4)
+        a.set_xlim(0, 16)
+    ax.set_ylim(0, 10.4)
+    axt.set_ylim(0, 2.5)
 
-    def box(a, x, y, w, h, fc, ec, text, fs=7.5, tc="black", lw=0.9,
-            weight="normal", style="round,pad=0.06"):
+    def box(a, x, y, w, h, fc, ec, text, fs=8.5, tc="black", lw=1.0,
+            weight="normal", style="round,pad=0.06", va="center"):
         a.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=style,
                                    facecolor=fc, edgecolor=ec, linewidth=lw))
-        a.text(x + w / 2, y + h / 2, text, ha="center", va="center",
+        ty = y + h / 2 if va == "center" else y + h - 0.18
+        a.text(x + w / 2, ty, text, ha="center", va=va,
                fontsize=fs, color=tc, fontweight=weight)
 
-    def arrow(a, x0, y0, x1, y1, color="grey", lw=1.2, ls="-", style="->"):
+    def arrow(a, x0, y0, x1, y1, color="grey", lw=1.4, ls="-", style="-|>",
+              rad=0.0):
+        cs = f"arc3,rad={rad}" if rad else "arc3,rad=0"
         a.annotate("", xy=(x1, y1), xytext=(x0, y0),
                    arrowprops=dict(arrowstyle=style, color=color, lw=lw,
-                                   linestyle=ls))
+                                   linestyle=ls, connectionstyle=cs))
 
-    # ---------------- fast half (top) ----------------
-    # Environment
-    box(ax, 0.2, 6.0, 2.1, 1.9, "#f5f5f5", "0.4",
-        "Environment\nAtari @ 15 Hz\nMetaDrive @ 10 Hz", fs=7.5)
+    # ============== FAST LOOP (top) ==============
+    # Fast-loop container, with a clear header band so text never overlaps content.
+    ax.add_patch(FancyBboxPatch((3.0, 4.5), 12.8, 5.25, boxstyle="round,pad=0.04",
+                                facecolor="#eef6ff", edgecolor=C_ACC, linewidth=1.3))
+    ax.text(9.4, 9.42,
+            "FAST reactive loop  —  MiniCPM-o 4.5 (9 B, frozen)  —  $\\sim$15 Hz",
+            fontsize=9.5, color=C_ACC, ha="center", va="center", fontweight="bold")
 
-    # Fast-loop container
-    ax.add_patch(FancyBboxPatch((3.1, 4.6), 10.7, 4.3, boxstyle="round,pad=0.06",
-                                facecolor="#eef6ff", edgecolor=C_ACC, linewidth=1.0))
-    ax.text(3.4, 8.55, "Fast reactive loop  —  MiniCPM-o 4.5 (9 B, frozen)  —  "
-                       "one action per ~67 ms tick",
-            fontsize=8, color=C_ACC, ha="left", va="center", fontweight="bold")
+    # Environment (far left, spans both halves)
+    box(ax, 0.15, 5.35, 2.45, 2.1, "#f5f5f5", "0.4",
+        "Environment\n\nAtari @ 15 Hz\nMetaDrive @ 10 Hz", fs=8.5)
 
     # vision tower
-    box(ax, 5.0, 7.1, 1.9, 1.0, "white", C_ACC, "vision tower\n(frozen)", fs=7)
-    arrow(ax, 2.35, 7.3, 4.95, 7.6)                     # env frame -> vision tower
-    ax.text(3.3, 7.62, "frame", fontsize=6.5, color="0.35", ha="center",
-            va="bottom")
+    box(ax, 3.35, 6.95, 2.2, 1.1, "white", C_ACC, "vision\ntower\n(frozen)", fs=8.2)
+    arrow(ax, 2.6, 6.9, 3.3, 7.35, color="0.45", lw=1.2)      # env frame -> vision tower
+    ax.text(2.98, 7.5, "frame", fontsize=7.8, color="0.35", ha="center", va="bottom")
 
-    # input token strip: [L prefix][vision][state prompt][T suffix]
-    sy, sh = 5.6, 0.85
-    # L prefix: 8 thin red bars (same motif as fig_architecture)
+    # ---- input token strip: [L prefix][vision][state prompt][T suffix] ----
+    sy, sh = 5.45, 1.0
+    lx = 3.35
+    ax.text(8.0, sy + sh + 0.30, "fast-model input sequence", fontsize=8.2,
+            color="0.4", ha="center", va="bottom", style="italic")
+    # L prefix: 8 thin red bars
     for i in range(8):
-        ax.add_patch(FancyBboxPatch((3.55 + i * 0.155, sy), 0.135, sh,
+        ax.add_patch(FancyBboxPatch((lx + i * 0.18, sy), 0.16, sh,
                                     boxstyle="round,pad=0", facecolor=C_L,
-                                    edgecolor="white", linewidth=0.4, alpha=0.9))
-    ax.text(4.17, sy + sh + 0.12, "L: 8 latent tokens\n(prepended)", fontsize=6.6,
-            color=C_L, ha="center", va="bottom", fontweight="bold")
-    box(ax, 4.95, sy, 1.75, sh, "#e4efe4", "0.55", "vision\ntokens", fs=6.8,
+                                    edgecolor="white", linewidth=0.4, alpha=0.92))
+    ax.text(lx + 0.72, sy - 0.20, "$L$: 8 latent\ntokens", fontsize=7.8,
+            color=C_L, ha="center", va="top", fontweight="bold")
+    box(ax, 5.05, sy, 1.95, sh, "#e4efe4", "0.5", "vision\ntokens", fs=8.0,
         style="round,pad=0.02")
-    box(ax, 6.8, sy, 1.75, sh, "#f4f4f4", "0.55", "game-state\nprompt", fs=6.8,
+    box(ax, 7.1, sy, 2.0, sh, "#f4f4f4", "0.5", "game-state\nprompt", fs=8.0,
         style="round,pad=0.02")
-    box(ax, 8.65, sy, 2.0, sh, "#dbeafe", C_T, "T: slow text suffix\n(appended)",
-        fs=6.6, tc="#1d5e8a", style="round,pad=0.02")
-    arrow(ax, 5.9, 7.1, 5.85, sy + sh + 0.05, color="0.55", lw=1.0)  # vision -> strip
+    box(ax, 9.2, sy, 2.15, sh, "#dbeafe", C_T, "$T$: slow\ntext suffix", fs=8.0,
+        tc="#1d5e8a", style="round,pad=0.02")
+    arrow(ax, 6.05, 6.9, 6.02, sy + sh + 0.02, color="0.5", lw=1.1)  # vision tower -> strip
 
     # LLM + action head
-    box(ax, 11.0, 5.6, 1.25, 1.5, "white", C_ACC, "36-layer\nLLM\n(frozen)", fs=6.8)
-    box(ax, 12.45, 5.6, 1.2, 1.5, "white", C_ACC, "action\nhead\n(Stage A)", fs=6.8)
-    arrow(ax, 10.7, sy + sh / 2, 10.95, 6.35, color="0.3", lw=1.4)
-    arrow(ax, 12.3, 6.35, 12.42, 6.35, color="0.3", lw=1.4)
-    # action back to env: right-angle route around the top of the fast box
-    ax.plot([13.05, 13.05], [7.15, 9.35], color="0.3", lw=1.2)
-    ax.plot([13.05, 1.25], [9.35, 9.35], color="0.3", lw=1.2)
-    arrow(ax, 1.25, 9.35, 1.25, 8.0, color="0.3", lw=1.2)
-    ax.text(7.2, 9.46, "action (greedy argmax over game actions), every tick",
-            fontsize=6.8, color="0.3", ha="center", va="bottom")
+    box(ax, 11.95, 6.85, 1.7, 1.2, "white", C_ACC, "36-layer\nLLM\n(frozen)", fs=8.0)
+    box(ax, 13.9, 6.85, 1.75, 1.2, "white", C_ACC, "action head\n(Stage A,\ntrained)",
+        fs=8.0)
+    arrow(ax, 11.4, sy + sh / 2, 12.0, 7.0, color="0.3", lw=1.7)   # strip -> LLM
+    arrow(ax, 13.6, 7.45, 13.85, 7.45, color="0.3", lw=1.7)        # LLM -> head
+    # action back to env: right-angle route along the top band of the fast box
+    ax.plot([14.78, 14.78], [8.05, 8.62], color="0.3", lw=1.4)
+    ax.plot([14.78, 1.38], [8.62, 8.62], color="0.3", lw=1.4)
+    arrow(ax, 1.38, 8.62, 1.38, 7.45, color="0.3", lw=1.4)
+    ax.text(8.0, 8.74, "action (greedy argmax), every tick",
+            fontsize=8.0, color="0.3", ha="center", va="bottom")
 
-    # F/T/L definition note inside fast box (bottom right, clear of the red arc)
-    ax.text(13.55, 5.22,
-            "F = no colored segment\nT = + blue suffix   ·   L = + red prefix",
-            fontsize=6.6, color="0.25", style="italic", ha="right", va="center")
+    # ============== async divider ==============
+    ax.plot([0.15, 15.8], [4.2, 4.2], ls=(0, (4, 3)), color="0.6", lw=1.0)
+    ax.text(15.78, 4.34, "synchronous  $\\sim$15 Hz", fontsize=7.8, color="0.4",
+            ha="right", va="bottom", style="italic")
+    ax.text(15.78, 4.06, "asynchronous  $\\sim$1 Hz", fontsize=7.8, color="0.4",
+            ha="right", va="top", style="italic")
 
-    # ---------------- async divider ----------------
-    ax.plot([0.2, 13.8], [4.0, 4.0], ls=(0, (4, 3)), color="0.6", lw=0.9)
-    ax.text(0.25, 4.12, "synchronous, ~15 Hz", fontsize=6.8, color="0.4",
-            ha="left", va="bottom", style="italic")
-    ax.text(0.25, 3.86, "asynchronous, ~1 Hz", fontsize=6.8, color="0.4",
-            ha="left", va="top", style="italic")
+    # ============== SLOW MODEL (bottom) ==============
+    box(ax, 0.15, 2.0, 2.45, 1.55, "#f5f5f5", "0.4",
+        "structured state\n(RAM objects /\ndriving state)", fs=7.9)
+    arrow(ax, 1.38, 5.35, 1.38, 3.6, color="0.5", lw=1.2)   # env -> structured state
 
-    # ---------------- slow half (bottom) ----------------
-    box(ax, 0.2, 1.6, 2.1, 1.5, "#f5f5f5", "0.4",
-        "structured state\n(RAM objects /\ndriving state)", fs=7)
-    arrow(ax, 1.25, 5.95, 1.25, 3.2, color="0.55", lw=1.0)  # env -> structured state
-
-    box(ax, 3.1, 1.35, 3.0, 2.0, "#fff0e0", C_ACC,
-        "Slow — Qwen3-VL-8B-\nThinking (8 B, frozen)\n~1.5 s per emission",
-        fs=7.5)
-    arrow(ax, 2.35, 2.35, 3.05, 2.35, color="0.55", lw=1.0)
+    box(ax, 3.15, 1.9, 3.15, 1.75, "#fff0e0", C_ACC,
+        "SLOW\nQwen3-VL-8B-Thinking\n(frozen, $\\sim$1.5 s/emission)", fs=8.0)
+    arrow(ax, 2.6, 2.75, 3.1, 2.78, color="0.5", lw=1.2)
 
     # text emission -> T channel
-    box(ax, 7.0, 2.5, 2.3, 1.0, "#dbeafe", C_T,
-        "text emission\n(~300 chars)", fs=7, tc="#1d5e8a")
-    arrow(ax, 6.15, 2.95, 6.95, 3.0, color=C_T, lw=1.3)
-    arrow(ax, 9.65, 3.5, 9.65, sy - 0.08, color=C_T, lw=1.6)
+    box(ax, 7.15, 2.75, 2.4, 0.95, "#dbeafe", C_T,
+        "text emission\n($\\sim$300 chars)", fs=7.9, tc="#1d5e8a")
+    arrow(ax, 6.3, 3.0, 7.1, 3.2, color=C_T, lw=1.5)
+    arrow(ax, 10.2, 3.22, 10.2, sy - 0.06, color=C_T, lw=1.9)   # up to T box in strip
 
     # residuals -> MLP -> L channel
-    box(ax, 7.0, 0.5, 2.3, 1.0, "#f4f4f4", "0.5",
-        "layer-24 residuals\n(last 8 positions)", fs=7)
-    arrow(ax, 6.15, 1.75, 6.95, 1.1, color="0.55", lw=1.0)
-    box(ax, 10.0, 0.35, 2.6, 1.3, "#fff8c0", C_ACC,
-        "bridge MLP 4096→4096\n33 M params — the only\ntrained component", fs=7)
-    arrow(ax, 9.35, 1.0, 9.95, 1.0, color="0.55", lw=1.0)
+    box(ax, 7.15, 1.55, 2.4, 0.9, "#f4f4f4", "0.5",
+        "layer-24 residuals\n(last 8 positions)", fs=7.9)
+    arrow(ax, 6.3, 2.45, 7.1, 2.0, color="0.5", lw=1.2)
+    box(ax, 10.3, 1.55, 3.05, 0.9, "#fff8c0", C_ACC,
+        "bridge MLP\n(33 M params,\nonly trained part)", fs=7.9)
+    arrow(ax, 9.6, 2.0, 10.25, 2.0, color="0.5", lw=1.2)
     # MLP up to L prefix in the strip
-    ax.annotate("", xy=(4.17, sy - 0.08), xytext=(10.6, 1.72),
-                arrowprops=dict(arrowstyle="-|>", color=C_L, lw=1.8,
-                                connectionstyle="arc3,rad=0.22"))
-    # async behaviour note, bottom-left empty corner
-    ax.text(0.2, 0.95, "The fast loop never blocks on the slow model;\n"
-                       "the latest emission is reused (~15 ticks)\n"
-                       "until the next one replaces it.",
-            fontsize=6.6, color="0.4", style="italic", ha="left", va="top")
+    arrow(ax, 11.3, 2.45, lx + 0.72, sy - 0.06, color=C_L, lw=2.0, rad=0.16)
 
-    # ---------------- training strip (bottom panel) ----------------
-    axt.text(0.2, 2.15, "Training pipeline (per game; both base models stay frozen):",
-             fontsize=7.8, color="0.25", ha="left", va="center", fontweight="bold")
-    box(axt, 0.2, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
-        "Stage A — action head\nbehavioral cloning from SB3 expert\n"
-        "(bare, or robust: suffix-prob 0.5)", fs=7)
-    box(axt, 4.9, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
-        "Stage B — data\nroll out T; cache (frame, slow text,\nlayer-24 residuals)",
-        fs=7)
-    box(axt, 9.6, 0.25, 4.2, 1.5, "#f0f4f8", "0.45",
-        "Stage C — bridge\ntrain the MLP only:  KL$(\\pi_L\\,\\|\\,\\pi_T)$\n"
-        "(~5K samples/game, final KL ≈ 0.005)", fs=7)
-    arrow(axt, 4.45, 1.0, 4.85, 1.0, color="0.45", lw=1.2)
-    arrow(axt, 9.15, 1.0, 9.55, 1.0, color="0.45", lw=1.2)
+    # compact F/T/L key (clear corner under the slow row)
+    ax.text(15.78, 2.4,
+            "$F$: sequence as shown\n"
+            "$T$:  $F$ + blue suffix\n"
+            "$L$:  $F$ + red prefix",
+            fontsize=8.0, color="0.2", ha="right", va="top",
+            bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="0.7", lw=0.8))
+
+    # ============== training strip (bottom panel) ==============
+    axt.text(8.0, 2.32, "Training pipeline (per game; both base models stay frozen)",
+             fontsize=8.8, color="0.2", ha="center", va="center", fontweight="bold")
+    box(axt, 0.15, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
+        "Stage A — action head\nBC from SB3 expert\n(bare, or robust: suffix-prob 0.5)",
+        fs=8.0)
+    box(axt, 5.55, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
+        "Stage B — data\nroll out $T$; cache (frame,\nslow text, layer-24 residuals)",
+        fs=8.0)
+    box(axt, 10.95, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
+        "Stage C — bridge\ntrain the MLP only on\nKL$(\\pi_L\\,\\|\\,\\pi_T)$, "
+        "$\\sim$5K samples/game", fs=8.0)
+    arrow(axt, 5.05, 1.0, 5.5, 1.0, color="0.45", lw=1.5)
+    arrow(axt, 10.45, 1.0, 10.9, 1.0, color="0.45", lw=1.5)
 
     fig.savefig(OUT / "fig_system.pdf")
     fig.savefig(OUT / "fig_system.png", dpi=200)
@@ -348,7 +351,7 @@ HEADLINE_ORDER = [
 
 
 def fig_headline():
-    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    fig, ax = plt.subplots(figsize=(7.6, 3.9))
     games = [g[0] for g in HEADLINE_ORDER]
     means = {"F": [], "T": [], "L": []}
     errlo = {"F": [], "T": [], "L": []}
@@ -395,23 +398,24 @@ def fig_headline():
             sig = f"W n.s.\nMWU {mwu_sig}"
         color = C_GOOD if l > t else (C_BAD if t > l else "grey")
         if l > t:
-            tag = f"+{delta:.0f}%\n{sig}"
+            tag = f"$L$ +{delta:.0f}%\n{sig}"
             yloc = max(l + errhi["L"][i], t + errhi["T"][i]) + 25
             ax.text(i + w, yloc, tag, ha="center", va="bottom",
                     fontsize=7, color=color, fontweight="bold")
         elif t > l:
-            tag = f"T leads\n+{(100*(t-l)/max(l,1e-9)):.0f}%\n{sig}"
-            yloc = max(l + errhi["L"][i], t + errhi["T"][i]) + 5
+            tag = f"$T$ +{(100*(t-l)/max(l,1e-9)):.0f}%\n{sig}"
+            yloc = max(l + errhi["L"][i], t + errhi["T"][i]) + 25
             ax.text(i, yloc, tag, ha="center", va="bottom",
                     fontsize=7, color=color, fontweight="bold")
 
     ax.set_xticks(x); ax.set_xticklabels(games, fontsize=8)
-    ax.set_ylabel("Mean episode score  (95% bootstrap CI; n=12)")
-    ax.set_title("Cross-game F/T/L (reported variant per game).  "
-                 "L beats T on 4 games; Q*bert inverts; 2 games are ties.  "
-                 "Asterisks (*) tag robust-SA variants.",
+    ax.set_ylabel("Mean episode score  (95% bootstrap CI; $n=12$)")
+    ax.set_ylim(top=1300)   # headroom so the River Raid bar clears the legend
+    ax.set_title("Cross-game F / T / L scores (reported variant per game, greedy decoding)\n"
+                 "Stars: $L$-vs-$T$ significance    ·    $*$ on game label = robust Stage A",
                  fontsize=9.5)
-    ax.legend(loc="upper right", frameon=False, ncol=3, fontsize=7.5)
+    ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=7.5,
+              handletextpad=0.5, borderaxespad=0.4)
     ax.axhline(0, color="black", lw=0.5, alpha=0.5)
     fig.tight_layout()
     fig.savefig(OUT / "fig_headline.pdf")
@@ -591,12 +595,24 @@ def fig_continuous_vs_categorical():
     xs    = [r[1] for r in rows]
     ys    = [r[2] for r in rows]
 
+    # Per-game label offsets (points) to avoid collisions in the crowded
+    # mid-diversity band (Seaquest / RoadRunner / SpaceInvaders).
+    OFFS = {
+        "MsPacman":       (9, 5),
+        "Seaquest":       (-10, 12),
+        "RoadRunner":     (9, 5),
+        "River Raid*":    (10, -13),
+        "Enduro*":        (9, 5),
+        "Q*bert*":        (9, -14),
+        "SpaceInvaders*": (-12, -16),
+    }
     for name, x, y in zip(names, xs, ys):
         color = C_L if y > 0 else C_BAD
         ax.scatter([x], [y], s=110, color=color, edgecolor="black", linewidth=0.6, zorder=3)
-        # nudge labels off the point
-        ax.annotate(name, (x, y), xytext=(8, 4 if y > 0 else -10),
-                    textcoords="offset points", fontsize=8)
+        dx, dy = OFFS.get(name, (8, 4 if y > 0 else -10))
+        ha = "right" if dx < 0 else "left"
+        ax.annotate(name, (x, y), xytext=(dx, dy), textcoords="offset points",
+                    fontsize=8, ha=ha, zorder=4)
 
     # Trend hint
     if len(xs) >= 3:
@@ -607,9 +623,11 @@ def fig_continuous_vs_categorical():
                 label=f"linear fit: slope={slope:+.2f}/diversity-unit")
 
     ax.axhline(0, color="black", lw=0.5, alpha=0.5)
+    ax.set_xlim(min(xs) - 1.4, max(xs) + 1.8)
+    ax.set_ylim(min(ys) - 0.18, max(ys) + 0.20)
     ax.set_xlabel("Lexical diversity of slow emissions  "
                   "(unique whitespace tokens / emission)")
-    ax.set_ylabel("(L − T) / T")
+    ax.set_ylabel("$(L - T)\\,/\\,T$")
     # Compute Pearson r for honest annotation
     r = float(np.corrcoef(xs, ys)[0, 1]) if len(xs) >= 2 else float("nan")
     ax.set_title(f"Emission lexical diversity does not predict sign($L-T$): "
@@ -704,13 +722,20 @@ def fig_predictor():
         else:
             ax.scatter([x], [y], s=70, color=col, edgecolor="white",
                        linewidth=0.8, zorder=4)
-        # label placement
-        dx, dy = 0.06 * lim, 0.06 * lim
-        ha = "left"
-        if row["game"] in ("SpaceInvaders", "Riverraid"):
-            dy = -0.12 * lim
-        if row["game"] == "RoadRunner":
-            dx = -0.06 * lim; ha = "right"
+        # label placement — explicit per-game nudges to declutter the near-origin
+        # cluster (Seaquest / Q*bert / Enduro / MetaDrive).
+        u = lim
+        NUDGE = {
+            "RoadRunner":    (-0.06 * u,  0.05 * u, "right"),
+            "MsPacman":      (-0.05 * u, -0.10 * u, "right"),
+            "Seaquest":      (-0.05 * u,  0.10 * u, "right"),
+            "Qbert":         ( 0.06 * u, -0.04 * u, "left"),
+            "Enduro":        ( 0.06 * u,  0.05 * u, "left"),
+            "SpaceInvaders": ( 0.06 * u, -0.04 * u, "left"),
+            "Riverraid":     ( 0.06 * u, -0.10 * u, "left"),
+            "MetaDrive":     ( 0.07 * u, -0.02 * u, "left"),
+        }
+        dx, dy, ha = NUDGE.get(row["game"], (0.06 * u, 0.06 * u, "left"))
         display = {"Riverraid": "River Raid", "Qbert": "Q*bert"}
         lab = display.get(row["game"], row["game"]) + ("  (driving)" if is_md else "")
         ax.annotate(lab, (x, y), (x + dx, y + dy), fontsize=7.0,
