@@ -155,7 +155,7 @@ selection ($r=0.93$ on the 8 reported cells, $r=0.96$ on all 16 evaluated cells)
 
 \paragraph{Evaluation.} We evaluate each (game, strategy, variant) combination using 3 random seeds $\times$ 4 episodes per seed, for a total of $n=12$ episodes per cell. Episodes are capped at 500 ticks. Arcade Learning Environment (ALE) seeds vary per episode, but action selection is greedy (the action with the highest probability). As a result, many cells exhibit zero per-episode variance (Appendix~\ref{app:stats}).
 
-\paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since action-head cloning converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight. action-head validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
+\paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since action-head cloning converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight: its action-head validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
 
 % --------------------------------------------------------------------------
 \section{Architecture: v1 cross-attention failed; v2 LLaVA-style works}
@@ -486,7 +486,7 @@ vectors at matched norm, and check whether the score drops (\S\ref{sec:bridge_re
 the MsPacman case in depth)---doubles as a per-game diagnostic of whether the Latent Bridge carries
 learned, behavior-relevant content. We ran it on all 7 Atari games; ``learned'' means
 $L_{\text{trained}}$ exceeds $\max(L_{\text{zero}},L_{\text{random}})$ by $>\!10\%$. Cells use
-the bare action head head under greedy decoding (Q*bert: robust head under $\tau\!=\!1$ sampling,
+the bare action head under greedy decoding (Q*bert: robust head under $\tau\!=\!1$ sampling,
 its canonical decoder); $T\!-\!F$ is the matching bare-head value, and the run is an independent
 re-run whose repeated cells agree with the headline within run-to-run noise (full numbers and
 caveats in Appendix~\ref{app:bridge_replace}).
@@ -1047,7 +1047,7 @@ The greedy result ($L=210\pm0$) reproduces the deterministic-trajectory pattern 
 \section{Per-game collapse triage}
 \label{app:collapse}
 
-Across the 14 (game, variant) cells in Appendix~\ref{app:full}, five have a strategy cell at zero (the first five rows below). The robust action head additionally destroys one already-working cell without driving it to exactly zero (MsPacman/robust, $L\!\to\!60$), and a separate game, Pong (outside the 14), sits at the random-policy floor ($-21$). action-head val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare action head val-acc, not with bridge-distillation KL.
+Across the 14 (game, variant) cells in Appendix~\ref{app:full}, five have a strategy cell at zero (the first five rows below). The robust action head additionally destroys one already-working cell without driving it to exactly zero (MsPacman/robust, $L\!\to\!60$), and a separate game, Pong (outside the 14), sits at the random-policy floor ($-21$). Action-head val-accuracy is the load-bearing predictor of collapse, not bridge-training failure: $\sigma$ of $T,L$ at deployment correlates with bare action head val-acc, not with bridge-distillation KL.
 
 \smallskip\noindent
 {\small\setlength{\tabcolsep}{4pt}
