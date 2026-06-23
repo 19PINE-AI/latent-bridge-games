@@ -83,7 +83,17 @@ We seek agents for \emph{general computer use} (GCU): read the screen, issue low
 
 \paragraph{Our setting.} We carry this principle to general computer use, and specifically to real-time games. The open, general-purpose models one would actually deploy come with no built-in fast/slow split: a \emph{reasoning} VLM (Qwen3-VL-8B-Thinking~\cite{qwen3vl}) deliberates well but needs $\sim$1.5\,s per response---tens of frames late for a $\sim$15\,Hz loop---while a \emph{reactive} VLM (MiniCPM-o~4.5~\cite{minicpmo}) answers in milliseconds but plans poorly: acting alone (\textbf{Fast-Only}, $F$) it leaves much on the table---on MsPacman, coupling in a reasoner roughly doubles the score. We therefore couple two \emph{frozen, open-source} models of matched scale and study the question these systems leave implicit: \emph{how} should the slow model's deliberation reach the fast model---can a learned continuous latent channel beat the standard text coupling?
 
-\paragraph{Text Bridge vs.\ Latent Bridge.} The standard coupling is the \textbf{Text Bridge} ($T$): the slow model writes its conclusion and the fast model reads it as a prompt suffix. We introduce the learned continuous \textbf{Latent Bridge} ($L$): it projects the slow model's residual stream directly into the fast model's input-embedding space (LLaVA-style) and prepends a few latent tokens, with no text round-trip. Both are compared against \textbf{Fast-Only} ($F$). Because both base models are frozen and matched in scale (9\,B fast, 8\,B slow), the \emph{channel}---the sole learned component---is the only variable under study. The fast model acts at $\sim$15\,Hz, the slow model deliberates at $\sim$1\,Hz. We evaluate on Atari~\cite{atari} (100\,ms ghost-dodging meets 10\,s route-planning) and the MetaDrive driving simulator as a controlled negative.
+\paragraph{Text Bridge vs.\ Latent Bridge.} The standard coupling is the \textbf{Text Bridge} ($T$): the slow model writes its conclusion and the fast model reads it as a prompt suffix. We introduce the learned continuous \textbf{Latent Bridge} ($L$): it projects the slow model's residual stream directly into the fast model's input-embedding space (LLaVA-style) and prepends a few latent tokens, with no text round-trip. Both are compared against \textbf{Fast-Only} ($F$). Because both base models are frozen and matched in scale (9\,B fast, 8\,B slow), the \emph{channel}---the sole learned component---is the only variable under study. The fast model acts at $\sim$15\,Hz, the slow model deliberates at $\sim$1\,Hz. We evaluate on Atari~\cite{atari} (100\,ms ghost-dodging meets 10\,s route-planning) and the MetaDrive driving simulator as a controlled negative; the eight evaluated domains are previewed in Figure~\ref{fig:games}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_games_grid.pdf}
+\caption{\textbf{The eight evaluated domains.} Seven Atari games (raw pixels, $\sim$15\,Hz
+control), spanning fast hazard-avoidance---ghosts, obstacles, enemy fire---and slower
+route/strategy planning, plus MetaDrive (top-down driving), our non-Atari controlled negative.
+Frostbite (excluded) and Pong (reported but uninformative) are discussed in \S\ref{sec:setup} and not shown.}
+\label{fig:games}
+\end{figure}
 
 \paragraph{What this paper shows.}
 \begin{itemize}[topsep=0pt,itemsep=2pt,leftmargin=*]
@@ -154,16 +164,6 @@ suffix/bridge inputs (River~Raid $L\!:\!360\!\to\!612$, Q*bert $0\!\to\!50$), bu
 games where the bare head already works well (MsPacman $628\!\to\!60$, Seaquest $80\!\to\!0$). 
 Even without any selection, the cross-game predictor (\S\ref{sec:predictor}) remains strong
 ($r=0.93$ on the 8 reported cells, $r=0.96$ on all 16 evaluated cells).
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_games_grid.pdf}
-\caption{\textbf{The eight evaluated domains.} Seven Atari games (raw pixels, $\sim$15\,Hz
-control), spanning fast hazard-avoidance---ghosts, obstacles, enemy fire---and slower
-route/strategy planning, plus MetaDrive (top-down driving), our non-Atari controlled negative.
-Frostbite (excluded) and Pong (reported but uninformative) are discussed below and not shown.}
-\label{fig:games}
-\end{figure}
 
 \paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since action-head cloning converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight: its action-head validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert (shown with MetaDrive in Figure~\ref{fig:games}).
 
