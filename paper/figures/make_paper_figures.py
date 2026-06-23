@@ -4,7 +4,7 @@ Produces (in paper/figures/):
   0. fig_system.pdf            — whole-system runtime loop + F/T/L + training pipeline
   1. fig_architecture.pdf      — v1 vs v2 bridge schematic
   2. fig_headline.pdf          — cross-game F/T/L bar chart
-  3. fig_roadrunner.pdf        — RoadRunner F=0 vs L=967 close-up
+  3. fig_roadrunner.pdf        — RoadRunner F=0 vs L=608 close-up
   4. fig_stage_a_ood.pdf       — Stage A OOD-brittleness diagnosis chart
   5. fig_bandwidth.pdf         — N=4/8/16 Goldilocks ablation
   6. fig_continuous_vs_categorical.pdf  — refined claim scatter
@@ -307,71 +307,59 @@ HEADLINE_ORDER = [
 ]
 
 
+# Best-achievable (held-out, leave-one-seed-out) per-channel-decoder cells, reproduced
+# from scripts/decoder_select_cv.py (mean, std; n=12). This is the canonical headline:
+# each channel at its own best decoder, the fair comparison. Greedy is the cautionary
+# contrast that lives only in the decoder-sensitivity section.
+BEST_ACHIEVABLE = [
+    # label, robust?, F(mean,std), T(mean,std), L(mean,std), L-vs-T sig, delta% (if L-win)
+    ("MsPacman",        False, (273, 89),  (401, 115), (628, 341), "**",  +57),
+    ("RoadRunner",      False, (0,   0),   (475, 153), (608, 28),  "***", +28),
+    ("Seaquest",        False, (57,  33),  (143, 35),  (125, 18),  "ns",  None),
+    ("River\nRaid",     True,  (994, 146), (639, 238), (566, 223), "ns",  None),
+    ("Q*bert",          True,  (65,  61),  (185, 167), (146, 95),  "ns",  None),
+    ("Space\nInvaders", True,  (135, 62),  (163, 111), (142, 83),  "ns",  None),
+    ("Enduro",          True,  (4,   3),   (3,   5),   (2,   1),   "ns",  None),
+]
+
+
 def fig_headline():
     fig, ax = plt.subplots(figsize=(7.6, 3.9))
-    games = [g[0] for g in HEADLINE_ORDER]
-    means = {"F": [], "T": [], "L": []}
-    errlo = {"F": [], "T": [], "L": []}
-    errhi = {"F": [], "T": [], "L": []}
-    pvals = []
-    for _, game, variant in HEADLINE_ORDER:
-        d = _cell(game, variant)
-        for s in ("F", "T", "L"):
-            m, lo, hi = _ci_yerr(d, s)
-            means[s].append(m); errlo[s].append(lo); errhi[s].append(hi)
-        cmp = STATS.get("comparisons", {}).get(f"{game}/{variant}/L_vs_T", {})
-        pvals.append((cmp.get("welch_t", [None, None])[1],
-                      cmp.get("mann_whitney", [None, None])[1]))
+    labels = [r[0] + ("*" if r[1] else "") for r in BEST_ACHIEVABLE]
+    means = {"F": [r[2][0] for r in BEST_ACHIEVABLE],
+             "T": [r[3][0] for r in BEST_ACHIEVABLE],
+             "L": [r[4][0] for r in BEST_ACHIEVABLE]}
+    stds  = {"F": [r[2][1] for r in BEST_ACHIEVABLE],
+             "T": [r[3][1] for r in BEST_ACHIEVABLE],
+             "L": [r[4][1] for r in BEST_ACHIEVABLE]}
 
-    x = np.arange(len(games))
+    x = np.arange(len(BEST_ACHIEVABLE))
     w = 0.26
+    names = {"F": "F (Fast-Only)", "T": "T (Text Bridge)", "L": "L (Latent Bridge)"}
     for off, s, c in [(-w, "F", C_F), (0, "T", C_T), (w, "L", C_L)]:
-        yerr = np.array([errlo[s], errhi[s]])
-        ax.bar(x + off, means[s], w, yerr=yerr, color=c,
-               label=f"{s} ({ {'F':'fast only','T':'text bridge','L':'latent bridge'}[s] })",
+        ax.bar(x + off, means[s], w, yerr=stds[s], color=c, label=names[s],
                capsize=2, error_kw=dict(elinewidth=0.8))
 
-    # Annotate effect & sig
-    for i in range(len(games)):
+    # Annotate the two significant Latent wins; mark the rest as ties.
+    for i, r in enumerate(BEST_ACHIEVABLE):
+        sig, delta = r[5], r[6]
         t, l = means["T"][i], means["L"][i]
-        if t <= 0 and l <= 0:
-            ax.text(i, 5, "n/a", ha="center", va="bottom", fontsize=7, color="grey")
-            continue
-        if t > 0:
-            delta = 100 * (l - t) / max(t, 1e-9)
+        top = max(l + stds["L"][i], t + stds["T"][i])
+        if sig != "ns" and delta is not None:
+            ax.text(i + w/2, top + 30, f"$L$ +{delta}%\n{sig}", ha="center", va="bottom",
+                    fontsize=7.5, color=C_GOOD, fontweight="bold")
         else:
-            delta = float("inf") if l > 0 else 0.0
-        p, p_mwu = pvals[i]
-        if p is None or (isinstance(p, float) and np.isnan(p)):
-            sig = ""
-        elif p < 0.001: sig = "***"
-        elif p < 0.01:  sig = "**"
-        elif p < 0.05:  sig = "*"
-        else:           sig = "n.s."
-        # When the two tests disagree (Welch n.s. but MWU significant, e.g.
-        # bimodal MsPacman), annotate both rather than letting Welch hide it.
-        if sig == "n.s." and p_mwu is not None and p_mwu < 0.05:
-            mwu_sig = "***" if p_mwu < 0.001 else "**" if p_mwu < 0.01 else "*"
-            sig = f"W n.s.\nMWU {mwu_sig}"
-        color = C_GOOD if l > t else (C_BAD if t > l else "grey")
-        if l > t:
-            tag = f"$L$ +{delta:.0f}%\n{sig}"
-            yloc = max(l + errhi["L"][i], t + errhi["T"][i]) + 25
-            ax.text(i + w, yloc, tag, ha="center", va="bottom",
-                    fontsize=7, color=color, fontweight="bold")
-        elif t > l:
-            tag = f"$T$ +{(100*(t-l)/max(l,1e-9)):.0f}%\n{sig}"
-            yloc = max(l + errhi["L"][i], t + errhi["T"][i]) + 25
-            ax.text(i, yloc, tag, ha="center", va="bottom",
-                    fontsize=7, color=color, fontweight="bold")
+            ax.text(i, top + 30, "tie", ha="center", va="bottom",
+                    fontsize=7, color="0.5", style="italic")
 
-    ax.set_xticks(x); ax.set_xticklabels(games, fontsize=8)
-    ax.set_ylabel("Mean episode score  (95% bootstrap CI; $n=12$)")
-    ax.set_ylim(top=1300)   # headroom so the River Raid bar clears the legend
-    ax.set_title("Cross-game F / T / L scores (reported variant per game, greedy decoding)\n"
-                 "Stars: $L$-vs-$T$ significance    ·    $*$ on game label = robust Stage A",
-                 fontsize=9.5)
-    ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=7.5,
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=8)
+    ax.set_ylabel("Best-achievable score  (mean $\\pm$ std, $n=12$)")
+    ax.set_ylim(top=1320)
+    ax.set_title("Cross-game scores with each channel at its own best decoder (held-out)\n"
+                 "The Latent Bridge significantly beats the Text Bridge on 2 of 7 games; "
+                 "ties elsewhere   ($*$ = robust Stage A)",
+                 fontsize=9.4)
+    ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=7.8,
               handletextpad=0.5, borderaxespad=0.4)
     ax.axhline(0, color="black", lw=0.5, alpha=0.5)
     fig.tight_layout()
@@ -382,7 +370,7 @@ def fig_headline():
 
 
 # ---------------------------------------------------------------------------
-# Figure 3 — RoadRunner cherry-pick (F=0 → L=967)
+# Figure 3 — RoadRunner: F=0 → L=608 (reproducible value)
 # ---------------------------------------------------------------------------
 
 def fig_roadrunner():
@@ -737,6 +725,78 @@ def fig_predictor():
     print("wrote fig_predictor.{pdf,png}")
 
 
+# ---------------------------------------------------------------------------
+# Figure 9 — Bridge-replacement decomposition (MsPacman): how much of L's lift
+#            over F is architectural "slots" vs learned bridge content.
+# ---------------------------------------------------------------------------
+def fig_bridge_decomp():
+    fig, ax = plt.subplots(figsize=(5.2, 3.3))
+    labels = ["$F$\nno tokens", "$L_{\\rm zero}$\n8 zero", "$L_{\\rm random}$\n8 random",
+              "$L_{\\rm trained}$\nbridge"]
+    vals = [256, 379, 387, 628]
+    errs = [25, 95, 161, 356]
+    cols = [C_F, "#f3b8b0", "#ef9a90", C_L]
+    x = np.arange(4)
+    ax.bar(x, vals, 0.62, yerr=errs, color=cols, edgecolor="black", linewidth=0.5,
+           capsize=3, error_kw=dict(elinewidth=0.8))
+    for xi, v in zip(x, vals):
+        ax.text(xi, v + (errs[xi] if xi != 0 else 0) + 18, str(v), ha="center",
+                fontsize=8.5, fontweight="bold")
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=8)
+    ax.set_ylabel("MsPacman score ($n=12$)")
+    ax.set_ylim(0, 1080)
+    # decomposition note in the clear upper-left area (avoids the tall error bars)
+    ax.text(0.03, 0.97,
+            "$L$'s lift over $F$ splits into:\n"
+            "  $\\approx$40% empty slots (zero $\\approx$ random)\n"
+            "  $\\approx$60% learned bridge content",
+            transform=ax.transAxes, ha="left", va="top", fontsize=8.2,
+            bbox=dict(boxstyle="round,pad=0.4", fc="#fbeeec", ec=C_L, lw=0.9))
+    ax.set_title("What the Latent Bridge carries: empty slots vs. learned content\n"
+                 "(MsPacman: 8 empty/random tokens already lift $F$; trained content lifts it further)",
+                 fontsize=9.0)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig_bridge_decomp.pdf")
+    fig.savefig(OUT / "fig_bridge_decomp.png", dpi=200)
+    plt.close(fig)
+    print("wrote fig_bridge_decomp.{pdf,png}")
+
+
+# ---------------------------------------------------------------------------
+# Figure 10 — Longer text suffix hurts: T decays as older emissions are
+#             concatenated, while L (latest emission only) is fixed.
+# ---------------------------------------------------------------------------
+def fig_longer_t():
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.0), sharex=True)
+    W = [1, 2, 3]
+    panels = [
+        (axes[0], "MsPacman", [408, 378, 352], 628, "gentle decline"),
+        (axes[1], "RoadRunner", [608, 8, 0], 608, "collapse to 0"),
+    ]
+    for ax, game, Tvals, Lval, note in panels:
+        ax.plot(W, Tvals, "o-", color=C_T, lw=1.8, markersize=8,
+                label="Text Bridge ($T$)")
+        ax.axhline(Lval, ls="--", color=C_L, lw=1.6,
+                   label="Latent Bridge ($L$), fixed")
+        for w, v in zip(W, Tvals):
+            ax.annotate(str(v), (w, v), textcoords="offset points", xytext=(0, 8),
+                        ha="center", fontsize=7.6, color=C_T, fontweight="bold")
+        ax.set_title(f"{game}", fontsize=9.5)
+        ax.set_xlabel("emissions concatenated into suffix ($w$)")
+        ax.set_xticks(W)
+        ax.set_ylim(-40, 760)
+        ax.margins(x=0.18)
+    axes[0].set_ylabel("score ($n=12$)")
+    axes[0].legend(loc="lower left", frameon=False, fontsize=7.5)
+    fig.suptitle("Longer text suffix, worse policy: the Text Bridge decays as older "
+                 "emissions pile up; the Latent Bridge is fixed", fontsize=9.4, y=1.02)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig_longer_t.pdf")
+    fig.savefig(OUT / "fig_longer_t.png", dpi=200)
+    plt.close(fig)
+    print("wrote fig_longer_t.{pdf,png}")
+
+
 if __name__ == "__main__":
     fig_system()
     fig_architecture()
@@ -747,4 +807,6 @@ if __name__ == "__main__":
     fig_continuous_vs_categorical()
     fig_latency()
     fig_predictor()
+    fig_bridge_decomp()
+    fig_longer_t()
     print("\nall figures written to:", OUT)
