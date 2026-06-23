@@ -69,7 +69,8 @@ function Defs() {
 
 function V2Diagram() {
   return (
-    <svg viewBox="0 0 520 232" className="w-full h-auto" role="img"
+    <div className="overflow-x-auto">
+    <svg viewBox="0 0 520 232" className="w-full h-auto min-w-[420px]" role="img"
          aria-label="v2: slow-model layer-24 residuals pass through a trained 33M MLP into 8 latent tokens prepended to the fast LLM's input; all 36 layers attend to them via standard causal attention.">
       <Defs />
       <SlowBox />
@@ -94,12 +95,14 @@ function V2Diagram() {
         all 36 layers attend over the tokens — standard causal attention
       </text>
     </svg>
+    </div>
   );
 }
 
 function V1Diagram() {
   return (
-    <svg viewBox="0 0 520 232" className="w-full h-auto" role="img"
+    <div className="overflow-x-auto">
+    <svg viewBox="0 0 520 232" className="w-full h-auto min-w-[420px]" role="img"
          aria-label="v1: slow-model residuals go into a 256-dimensional ring buffer injected by cross-attention at only layers 12 and 24 of the fast LLM's 36 layers.">
       <Defs />
       <SlowBox />
@@ -121,6 +124,7 @@ function V1Diagram() {
         only 2 of 36 layers see the bridge · 256-d is not the LLM's native space
       </text>
     </svg>
+    </div>
   );
 }
 

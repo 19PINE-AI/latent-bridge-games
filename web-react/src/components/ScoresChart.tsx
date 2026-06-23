@@ -1,6 +1,7 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
          Legend, LabelList } from "recharts";
 import { GAMES } from "../data/games";
+import { CHANNEL, SERIES_LABEL, AXIS_STROKE, AXIS_TICK, tooltipStyle, tooltipCursor } from "../chartTheme";
 
 // Show the reported variant per game (matches the predictor/headline cells)
 const PRIMARY_GAMES = [
@@ -33,31 +34,17 @@ export default function ScoresChart() {
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 24, right: 16, bottom: 0, left: 0 }}>
-            <XAxis dataKey="name" stroke="#9094a4" fontSize={12}
-                   tick={{ fill: "#bfc3d1" }} interval={0} />
-            <YAxis stroke="#9094a4" fontSize={12} tick={{ fill: "#bfc3d1" }} />
-            <Tooltip
-              contentStyle={{
-                background: "#13151c",
-                border: "1px solid #262a36",
-                borderRadius: 8,
-                color: "#e6e7eb",
-                fontSize: 12,
-              }}
-              cursor={{ fill: "rgba(255,184,77,0.06)" }}
-            />
+            <XAxis dataKey="name" stroke={AXIS_STROKE} fontSize={12}
+                   tick={AXIS_TICK} interval={0} />
+            <YAxis stroke={AXIS_STROKE} fontSize={12} tick={AXIS_TICK} />
+            <Tooltip contentStyle={tooltipStyle} cursor={tooltipCursor} />
             <Legend wrapperStyle={{ fontSize: 12, color: "#bfc3d1" }} />
-            <Bar dataKey="F" name="F (fast only)" fill="#586173" />
-            <Bar dataKey="T" name="T (text bridge)" fill="#5894ff" />
-            <Bar dataKey="L" name="L (latent bridge)">
-              <LabelList dataKey="L_T" position="top" fill="#ffb84d" fontSize={11}
+            <Bar dataKey="F" name={SERIES_LABEL.F} fill={CHANNEL.F} />
+            <Bar dataKey="T" name={SERIES_LABEL.T} fill={CHANNEL.T} />
+            <Bar dataKey="L" name={SERIES_LABEL.L} fill={CHANNEL.L}>
+              <LabelList dataKey="L_T" position="top" fill={CHANNEL.L} fontSize={11}
                          formatter={((v: any) =>
                            v == null ? "" : (v as number) > 0 ? `+${v}%` : `${v}%`) as any} />
-              {data.map((d, i) => (
-                <Cell key={i} fill={d.category === "win-L" ? "#5fd991" :
-                                    d.category === "win-T" ? "#ff8d50" :
-                                    "#a48fff"} />
-              ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>

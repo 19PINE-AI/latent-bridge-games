@@ -94,19 +94,23 @@ export default function ReplayTheater() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Panel label="F · fast-only" color="text-muted" score={g.F}>
                 <video ref={fRef} src={g.videoF} playsInline loop muted controls
+                       aria-label={`${g.name}, fast-only (reactive model alone)`}
                        preload="metadata" className="w-full rounded bg-black" />
               </Panel>
               <Panel label="T · text bridge" color="text-link" score={g.T}>
                 <video ref={tRef} src={g.videoT} playsInline loop muted controls
+                       aria-label={`${g.name}, text bridge`}
                        preload="metadata" className="w-full rounded bg-black" />
               </Panel>
               <Panel label="L · latent bridge" color="text-accent" score={g.L} highlight>
                 <video ref={lRef} src={g.videoL} playsInline loop muted controls
+                       aria-label={`${g.name}, latent bridge`}
                        preload="metadata" className="w-full rounded bg-black" />
               </Panel>
             </div>
           ) : (
             <video src={g.videoFTL ?? g.videoSideBySide} controls playsInline loop
+                   aria-label={`${g.name}, fast vs text vs latent side by side`}
                    preload="metadata" className="w-full rounded-lg bg-black" />
           )}
 

@@ -16,10 +16,10 @@ export default function Hero() {
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
               Latent Bridge
             </h1>
-            <h2 className="text-xl md:text-2xl text-muted font-medium mt-3 leading-snug">
+            <p className="text-xl md:text-2xl text-muted font-medium mt-3 leading-snug">
               A continuous-valued bridge between a frozen 9 B reactive model and a frozen 8 B
               reasoning model — and a sharp answer to <em>when</em> it helps.
-            </h2>
+            </p>
             <p className="mt-6 text-ink/90 leading-relaxed">
               We want agents that operate a computer like a person — read the screen, issue
               inputs, close the loop — and real-time games are the hardest case: act every few
@@ -85,6 +85,7 @@ export default function Hero() {
             </div>
             <video src="demos/combined_narrated.mp4" controls playsInline
                    preload="metadata"
+                   aria-label="Narrated tour: fast/text/latent clips for all games, then the headline findings"
                    className="w-full rounded-lg bg-black aspect-[3376/876]" />
             <p className="mt-3 px-2 text-xs text-muted leading-relaxed">
               Full narrated tour with 3-way F/T/L clips for all 7 Atari games and MetaDrive,

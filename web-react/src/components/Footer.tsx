@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-6 py-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-accent to-good" />
+            <div className="w-6 h-6 rounded bg-gradient-to-br from-accent to-good" aria-hidden />
             <span className="font-semibold">Latent Bridge</span>
           </div>
           <p className="text-xs text-muted leading-relaxed">

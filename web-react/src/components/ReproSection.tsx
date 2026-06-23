@@ -120,7 +120,7 @@ function Card({ icon, title, children }: {
 
 function KV({ k, v }: { k: string; v: string }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] gap-3 py-1.5 text-sm border-b border-border/40 last:border-0">
+    <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-1 sm:gap-3 py-1.5 text-sm border-b border-border/40 last:border-0">
       <span className="text-muted text-xs uppercase tracking-wider pt-0.5">{k}</span>
       <span className="text-ink/90 leading-snug">{v}</span>
     </div>

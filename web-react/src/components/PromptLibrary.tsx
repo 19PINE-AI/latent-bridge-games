@@ -18,9 +18,10 @@ function CopyBtn({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   return (
     <button onClick={() => { navigator.clipboard?.writeText(text); setDone(true); setTimeout(() => setDone(false), 1200); }}
+      aria-label={done ? "Copied to clipboard" : "Copy prompt to clipboard"}
       className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded
                  bg-panel-2 border border-border text-muted hover:text-ink transition">
-      {done ? <Check size={12} className="text-good" /> : <Copy size={12} />}
+      {done ? <Check size={12} className="text-good" aria-hidden /> : <Copy size={12} aria-hidden />}
       {done ? "copied" : "copy"}
     </button>
   );
@@ -45,7 +46,7 @@ export default function PromptLibrary() {
             model gets no system prompt — it only sees pixels and, for T/L, the slow channel.
           </p>
           {Object.entries(SYSTEMS).map(([name, body]) => (
-            <div key={name} className="bg-panel rounded-xl border border-border overflow-hidden">
+            <div key={name} className="bg-panel rounded-2xl border border-border overflow-hidden">
               <button onClick={() => setOpenSys(openSys === name ? null : name)}
                 className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-panel-2 transition">
                 <span className="font-semibold text-ink">{name}</span>
@@ -75,7 +76,7 @@ export default function PromptLibrary() {
             ))}
           </div>
           <div className="grid lg:grid-cols-2 gap-4">
-            <div className="bg-panel rounded-xl border border-border p-4">
+            <div className="bg-panel rounded-2xl border border-border p-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-ink">State snapshot (user prompt)</h4>
                 <CopyBtn text={GAMES[game]?.user_prompt ?? ""} />
@@ -88,7 +89,7 @@ export default function PromptLibrary() {
                 {GAMES[game]?.user_prompt ?? "—"}
               </pre>
             </div>
-            <div className="bg-panel rounded-xl border border-border p-4">
+            <div className="bg-panel rounded-2xl border border-border p-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-ink">Real slow-model emission</h4>
                 <CopyBtn text={GAMES[game]?.slow_emission ?? ""} />

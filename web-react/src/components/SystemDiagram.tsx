@@ -41,7 +41,8 @@ function Arrow({ d, color, dash, width = 1.5 }: {
 
 export default function SystemDiagram() {
   return (
-    <svg viewBox="0 0 940 628" className="w-full h-auto" role="img"
+    <div className="overflow-x-auto">
+    <svg viewBox="0 0 940 628" className="w-full h-auto min-w-[680px]" role="img"
          aria-label="System architecture: the environment feeds frames to a frozen fast model whose input token strip is [8 latent tokens | vision tokens | game-state prompt | slow text suffix]; a 36-layer LLM and Stage-A action head emit one action per ~67 ms tick. Asynchronously, a frozen slow model reads structured state about once a second; its text emission is appended as the T channel, and its layer-24 residuals pass through the only trained component, a 33M bridge MLP, into 8 latent tokens prepended as the L channel. Below: the Stage A/B/C training pipeline.">
       <defs>
         {[C.muted, C.accent, C.link].map(c => (
@@ -185,5 +186,6 @@ export default function SystemDiagram() {
         { t: "≈5 K samples/game · final KL ≈ 0.005", dy: 64, color: C.muted, size: 10 },
       ]} />
     </svg>
+    </div>
   );
 }
