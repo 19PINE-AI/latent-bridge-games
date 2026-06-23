@@ -12,7 +12,8 @@ export default {
         good: "#5fd991",
         bad: "#ff6b6b",
         ink: "#e6e7eb",
-        muted: "#9094a4",
+        muted: "#a6abba",
+        "muted-2": "#bfc3d1",
         link: "#7bb5ff",
       },
       fontFamily: {

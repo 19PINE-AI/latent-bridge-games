@@ -9,10 +9,12 @@ export default function BridgeReplaceChart() {
   const max = Math.max(...rows.flatMap(r => [r.trained, r.zero, r.random]));
 
   const VC: Record<string, string> = {
-    learned: "text-good", inert: "text-muted", harmful: "text-bad",
+    learned: "text-good", random: "text-muted", trend: "text-muted",
+    inert: "text-muted", harmful: "text-bad",
   };
   const VLABEL: Record<string, string> = {
-    learned: "learned content", inert: "inert (≈ controls)", harmful: "harmful (controls win)",
+    learned: "learned content", random: "≈ random (tie)", trend: "trend only (at floor)",
+    inert: "inert (≈ controls)", harmful: "harmful (controls win)",
   };
 
   return (

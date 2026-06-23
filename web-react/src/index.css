@@ -40,3 +40,17 @@ pre, code, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, 
   to   { opacity: 1; transform: translateY(0); }
 }
 .reveal { animation: fade-up 0.5s ease-out forwards; }
+
+/* Keyboard focus — visible ring for all interactive elements */
+:focus-visible {
+  outline: 2px solid #7bb5ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { animation: none; }
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

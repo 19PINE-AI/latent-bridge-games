@@ -18,7 +18,7 @@ export interface GameResult {
   /** Cohen's d for L − T (positive: L > T). */
   cohensD?: number;
   notes: string;
-  category: "win-L" | "win-T" | "collapse" | "floor" | "partial";
+  category: "win-L" | "win-T" | "tie" | "collapse" | "floor" | "partial";
   /** True if abs(score) is small relative to the F floor — treat result with caution. */
   smallScores?: boolean;
   bridgeMI?: { action: number; reward: number };
@@ -85,9 +85,8 @@ export const GAMES: GameResult[] = [
     L_vs_T_pct: 82,
     pvalue: 0.011,
     cohensD: 1.21,
-    notes: "Largest L−T gap in the sweep. Bare Stage A collapsed both bridges; mixed-prompt training shifted T slightly down (383→337) and L dramatically up (360→612). Same fix recipe as Q*bert; opposite direction.",
-    category: "win-L",
-    isHeadline: true,
+    notes: "Largest L−T gap under greedy, but a decoder artifact: under tuned per-channel decoders River Raid is a tie (best-achievable −11%, n.s.), and Fast-Only beats both bridges here anyway. Bare Stage A collapsed both bridges; mixed-prompt training shifted T slightly down (383→337) and L up (360→612). Same fix recipe as Q*bert, opposite direction.",
+    category: "tie",
     videoF: "demos/riverraid_F.mp4",
     videoT: "demos/riverraid_T.mp4",
     videoL: "demos/riverraid_L.mp4",
@@ -106,7 +105,7 @@ export const GAMES: GameResult[] = [
     pvalue: 0.0004,
     cohensD: 2.04,
     notes: "Greedy +26% is a decoder artifact: L locks into a deterministic 8-kill exploit (L std=0), but under multinomial sampling L ≈ T (both roughly double off F, p≈0.60). The slow channel clearly helps here (T,L ≫ F), but the latent-over-text edge does not survive a tuned decoder, so Seaquest is a tie in the best-achievable headline.",
-    category: "win-L",
+    category: "tie",
     videoF: "demos/seaquest_F.mp4",
     videoT: "demos/seaquest_T.mp4",
     videoL: "demos/seaquest_L.mp4",
@@ -244,14 +243,14 @@ export interface BridgeReplacePoint {
   game: string;
   trained: number; zero: number; random: number;
   tmf: number;       // T − F for this game (predictor x-axis)
-  verdict: "learned" | "inert" | "harmful";
+  verdict: "learned" | "random" | "trend" | "inert" | "harmful";
 }
 export const BRIDGE_REPLACE: BridgeReplacePoint[] = [
   { game: "RoadRunner",    trained: 608, zero: 0,    random: 8,    tmf: 475,  verdict: "learned" },
   { game: "MsPacman",      trained: 666, zero: 408,  random: 410,  tmf: 152,  verdict: "learned" },
   { game: "Seaquest",      trained: 100, zero: 28,   random: 5,    tmf: 22,   verdict: "learned" },
-  { game: "Qbert",         trained: 123, zero: 63,   random: 117,  tmf: 100,  verdict: "inert" },
-  { game: "Enduro",        trained: 8,   zero: 1,    random: 5,    tmf: -3,   verdict: "inert" },
+  { game: "Qbert",         trained: 123, zero: 63,   random: 117,  tmf: 100,  verdict: "random" },
+  { game: "Enduro",        trained: 8,   zero: 1,    random: 5,    tmf: -3,   verdict: "trend" },
   { game: "SpaceInvaders", trained: 0,   zero: 148,  random: 90,   tmf: -105, verdict: "harmful" },
   { game: "Riverraid",     trained: 360, zero: 1013, random: 1003, tmf: -683, verdict: "harmful" },
 ];
@@ -346,7 +345,7 @@ export const PREDICTOR: PredictorPoint[] = [
   { game: "MsPacman",      domain: "atari",   variant: "bare",   F: 255.8,  T: 407.5, L: 628.3, TmF: 151.7, LmF: 372.5 },
   { game: "Qbert",         domain: "atari",   variant: "robust", F: 25.0,   T: 125.0, L: 50.0,  TmF: 100.0, LmF: 25.0  },
   { game: "Seaquest",      domain: "atari",   variant: "bare",   F: 41.7,   T: 63.3,  L: 80.0,  TmF: 21.7,  LmF: 38.3  },
-  { game: "Enduro",        domain: "atari",   variant: "bare",   F: 3.2,    T: 0.0,   L: 7.8,   TmF: -3.2,  LmF: 4.5   },
+  { game: "Enduro",        domain: "atari",   variant: "robust", F: 0.8,    T: 4.9,   L: 5.8,   TmF: 4.1,   LmF: 5.0   },
   { game: "MetaDrive",     domain: "driving", variant: "driving",F: 87.8,   T: 85.1,  L: 85.1,  TmF: -2.7,  LmF: -2.7  },
   { game: "SpaceInvaders", domain: "atari",   variant: "robust", F: 107.1,  T: 18.3,  L: 15.0,  TmF: -88.8, LmF: -92.1 },
   { game: "Riverraid",     domain: "atari",   variant: "robust", F: 1032.5, T: 336.7, L: 611.7, TmF: -695.8, LmF: -420.8 },

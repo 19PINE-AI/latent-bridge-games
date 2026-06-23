@@ -1,11 +1,14 @@
 import { Layers, Settings2, ListChecks, Scale } from "lucide-react";
 
 const STAGE_A_VAL_ACC = [
-  { game: "MsPacman",     acc: 32, random: 11, ratio: "2.9×" },
+  { game: "RoadRunner",   acc: 59, random: 5.6, ratio: "10.5×" },
+  { game: "Enduro",       acc: 49, random: 11, ratio: "4.4×" },
   { game: "Seaquest",     acc: 24, random: 5.6, ratio: "4.3×" },
+  { game: "Q*bert",       acc: 34, random: 17, ratio: "2.0×" },
+  { game: "MsPacman",     acc: 32, random: 11, ratio: "2.9×" },
+  { game: "River Raid",   acc: 31, random: 5.6, ratio: "5.5×" },
   { game: "SpaceInvaders", acc: 33, random: 17, ratio: "2.0×" },
   { game: "Pong",         acc: 25, random: 17, ratio: "1.5×" },
-  { game: "RoadRunner",   acc: 59, random: 5.6, ratio: "10.5×" },
 ];
 
 export default function ReproSection() {

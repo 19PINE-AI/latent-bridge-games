@@ -56,7 +56,7 @@ export default function SystemDiagram() {
       <path d="M 861 150 L 861 14 L 80 14 L 80 78" fill="none" stroke={C.muted}
             strokeWidth="1.5" markerEnd="url(#sys-ah-9094a4)" />
       <text x="470" y="32" textAnchor="middle" fill={C.muted} fontSize="10.5">
-        action · greedy argmax over game actions · every tick
+        one action per tick (decoder tuned per channel)
       </text>
 
       {/* ---- environment ---- */}

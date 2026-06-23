@@ -1,5 +1,6 @@
 import Header from "./components/Header";
 import Hero from "./components/Hero";
+import BestAchievableSection from "./components/BestAchievableSection";
 import ResultsTable from "./components/ResultsTable";
 import ScoresChart from "./components/ScoresChart";
 import BandwidthChart from "./components/BandwidthChart";
@@ -27,6 +28,12 @@ export default function App() {
           <ReplayTheater />
         </Section>
 
+        <Section id="best-achievable"
+                 title="The headline: tuned per channel, the latent bridge wins or ties"
+                 subtitle="The action decoder is a deployment hyperparameter, so each channel gets its own best decoder, selected on held-out seeds. The latent bridge then significantly beats the text bridge on 2 of 7 games (MsPacman +57%, RoadRunner +28%), ties the other five, and never loses — and feeding both channels at once interferes, so couple via exactly one.">
+          <BestAchievableSection />
+        </Section>
+
         <Section id="predictor"
                  title="When is a latent bridge worth it?"
                  subtitle="Across 7 Atari games and a driving simulator (MetaDrive), the latent bridge helps iff slow reasoning beats fast reaction on the task (T > F) — Pearson r = 0.93 (0.96 over all 16 game/variant cells). MetaDrive is a controlled negative.">
@@ -41,7 +48,7 @@ export default function App() {
 
         <Section id="results"
                  title="Full results across all game/variant cells"
-                 subtitle="Sortable table with 95 % bootstrap CIs and Welch's-t / Mann-Whitney significance. Click column headers to re-sort.">
+                 subtitle="The per-cell, per-variant scores under greedy decoding, with 95% bootstrap CIs and Welch's-t / Mann-Whitney significance. (The tuned-decoder headline verdict is in the Best-achievable section above.)">
           <ResultsTable />
           <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 mt-6">
             <ScoresChart />
@@ -49,15 +56,15 @@ export default function App() {
           </div>
         </Section>
 
-        <Section id="prompts"
-                 title="Every prompt in the research"
-                 subtitle="The verbatim system prompts and, for each game, the live state snapshot the slow model reads plus the real strategic emission it returns. This is exactly the content the bridge carries.">
-          <PromptLibrary />
+        <Section id="architecture"
+                 title="Architecture"
+                 subtitle="The full fast/slow runtime loop and the two bridge designs — 33 M trainable params; both base models frozen.">
+          <ArchitectureSection />
         </Section>
 
         <Section id="diagnosis"
-                 title="The Stage A OOD-brittleness diagnosis"
-                 subtitle="Why some cells collapse — and why “bare vs robust” Stage A is a tuned hyperparameter, not cherry-picking.">
+                 title="Why some cells collapse: action-head OOD-brittleness"
+                 subtitle="The methodology behind the headline — why a few cells collapse, why greedy decoding flips low-variance cells, and why “bare vs robust” Stage A is a tuned hyperparameter, not cherry-picking.">
           <DiagnosisSection />
         </Section>
 
@@ -73,10 +80,10 @@ export default function App() {
           <StrategiesTable />
         </Section>
 
-        <Section id="architecture"
-                 title="Architecture"
-                 subtitle="The full fast/slow runtime loop and the two bridge designs — 33 M trainable params; both base models frozen.">
-          <ArchitectureSection />
+        <Section id="prompts"
+                 title="Every prompt in the research"
+                 subtitle="The verbatim system prompts and, for each game, the live state snapshot the slow model reads plus the real strategic emission it returns. This is exactly the content the bridge carries.">
+          <PromptLibrary />
         </Section>
 
         <Section id="reproducibility"

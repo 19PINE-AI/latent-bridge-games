@@ -1,73 +1,35 @@
 import { ChevronRight, AlertTriangle, CheckCircle2, AlertCircle, Shuffle } from "lucide-react";
-import { DECODER_FRAGILITY, BEST_ACHIEVABLE } from "../data/games";
+import { DECODER_FRAGILITY } from "../data/games";
 
 export default function DiagnosisSection() {
   return (
     <div className="space-y-6">
-      <div className="grid lg:grid-cols-[1.2fr_1fr] gap-6">
-        <div className="bg-panel rounded-2xl border border-border p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle size={16} className="text-bad" />
-            <h3 className="font-semibold text-ink">The OOD-brittleness diagnosis</h3>
-          </div>
-          <p className="text-sm leading-relaxed text-ink/90">
-            Initial pattern: L &gt; T cleanly on MsPacman / Seaquest / RoadRunner. But L = T = 0
-            on <strong>Space Invaders</strong> and <strong>River Raid</strong> despite three knob-tuning attempts
-            on SI (random-T, expert-T, aggressive-prompt). MI was even <em>positive</em> for the
-            expert-T bridge (+0.024 nats action info) — the bridge had learned structure; it just
-            couldn't translate it into behaviour at deployment.
-          </p>
-          <div className="my-5 grid sm:grid-cols-2 gap-3">
-            <Step n={1} title="Symptom"
-                  body="Reward-asymmetric games (SI: only FIRE scores; RR: precise dodging required) collapse to L=T=0 under bare Stage A. Reward-symmetric games still score." />
-            <Step n={2} title="Hypothesis"
-                  body="Stage A trained on bare prompts. T appends a text suffix; L prepends bridge tokens. Both are OOD to a frozen action head." />
-            <Step n={3} title="Test"
-                  body="Retrain Stage A at suffix-probability 0.5 — half of training batches receive a synthetic slow-style suffix prepended to the prompt." />
-            <Step n={4} title="Result"
-                  body="River Raid: bridges collapsed → L=612, T=337, +82 % L−T (largest gap in the sweep). SI: T=L=0 → T=18, L=15 (zero floor broken but F=107 still dominates)." />
-          </div>
-          <div className="flex items-center gap-2 text-sm text-good">
-            <CheckCircle2 size={16} />
-            <strong>Diagnosis confirmed:</strong>
-            <span className="text-ink/80 font-normal">collapse cause is the frozen action head, not the bridge.</span>
-          </div>
+      <div className="bg-panel rounded-2xl border border-border p-5 sm:p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <AlertTriangle size={16} className="text-bad" />
+          <h3 className="font-semibold text-ink">The OOD-brittleness diagnosis</h3>
         </div>
-
-        <div className="bg-panel rounded-2xl border border-border p-6">
-          <h3 className="font-semibold text-ink mb-3">Refined headline</h3>
-          <div className="space-y-4 text-sm">
-            <div>
-              <div className="text-good font-semibold mb-1">Tuned per channel, latent is safe-or-better</div>
-              <p className="text-ink/85 leading-relaxed">
-                The fixed-greedy "L beats T 26–82 %" advantage is <strong>decoder-specific</strong> —
-                it vanishes under any sampling temperature (the latent's thin per-emission signal only
-                sharpens the greedy argmax). The decoder is a deployment hyperparameter, so the fair
-                test gives each channel <em>its own</em> best decoder (selected on held-out seeds):
-                there the latent <strong>significantly beats text on 2 of 7</strong> (MsPacman +57 %,
-                RoadRunner +28 %), <strong>ties on 5</strong>, and <strong>never significantly loses</strong>.
-                The channels prefer <em>different</em> decoders (latent greedy/high-τ, text ≈ 0.5).
-              </p>
-            </div>
-            <div>
-              <div className="text-bad font-semibold mb-1">Using both channels at once interferes</div>
-              <p className="text-ink/85 leading-relaxed">
-                Naively, "more context is better" — so feed the head the text suffix <em>and</em> the
-                latent tokens together. It <strong>backfires</strong>: combining never beats the better
-                single channel (0 of 7) and significantly <strong>hurts 3 of 7</strong> — MsPacman
-                −49 %, River Raid −29 %, and RoadRunner a catastrophic <strong>−96 %</strong>. The
-                frozen head, trained on one conditioning signal at a time, gets a worse policy from two.
-                <strong> Couple via exactly one channel</strong>, with latent the safe default.
-              </p>
-            </div>
-            <div className="bg-bg/60 rounded-lg p-3 border border-border text-xs text-muted">
-              <strong className="text-ink">A rejected predictor:</strong> we tested whether
-              slow-emission lexical diversity predicts the sign of L−T — it does not (Pearson
-              r = −0.08 over 7 games, n.s.; six other emission features all |r| ≤ 0.25). The axis
-              that <em>does</em> predict is behavioural: does slow reasoning beat fast reaction
-              (T &gt; F)? See the predictor section.
-            </div>
-          </div>
+        <p className="text-sm leading-relaxed text-ink/90 max-w-3xl">
+          Some games collapse to L = T = 0 under the bare action head — Space Invaders and River
+          Raid — despite three knob-tuning attempts on SI (random-T, expert-T, aggressive-prompt).
+          The bridge had even learned structure (MI +0.024 nats action info under expert-T); it
+          just couldn't translate it into behaviour at deployment. Cause: the frozen action head is
+          out-of-distribution to the suffix/bridge inputs.
+        </p>
+        <div className="my-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Step n={1} title="Symptom"
+                body="Reward-asymmetric games (SI: only FIRE scores; RR: precise dodging required) collapse to L=T=0 under bare Stage A. Reward-symmetric games still score." />
+          <Step n={2} title="Hypothesis"
+                body="Stage A trained on bare prompts. T appends a text suffix; L prepends bridge tokens. Both are OOD to a frozen action head." />
+          <Step n={3} title="Test"
+                body="Retrain Stage A at suffix-probability 0.5 — half of training batches receive a synthetic slow-style suffix prepended to the prompt." />
+          <Step n={4} title="Result"
+                body="River Raid: bridges collapsed → L=612, T=337 under greedy. SI: T=L=0 → T=18, L=15 (zero floor broken, but F=107 still dominates)." />
+        </div>
+        <div className="flex items-center gap-2 text-sm text-good">
+          <CheckCircle2 size={16} />
+          <strong>Diagnosis confirmed:</strong>
+          <span className="text-ink/80 font-normal">the collapse is the frozen action head, not the bridge.</span>
         </div>
       </div>
 
@@ -115,56 +77,9 @@ export default function DiagnosisSection() {
         <p className="mt-4 text-xs text-muted leading-relaxed">
           <strong className="text-ink">Takeaway:</strong> greedy determinism is unreliable for the
           L-vs-T sign — the fixed-greedy advantage doesn't survive sampling on <em>any</em> game. The
-          fix is to tune the decoder per channel and report the best-achievable comparison (below).
-          The behavioural predictor (T &gt; F) is unaffected: it is about L−F vs T−F, not L vs T.
-        </p>
-      </div>
-
-      <div className="bg-panel rounded-2xl border border-border p-6">
-        <div className="flex items-center gap-2 mb-3">
-          <CheckCircle2 size={16} className="text-good" />
-          <h3 className="font-semibold text-ink">Best-achievable, held-out — and why "use both" backfires</h3>
-        </div>
-        <p className="text-sm text-ink/90 leading-relaxed mb-4">
-          Decoder = deployment hyperparameter. Each channel at <em>its own</em> best decoder (selected
-          on held-out seeds): latent <strong>significantly beats text on 2 of 7</strong>, ties 5, never
-          loses. Combining both channels (<strong>B</strong> = text + latent in one pass)
-          <strong> never helps and significantly interferes on 3 of 7</strong>.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wider text-muted border-b border-border">
-                <th className="text-left py-2 font-medium">Game</th>
-                <th className="text-right py-2 font-medium">best T</th>
-                <th className="text-right py-2 font-medium">best L</th>
-                <th className="text-right py-2 font-medium">best B (both)</th>
-                <th className="text-left py-2 pl-3 font-medium">L vs T</th>
-                <th className="text-left py-2 pl-3 font-medium">combine</th>
-              </tr>
-            </thead>
-            <tbody>
-              {BEST_ACHIEVABLE.map((d) => (
-                <tr key={d.game} className="border-b border-border/50">
-                  <td className="py-2 text-ink font-medium">{d.game}</td>
-                  <td className="py-2 text-right font-mono text-xs text-ink/80">{d.T} <span className="text-muted">({d.Tdec})</span></td>
-                  <td className="py-2 text-right font-mono text-xs text-ink/80">{d.L} <span className="text-muted">({d.Ldec})</span></td>
-                  <td className="py-2 text-right font-mono text-xs text-ink/80">{d.B}</td>
-                  <td className={`py-2 pl-3 text-xs ${d.ltVerdict === "L" ? "text-good font-semibold" : "text-muted"}`}>
-                    {d.ltVerdict === "L" ? "L wins" : d.ltVerdict === "T" ? "T wins" : "tie"}
-                  </td>
-                  <td className={`py-2 pl-3 text-xs ${d.combineEffect === "interferes" ? "text-bad font-semibold" : "text-muted"}`}>
-                    {d.combineEffect}{d.combineEffect === "interferes" ? ` ${d.combinePct}%` : ""}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-4 text-xs text-muted leading-relaxed">
-          <strong className="text-ink">Design rule:</strong> the predictor (T &gt; F) says <em>whether</em>
-          to couple; if so, couple via <strong>exactly one channel</strong>, with the latent the
-          safe-or-better default. Don't feed both — on RoadRunner that's a −96 % wipeout.
+          fix is to tune the decoder per channel and report the best-achievable comparison (the
+          Best-achievable section, above). The behavioural predictor (T &gt; F) is unaffected: it is
+          about L−F vs T−F, not L vs T.
         </p>
       </div>
 

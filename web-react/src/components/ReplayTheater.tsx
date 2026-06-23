@@ -91,7 +91,7 @@ export default function ReplayTheater() {
           </div>
 
           {mode === "split" ? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Panel label="F · fast-only" color="text-muted" score={g.F}>
                 <video ref={fRef} src={g.videoF} playsInline loop muted controls
                        preload="metadata" className="w-full rounded bg-black" />
@@ -110,7 +110,7 @@ export default function ReplayTheater() {
                    preload="metadata" className="w-full rounded-lg bg-black" />
           )}
 
-          <div className="mt-4 grid grid-cols-4 gap-2 text-center font-mono tabular-nums">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center font-mono tabular-nums">
             <ScoreBox label="F" v={g.F} />
             <ScoreBox label="T" v={g.T} />
             <ScoreBox label="L" v={g.L} highlight />

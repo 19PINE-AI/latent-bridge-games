@@ -1,5 +1,4 @@
 import { ArrowDownCircle } from "lucide-react";
-import { SUMMARY } from "../data/games";
 import ArchDiagram from "./ArchDiagram";
 
 export default function Hero() {
@@ -12,7 +11,7 @@ export default function Hero() {
                             rounded-full bg-panel border border-border text-xs uppercase
                             tracking-wider text-muted">
               <span className="w-1.5 h-1.5 rounded-full bg-good animate-pulse" />
-              {SUMMARY.totalGames}-game empirical sweep · 12 episodes per cell · 95 % bootstrap CIs
+              7 Atari games + a driving domain · 12 episodes per cell · 95 % bootstrap CIs
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
               Latent Bridge

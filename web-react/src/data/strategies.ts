@@ -26,7 +26,7 @@ export const STRATEGIES: StrategyRow[] = [
     id: "T",
     name: "T — Text bridge",
     score: 408,
-    latencyDesc: "~40 ms fast tick + 1.5 s slow at 1 Hz",
+    latencyDesc: "~40 ms fast tick (F + suffix prefill) + 1.5 s slow at 1 Hz",
     comment: "Slow guides fast via a ~300-char text suffix (median 302).",
   },
   {

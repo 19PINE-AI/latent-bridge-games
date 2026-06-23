@@ -8,6 +8,7 @@ type SortDir = "asc" | "desc";
 const CAT_BADGE: Record<GameResult["category"], { label: string; cls: string }> = {
   "win-L":    { label: "L > T",             cls: "bg-good/15 text-good border-good/40" },
   "win-T":    { label: "T > L",             cls: "bg-bad/15 text-bad border-bad/40" },
+  "tie":      { label: "Tie (tuned decoder)", cls: "bg-muted/15 text-muted border-border" },
   "collapse": { label: "Collapse",          cls: "bg-bad/15 text-bad border-bad/40" },
   "partial":  { label: "Partial recovery",  cls: "bg-accent/15 text-accent border-accent/40" },
   "floor":    { label: "Reactive floor",    cls: "bg-muted/15 text-muted border-border" },
@@ -43,7 +44,15 @@ export default function ResultsTable() {
   };
 
   return (
-    <div className="overflow-x-auto bg-panel rounded-2xl border border-border">
+    <div className="bg-panel rounded-2xl border border-border">
+      <div className="px-4 py-3 text-xs text-muted border-b border-border/60 bg-panel-2/40">
+        Per-cell scores under <strong className="text-ink">greedy</strong> decoding, one
+        reported variant per game. The <span className="font-mono">ΔL−T</span> column is the
+        greedy gap; the headline tuned-decoder verdict (latent significantly beats text on 2 of 7,
+        ties the rest, never loses) is in the{" "}
+        <a href="#best-achievable" className="text-link hover:underline">Best-achievable</a> section.
+      </div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-panel-2 text-muted">
           <tr>
@@ -111,6 +120,7 @@ export default function ResultsTable() {
           })}
         </tbody>
       </table>
+      </div>
       <div className="px-4 py-3 text-[11px] text-muted border-t border-border/60 bg-panel-2/50">
         n = 12 episodes per cell (3 seeds × 4 episodes). Cell means show ± std;
         hover over a cell for the 95 % bootstrap CI. Significance: <span className="text-good font-semibold">*</span> p&nbsp;&lt;&nbsp;0.05,
@@ -141,15 +151,17 @@ function Th({ label, onClick, active, dir, numeric, highlight }: {
   const Asc = numeric ? ArrowUp01 : ArrowUpAZ;
   const Desc = numeric ? ArrowDown01 : ArrowDownAZ;
   return (
-    <th className={`px-4 py-2 cursor-pointer select-none ${numeric ? "text-right" : "text-left"} ${
+    <th aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+        className={`px-4 py-2 select-none ${numeric ? "text-right" : "text-left"} ${
       highlight ? "text-ink" : ""
-    }`} onClick={onClick}>
-      <span className={`inline-flex items-center gap-1 ${
+    }`}>
+      <button type="button" onClick={onClick}
+        className={`inline-flex items-center gap-1 cursor-pointer hover:text-ink ${
         numeric ? "flex-row-reverse" : ""
       } ${active ? "text-ink" : "text-muted"}`}>
         {label}
         {active && (dir === "asc" ? <Asc size={12} /> : <Desc size={12} />)}
-      </span>
+      </button>
     </th>
   );
 }

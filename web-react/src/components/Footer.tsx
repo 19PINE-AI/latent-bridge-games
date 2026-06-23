@@ -27,7 +27,7 @@ export default function Footer() {
           <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/tree/main/scripts">Pipeline scripts</FootLink>
         </Col>
         <Col title="Highlights">
-          <li className="text-xs text-muted">8 games · 12 episodes/cell · 95 % bootstrap CIs</li>
+          <li className="text-xs text-muted">7 Atari + MetaDrive · 12 episodes/cell · 95 % bootstrap CIs</li>
           <li className="text-xs text-muted">Tuned per channel (held-out): latent sig. beats text on 2/7, ties 5/7, never loses</li>
           <li className="text-xs text-muted">Using both channels at once <em>interferes</em> (−96 % on RoadRunner) — couple via one</li>
           <li className="text-xs text-muted">Largest <em>greedy</em> gap: <span className="text-good">+82 %</span> (River Raid robust SA, d = 1.21; a tie under tuned decoders)</li>

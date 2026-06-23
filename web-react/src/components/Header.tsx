@@ -1,13 +1,13 @@
-import { Code2, FileText, PlayCircle, Activity, Cpu, Scale, MessageSquareText } from "lucide-react";
+import { Code2, FileText, PlayCircle, Activity, Cpu, Scale, Trophy } from "lucide-react";
 
 const NAV = [
   { id: "replay", label: "Replay", icon: PlayCircle },
+  { id: "best-achievable", label: "Result", icon: Trophy },
   { id: "predictor", label: "Predictor", icon: Scale },
   { id: "bridge-replace", label: "Control", icon: Activity },
   { id: "results", label: "Results", icon: Activity },
-  { id: "prompts", label: "Prompts", icon: MessageSquareText },
-  { id: "diagnosis", label: "Diagnosis", icon: FileText },
   { id: "architecture", label: "Architecture", icon: Cpu },
+  { id: "diagnosis", label: "Methods", icon: FileText },
 ];
 
 export default function Header() {
