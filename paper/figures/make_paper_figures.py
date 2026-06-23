@@ -5,7 +5,7 @@ Produces (in paper/figures/):
   1. fig_architecture.pdf      — v1 vs v2 bridge schematic
   2. fig_headline.pdf          — cross-game F/T/L bar chart
   3. fig_roadrunner.pdf        — RoadRunner F=0 vs L=608 close-up
-  4. fig_stage_a_ood.pdf       — Stage A OOD-brittleness diagnosis chart
+  4. fig_stage_a_ood.pdf       — action-head OOD-brittleness diagnosis chart
   5. fig_bandwidth.pdf         — N=4/8/16 Goldilocks ablation
   6. fig_continuous_vs_categorical.pdf  — refined claim scatter
   7. fig_latency.pdf           — vrf trade-off
@@ -82,7 +82,7 @@ OUT = Path(__file__).parent
 
 # ---------------------------------------------------------------------------
 # Figure 0 — System architecture: async fast/slow runtime loop, F/T/L channels,
-#            and the Stage A/B/C training pipeline.
+#            and the training pipeline.
 # ---------------------------------------------------------------------------
 
 def fig_system():
@@ -149,7 +149,7 @@ def fig_system():
 
     # LLM + action head
     box(ax, 11.95, 6.85, 1.7, 1.2, "white", C_ACC, "36-layer\nLLM\n(frozen)", fs=8.0)
-    box(ax, 13.9, 6.85, 1.75, 1.2, "white", C_ACC, "action head\n(Stage A,\ntrained)",
+    box(ax, 13.9, 6.85, 1.75, 1.2, "white", C_ACC, "action head\n(trained)",
         fs=8.0)
     arrow(ax, 11.4, sy + sh / 2, 12.0, 7.0, color="0.3", lw=1.7)   # strip -> LLM
     arrow(ax, 13.6, 7.45, 13.85, 7.45, color="0.3", lw=1.7)        # LLM -> head
@@ -357,7 +357,7 @@ def fig_headline():
     ax.set_ylim(top=1320)
     ax.set_title("Cross-game scores with each channel at its own best decoder (held-out)\n"
                  "The Latent Bridge significantly beats the Text Bridge on 2 of 7 games; "
-                 "ties elsewhere   ($*$ = robust Stage A)",
+                 "ties elsewhere   ($*$ = robust action head)",
                  fontsize=9.4)
     ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=7.8,
               handletextpad=0.5, borderaxespad=0.4)
@@ -412,7 +412,7 @@ def fig_roadrunner():
 
 
 # ---------------------------------------------------------------------------
-# Figure 4 — Stage A OOD-brittleness diagnosis (SI + RR before/after)
+# Figure 4 — Action-head OOD-brittleness diagnosis (SI + RR before/after)
 # ---------------------------------------------------------------------------
 
 def fig_stage_a_ood():
@@ -436,17 +436,17 @@ def fig_stage_a_ood():
         robust_errs = [robust["F"][1], robust["T"][1], robust["L"][1]]
         b1 = ax.bar(x - w/2, bare_vals, w, yerr=bare_errs, capsize=2,
                     color=[C_F, C_T, C_L], alpha=0.45, edgecolor="black",
-                    linewidth=0.5, label="bare Stage A", hatch="//")
+                    linewidth=0.5, label="bare action head", hatch="//")
         b2 = ax.bar(x + w/2, robust_vals, w, yerr=robust_errs, capsize=2,
                     color=[C_F, C_T, C_L], edgecolor="black", linewidth=0.5,
-                    label="robust Stage A (suffix-prob=0.5)")
+                    label="robust action head (suffix-prob=0.5)")
         ax.set_xticks(x)
         ax.set_xticklabels(["F", "T", "L"])
         ax.set_title(title, fontsize=10)
         ax.set_ylabel("Score")
         if game == "SpaceInvaders":
             ax.legend(loc="upper right", fontsize=7, frameon=False)
-    fig.suptitle("Stage A OOD-brittleness recipe: same fix recovers two distinct games",
+    fig.suptitle("Action-head OOD-brittleness: one fix recovers two distinct games",
                  fontsize=10, y=1.02)
     fig.tight_layout()
     fig.savefig(OUT / "fig_stage_a_ood.pdf")
