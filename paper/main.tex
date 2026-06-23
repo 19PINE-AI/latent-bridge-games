@@ -77,9 +77,9 @@ We seek agents that operate a computer the way a person does---\emph{general com
 \paragraph{What this paper shows.}
 \begin{itemize}[topsep=0pt,itemsep=2pt,leftmargin=*]
 \item \textbf{Architecture matters.} A first attempt (v1, 256-d cross-attention at 2 of 36 layers) converged to KL=0.004 offline yet \emph{failed} at deployment; the working v2 is the LLaVA pattern---project slow residuals into the fast LLM's 4096-d input-embedding space and prepend, so all layers attend via standard causal attention (\S\ref{sec:arch}).
-\item \textbf{Tuned per channel, the Latent Bridge is never significantly worse than the Text Bridge and is significantly better on 2 of 7 games} (MsPacman $+57\%$, RoadRunner $+28\%$; \S\ref{sec:best_achievable}). A fixed greedy decoder flatters the Latent Bridge to 4 wins, but that edge is \emph{greedy-specific}---it vanishes at every sampling temperature (\S\ref{sec:qbert}). Since the decoder is a tunable deployment hyperparameter, the fair test gives each channel its own best decoder, selected on held-out seeds; the two in fact prefer \emph{different} decoders.
+\item \textbf{Tuned per channel, the Latent Bridge is never significantly worse than the Text Bridge and is significantly better on 2 of 7 games} (MsPacman $+57\%$, RoadRunner $+28\%$; \S\ref{sec:best_achievable}). A fixed greedy decoder (always taking the highest-probability action) flatters the Latent Bridge to 4 wins, but that edge is \emph{greedy-specific}---it vanishes once actions are instead sampled (\S\ref{sec:qbert}). Since the decoder is a tunable deployment hyperparameter, the fair test gives each channel its own best decoder, selected on held-out seeds; the two in fact prefer \emph{different} decoders.
 \item \textbf{Using both channels at once \emph{hurts}---couple via exactly one} (\S\ref{sec:combined}). Feeding text suffix and latent tokens in one pass never beats the better single channel and significantly interferes on 3 games (RoadRunner $-96\%$): the frozen head, trained on one conditioning signal at a time, gets a worse policy from two. The Latent Bridge is the safe single-channel default.
-\item \textbf{When the bridge helps is a property of the task, not the channel.} Across 7 Atari games and a driving domain (MetaDrive), the Latent Bridge's benefit over Fast-Only ($L\!-\!F$) tracks the Text Bridge's ($T\!-\!F$) at Pearson $r=0.93$: the bridge pays off exactly when slow reasoning beats reaction ($T\!>\!F$), and is inert or harmful otherwise. MetaDrive is the controlled negative, with a bridge-replacement control confirming the Latent Bridge is inert there (\S\ref{sec:predictor}). We frame it this way rather than as a ``text is bandwidth-limited'' story, which our own ablations do not support.
+\item \textbf{When the bridge helps is a property of the task, not the channel.} Across 7 Atari games and a driving domain (MetaDrive), the Latent Bridge's benefit over Fast-Only ($L\!-\!F$) tracks the Text Bridge's ($T\!-\!F$) at Pearson $r=0.93$: the bridge pays off exactly when slow reasoning beats reaction ($T\!>\!F$), and is inert or harmful otherwise. MetaDrive is the controlled negative: swapping the trained latent for zeros or random vectors (a \emph{bridge-replacement control}) leaves the score unchanged, confirming the Latent Bridge is inert there (\S\ref{sec:predictor}). We frame it this way rather than as a ``text is bandwidth-limited'' story, which our own ablations do not support.
 \item \textbf{Most collapsed cells are not bridge failures} but Stage~A action-head out-of-distribution (OOD) brittleness under the suffix/bridge inputs. Retraining the action head to tolerate them fixes the collapses, dramatically so on River~Raid (\S\ref{sec:ood}).
 \item \textbf{The Latent Bridge does not always beat Fast-Only.} On several games where it beats the Text Bridge, Fast-Only still beats both: the bridge improves over text \emph{at matched architecture}; it does not always justify running a slow model at all.
 \end{itemize}
@@ -99,7 +99,7 @@ The predictor above is diagnostic, not a~priori: it requires measuring $T-F$ at 
 
 \paragraph{Models.} We use two frozen multimodal models of similar scale. The \emph{fast} (reactive) model is MiniCPM-o 4.5~\cite{minicpmo} (9\,B parameters, bf16). The \emph{slow} (reasoning) model is Qwen3-VL-8B-Thinking~\cite{qwen3vl} (8\,B parameters, bf16).
 
-\paragraph{Tick budgets.} Atari environments run at 60\,Hz but the fast model is limited to a 15\,Hz control rate ($\sim$67\,ms per tick). The slow model emits deliberations asynchronously at roughly 1\,Hz. Measured warm-path inference latencies (with vision caching) are $F=33$\,ms for the fast model alone and $L\approx 38$\,ms when using the Latent Bridge (8 prepended tokens add $\sim$5\,ms). End-to-end wall-clock time for the full Latent-Bridge system is dominated by GPU contention from the asynchronous slow model rather than by the bridge itself (see Appendix~\ref{app:latency}).
+\paragraph{Tick budgets.} Atari environments run at 60\,Hz but the fast model is limited to a 15\,Hz control rate---one action every $\sim$67\,ms (a \emph{tick}). The slow model produces one deliberation (an \emph{emission}) asynchronously at roughly 1\,Hz, so each emission is reused for $\sim$15 ticks; because its residuals are cached, the projected latent tokens are identical across those ticks until the next emission lands. Measured warm-path inference latencies (with vision caching) are $F=33$\,ms for the fast model alone and $L\approx 38$\,ms when using the Latent Bridge (8 prepended tokens add $\sim$5\,ms). End-to-end wall-clock time for the full Latent-Bridge system is dominated by GPU contention from the asynchronous slow model rather than by the bridge itself (see Appendix~\ref{app:latency}).
 
 \begin{figure}[t]
 \centering
@@ -128,7 +128,7 @@ frames per decision---the speed problem that motivates the coupling.)
 \paragraph{Training pipeline.}
 The training has three stages:
 \begin{itemize}[topsep=3pt,itemsep=2pt,leftmargin=*]
-\item \textbf{Stage A}: Behavioral cloning from SB3 experts~\cite{sb3zoo} onto the fast model's action head.
+\item \textbf{Stage A}: behavioral cloning (BC) from Stable-Baselines3 (SB3) experts~\cite{sb3zoo} onto the fast model's \emph{action head}---the small head mapping the LLM's final hidden state to a game action.
 \item\textbf{Stage B}: Collect $T$-trajectories and cache (frame, slow text, slow residuals at layer 24, last 8 positions).
 \item \textbf{Stage C}: $\mathrm{KL}(\pi_L\,\|\,\pi_T)$ on the slow's projection only, keeping both base models frozen ($\sim$5K samples/game, final KL $\sim$0.005). Hyperparameters and per-game val-accuracies are in Appendix~\ref{app:training}.
 \end{itemize}
@@ -153,7 +153,7 @@ games where the bare head already works well (MsPacman $628\!\to\!60$, Seaquest 
 Importantly, the cross-game predictor (\S\ref{sec:predictor}) remains strong even without any 
 selection ($r=0.93$ on the 8 reported cells, $r=0.96$ on all 16 evaluated cells).
 
-\paragraph{Evaluation.} We evaluate each (game, strategy, variant) combination using 3 random seeds $\times$ 4 episodes per seed, for a total of $n=12$ episodes per cell. Episodes are capped at 500 ticks. Atari ALE seeds vary per episode but action selection is greedy. As a result, many cells exhibit zero per-episode variance (Appendix~\ref{app:stats}).
+\paragraph{Evaluation.} We evaluate each (game, strategy, variant) combination using 3 random seeds $\times$ 4 episodes per seed, for a total of $n=12$ episodes per cell. Episodes are capped at 500 ticks. Arcade Learning Environment (ALE) seeds vary per episode, but action selection is greedy (the action with the highest probability). As a result, many cells exhibit zero per-episode variance (Appendix~\ref{app:stats}).
 
 \paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since Stage~A converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight. Stage~A validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
 
@@ -238,14 +238,13 @@ Sample, $\tau=1.0$         & $66.7\pm71.7$  & $87.5\pm65.0$   & $\mathbf{250.0\p
 \bottomrule
 \end{tabular}\smallskip
 
-\paragraph{Why, and what follows.} The Latent Bridge's per-emission variation is tiny (3--8\%,
+\paragraph{Why.} The Latent Bridge's per-emission variation is tiny (3--8\%,
 \S\ref{sec:bridge_content})---below the threshold to flip a greedy argmax, so every episode
 repeats, but enough to move a \emph{sampled} action distribution. Which channel sampling then
-favors is game-specific, not a law. The principle is simply that greedy determinism makes the
-latent-vs-text \emph{sign} unreliable on zero-variance cells, so the fair comparison tunes the
-decoder per channel (\S\ref{sec:best_achievable}). Under that protocol neither Seaquest nor
-Q*bert is a Latent-Bridge win; the significant latent wins are MsPacman and RoadRunner, whose
-cells already carry non-zero variance and so were never at risk of this artifact.
+favors is game-specific, not a law. The takeaway is that greedy determinism makes the
+latent-vs-text \emph{sign} unreliable on these zero-variance cells---which is exactly why the
+headline tunes the decoder per channel rather than trusting a single fixed one
+(\S\ref{sec:best_achievable}).
 
 \subsection{Why best-achievable, not a fixed decoder: greedy would mislead}
 \label{sec:best_achievable}
