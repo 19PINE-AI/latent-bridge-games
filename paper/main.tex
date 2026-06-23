@@ -155,7 +155,17 @@ games where the bare head already works well (MsPacman $628\!\to\!60$, Seaquest 
 Even without any selection, the cross-game predictor (\S\ref{sec:predictor}) remains strong
 ($r=0.93$ on the 8 reported cells, $r=0.96$ on all 16 evaluated cells).
 
-\paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since action-head cloning converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight: its action-head validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_games_grid.pdf}
+\caption{\textbf{The eight evaluated domains.} Seven Atari games (raw pixels, $\sim$15\,Hz
+control), spanning fast hazard-avoidance---ghosts, obstacles, enemy fire---and slower
+route/strategy planning, plus MetaDrive (top-down driving), our non-Atari controlled negative.
+Frostbite (excluded) and Pong (reported but uninformative) are discussed below and not shown.}
+\label{fig:games}
+\end{figure}
+
+\paragraph{Games.} A total of nine Atari games were attempted. \emph{Frostbite} is excluded since action-head cloning converged to random val-accuracy, so no F/T/L comparison is meaningful. \emph{Pong} is reported for completeness but provides little insight: its action-head validation accuracy reaches only 25.1\% (versus 16.7\% random, or $1.5\times$ baseline). Because the bare Fast-Only ($F$) policy cannot reliably move the paddle, no bridge is able to rescue its performance. The remaining seven games are MsPacman, Seaquest, SpaceInvaders, RoadRunner, River~Raid, Enduro, Q*bert (shown with MetaDrive in Figure~\ref{fig:games}).
 
 % --------------------------------------------------------------------------
 \section{Architecture: v1 cross-attention failed; v2 LLaVA-style works}
@@ -197,9 +207,21 @@ We compare each channel at its own best action decoder, selected on held-out see
 fair comparison, and how it differs from the rosier fixed-greedy number, is \S\ref{sec:best_achievable}).
 Under this protocol (Figure~\ref{fig:headline}, Table~\ref{tab:headline}) the Latent Bridge is
 \textbf{never significantly worse} than the Text Bridge and \textbf{significantly better on 2 of 7
-games}: MsPacman ($+57\%$) and RoadRunner ($+28\%$, the cleanest case, Figure~\ref{fig:roadrunner}).
+games}: MsPacman ($+57\%$, Figure~\ref{fig:mspacman}) and RoadRunner ($+28\%$, the cleanest case, Figure~\ref{fig:roadrunner}).
 The other five are statistical ties. So at matched architecture the Latent Bridge is a
 safe-or-better drop-in for the Text Bridge wherever the slow model is worth coupling at all.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_mspacman_compare.pdf}
+\caption{\textbf{Ms.\ Pac-Man, one representative episode (same tick across channels).}
+Fast-Only ($F$, left) receives no slow guidance; the Text Bridge ($T$, middle) and Latent Bridge
+($L$, right) act on the slow model's emission and here lead $F$ on score ($180/360/440$). This
+single frame is illustrative only: the headline $+57\%$ of $L$ over $T$ is an episode-mean over
+$n\!=\!12$ (Table~\ref{tab:headline}), and Ms.\ Pac-Man's per-episode $L$ is bimodal, so the frame
+is not a substitute for the pooled statistics.}
+\label{fig:mspacman}
+\end{figure}
 
 \paragraph{The bridges do not always beat Fast-Only.}
 On River~Raid and SpaceInvaders, Fast-Only outscores both bridges. The Latent Bridge improves over
