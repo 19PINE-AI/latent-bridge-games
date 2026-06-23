@@ -437,7 +437,7 @@ This is \emph{not} the action-head OOD artifact of \S\ref{sec:ood}: it persists 
 robust head, under sampling, and after redistilling the bridge on expert-driven trajectories with a
 healthy ($T\!\approx\!F$) teacher.
 
-\paragraph{Nor is it that the task lacks a planning component.}
+\paragraph{The failure is not that the task lacks a planning component.}
 We rebuilt MetaDrive as a \emph{planning-heavy} route (straights punctuated by intersections,
 with off-route termination) where survival genuinely requires deliberate turn decisions---the
 navigation expert beats a naive straight-driving policy by $+118$ reward, and the slow model
@@ -451,7 +451,8 @@ slower dynamics reward deliberation.
 \subsection{The predictor: the Latent Bridge helps iff the slow model helps}
 \label{sec:predictor_stmt}
 
-This tracking is partly built in: Bridge distillation trains the Latent Bridge to imitate the
+That the Latent Bridge tracks the Text Bridge is partly built in by construction: bridge
+distillation trains the Latent Bridge to imitate the
 Text Bridge's action distribution (minimizing $\mathrm{KL}(\pi_L\,\|\,\pi_T)$), so the Latent Bridge
 can at best convey what the Text Bridge already conveys---it can only help where the Text Bridge
 helps. The data bear this out. Pooling all eight game-evals (7 Atari + MetaDrive;
