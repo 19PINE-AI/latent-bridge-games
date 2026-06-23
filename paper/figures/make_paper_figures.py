@@ -205,7 +205,7 @@ def fig_system():
 def fig_architecture():
     # Two stacked panels. A dedicated diagram band (y 1.7-4.4) sits above a clear
     # caption band (y~0.7) so the italic captions never underlap the boxes.
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.2, 6.0))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.2, 4.5))
 
     def slow_box(ax):
         ax.add_patch(FancyBboxPatch((0.2, 2.25), 2.0, 1.4, boxstyle="round,pad=0.05",
@@ -219,7 +219,7 @@ def fig_architecture():
                 ha="center", va="center", fontsize=8.5)
 
     def draw_v1(ax):
-        ax.set_xlim(0, 12); ax.set_ylim(0, 5)
+        ax.set_xlim(0, 12); ax.set_ylim(0.45, 4.7)
         ax.axis("off")
         ax.set_title("v1 — cross-attention into a 256-d ring buffer (2 of 36 layers)  —  "
                      "failed at deployment", fontsize=9.5, color=C_BAD, pad=6, loc="left")
@@ -246,7 +246,7 @@ def fig_architecture():
                 fontsize=8.5, style="italic", color=C_BAD)
 
     def draw_v2(ax):
-        ax.set_xlim(0, 12); ax.set_ylim(0, 5)
+        ax.set_xlim(0, 12); ax.set_ylim(0.45, 4.7)
         ax.axis("off")
         ax.set_title("v2 — LLaVA-style prepend into the 4096-d input space (all 36 layers)  —  "
                      "works", fontsize=9.5, color=C_GOOD, pad=6, loc="left")
@@ -279,7 +279,7 @@ def fig_architecture():
 
     draw_v1(ax1)
     draw_v2(ax2)
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.03, hspace=0.32)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.92, bottom=0.04, hspace=0.42)
     fig.savefig(OUT / "fig_architecture.pdf")
     fig.savefig(OUT / "fig_architecture.png", dpi=200)
     plt.close(fig)
