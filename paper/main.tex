@@ -91,7 +91,7 @@ We seek agents for \emph{general computer use} (GCU): read the screen, issue low
 \caption{\textbf{The eight evaluated domains.} Seven Atari games (raw pixels, $\sim$15\,Hz
 control), spanning fast hazard-avoidance---ghosts, obstacles, enemy fire---and slower
 route/strategy planning, plus MetaDrive (top-down driving), our non-Atari controlled negative.
-Frostbite (excluded) and Pong (reported but uninformative) are discussed in \S\ref{sec:setup} and not shown.}
+Frostbite (excluded) and Pong (reported but uninformative) are not shown.}
 \label{fig:games}
 \end{figure}
 
@@ -116,7 +116,7 @@ Frostbite (excluded) and Pong (reported but uninformative) are discussed in \S\r
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_system.pdf}
-\caption{\textbf{System architecture.} The fast model (MiniCPM-o 4.5, frozen) runs the reactive loop: vision tokens and a game-state prompt feed a 36-layer LLM whose trained action head emits one action per tick ($\sim$33--38\,ms warm path). The slow model (Qwen3-VL-8B-Thinking, frozen) reasons asynchronously over structured state at $\sim$1\,Hz; the fast loop never blocks on it and reuses the latest emission until replaced. The slow output reaches the fast model two ways: its text emission appended as a prompt suffix, and its layer-24 residuals projected through the 33\,M-parameter bridge MLP---the only trained component---into 8 latent tokens prepended to the input. The three strategies (Fast-Only, Text Bridge, Latent Bridge) toggle which of these the fast model receives; the strategies and the three-stage training pipeline are detailed in \S\ref{sec:setup}.}
+\caption{\textbf{System architecture.} The fast model (MiniCPM-o 4.5, frozen) runs the reactive loop: vision tokens and a game-state prompt feed a 36-layer LLM whose trained action head emits one action per tick ($\sim$33--38\,ms warm path). The slow model (Qwen3-VL-8B-Thinking, frozen) reasons asynchronously over structured state at $\sim$1\,Hz; the fast loop never blocks on it and reuses the latest emission until replaced. The slow output reaches the fast model two ways: its text emission appended as a prompt suffix, and its layer-24 residuals projected through the 33\,M-parameter bridge MLP---the only trained component---into 8 latent tokens prepended to the input. The three strategies (Fast-Only, Text Bridge, Latent Bridge) toggle which of these the fast model receives.}
 \label{fig:system}
 \end{figure}
 
@@ -199,7 +199,7 @@ selected on held-out seeds (leave-one-seed-out; $n\!=\!12$; modal decoder in par
 Significance is by Mann--Whitney $U$, appropriate because the best-achievable cells are non-normal
 (MsPacman's $L$ is bimodal); Welch's $t$ agrees on RoadRunner and is borderline on MsPacman
 ($p\!=\!0.06$). Reported action-head variant per game (\S\ref{sec:setup_variant}); both variants in
-Appendix~\ref{app:full}. The reading is in the text below.}
+Appendix~\ref{app:full}.}
 \label{tab:headline}\label{tab:best_achievable}
 \end{table}
 
@@ -399,7 +399,7 @@ by whether slow reasoning helps the task ($T\!>\!F$).
 \caption{\textbf{The latent's lift over Fast-Only splits into architectural ``slots'' and learned
 content (MsPacman).} Eight zero or random prepended tokens already supply the ``slots'' part; the
 trained bridge adds the rest. Zero and random are statistically indistinguishable
-(Appendix~\ref{app:bridge_replace}). Numbers in the text.}
+(Appendix~\ref{app:bridge_replace}).}
 \label{fig:bridge_decomp}
 \end{figure}
 
@@ -523,8 +523,7 @@ River Raid    & 360            & 1013  & 1003  & \emph{harmful} & $-683$ \\
 \end{tabular}
 \caption{\textbf{Bridge-replacement control on all 7 Atari games.} The Latent Bridge score with the
 trained projection ($L_{\text{train}}$) against the projection replaced by zeros ($L_{\text{zero}}$)
-or by random vectors at matched norm ($L_{\text{rand}}$); $T\!-\!F$ is the matching predictor value.
-Verdicts and the reading are in the text.}
+or by random vectors at matched norm ($L_{\text{rand}}$); $T\!-\!F$ is the matching predictor value.}
 \label{tab:learned_content}
 \end{table}
 
