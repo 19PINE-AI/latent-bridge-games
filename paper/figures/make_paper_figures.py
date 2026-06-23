@@ -86,17 +86,14 @@ OUT = Path(__file__).parent
 # ---------------------------------------------------------------------------
 
 def fig_system():
-    # Wider-than-tall, sized close to \textwidth so on-page downscaling is mild
-    # and the labels stay legible. Two stacked panels: runtime loop + training.
-    fig = plt.figure(figsize=(8.6, 6.7))
-    gs = fig.add_gridspec(2, 1, height_ratios=[3.7, 1.0], hspace=0.20)
-    ax = fig.add_subplot(gs[0])
-    axt = fig.add_subplot(gs[1])
-    for a in (ax, axt):
-        a.axis("off")
-        a.set_xlim(0, 16)
+    # Single-panel runtime architecture, sized close to \textwidth so on-page
+    # downscaling is mild and the labels stay legible. The F/T/L strategies and
+    # the training pipeline are described in the body text, not here.
+    fig = plt.figure(figsize=(8.6, 5.1))
+    ax = fig.add_subplot(111)
+    ax.axis("off")
+    ax.set_xlim(0, 16)
     ax.set_ylim(0, 10.4)
-    axt.set_ylim(0, 2.5)
 
     def box(a, x, y, w, h, fc, ec, text, fs=8.5, tc="black", lw=1.0,
             weight="normal", style="round,pad=0.06", va="center"):
@@ -140,13 +137,13 @@ def fig_system():
         ax.add_patch(FancyBboxPatch((lx + i * 0.18, sy), 0.16, sh,
                                     boxstyle="round,pad=0", facecolor=C_L,
                                     edgecolor="white", linewidth=0.4, alpha=0.92))
-    ax.text(lx + 0.72, sy - 0.20, "$L$: 8 latent\ntokens", fontsize=7.8,
+    ax.text(lx + 0.72, sy - 0.20, "8 latent\ntokens", fontsize=7.8,
             color=C_L, ha="center", va="top", fontweight="bold")
     box(ax, 5.05, sy, 1.95, sh, "#e4efe4", "0.5", "vision\ntokens", fs=8.0,
         style="round,pad=0.02")
     box(ax, 7.1, sy, 2.0, sh, "#f4f4f4", "0.5", "game-state\nprompt", fs=8.0,
         style="round,pad=0.02")
-    box(ax, 9.2, sy, 2.15, sh, "#dbeafe", C_T, "$T$: slow\ntext suffix", fs=8.0,
+    box(ax, 9.2, sy, 2.15, sh, "#dbeafe", C_T, "text\nsuffix", fs=8.0,
         tc="#1d5e8a", style="round,pad=0.02")
     arrow(ax, 6.05, 6.9, 6.02, sy + sh + 0.02, color="0.5", lw=1.1)  # vision tower -> strip
 
@@ -195,29 +192,6 @@ def fig_system():
     # MLP up to L prefix in the strip
     arrow(ax, 11.3, 2.45, lx + 0.72, sy - 0.06, color=C_L, lw=2.0, rad=0.16)
 
-    # compact F/T/L key (clear corner under the slow row)
-    ax.text(15.78, 2.4,
-            "$F$: sequence as shown\n"
-            "$T$:  $F$ + blue suffix\n"
-            "$L$:  $F$ + red prefix",
-            fontsize=8.0, color="0.2", ha="right", va="top",
-            bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="0.7", lw=0.8))
-
-    # ============== training strip (bottom panel) ==============
-    axt.text(8.0, 2.32, "Training pipeline (per game; both base models stay frozen)",
-             fontsize=8.8, color="0.2", ha="center", va="center", fontweight="bold")
-    box(axt, 0.15, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
-        "Stage A — action head\nBC from SB3 expert\n(bare, or robust: suffix-prob 0.5)",
-        fs=8.0)
-    box(axt, 5.55, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
-        "Stage B — data\nroll out $T$; cache (frame,\nslow text, layer-24 residuals)",
-        fs=8.0)
-    box(axt, 10.95, 0.2, 4.9, 1.6, "#f0f4f8", "0.45",
-        "Stage C — bridge\ntrain the MLP only on\nKL$(\\pi_L\\,\\|\\,\\pi_T)$, "
-        "$\\sim$5K samples/game", fs=8.0)
-    arrow(axt, 5.05, 1.0, 5.5, 1.0, color="0.45", lw=1.5)
-    arrow(axt, 10.45, 1.0, 10.9, 1.0, color="0.45", lw=1.5)
-
     fig.savefig(OUT / "fig_system.pdf")
     fig.savefig(OUT / "fig_system.png", dpi=200)
     plt.close(fig)
@@ -229,100 +203,83 @@ def fig_system():
 # ---------------------------------------------------------------------------
 
 def fig_architecture():
-    # Vertical layout: each panel on its own row to give labels room.
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.2, 5.6))
+    # Two stacked panels. A dedicated diagram band (y 1.7-4.4) sits above a clear
+    # caption band (y~0.7) so the italic captions never underlap the boxes.
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.2, 6.0))
+
+    def slow_box(ax):
+        ax.add_patch(FancyBboxPatch((0.2, 2.25), 2.0, 1.4, boxstyle="round,pad=0.05",
+                                    facecolor="#fff0e0", edgecolor=C_ACC, linewidth=0.8))
+        ax.text(1.2, 2.95, "Slow\n(Qwen3-VL-8B)", ha="center", va="center", fontsize=8)
+
+    def fast_box(ax):
+        ax.add_patch(FancyBboxPatch((7.0, 1.7), 4.6, 2.7, boxstyle="round,pad=0.05",
+                                    facecolor="#e0f0ff", edgecolor=C_ACC, linewidth=0.8))
+        ax.text(9.3, 4.08, "Fast (MiniCPM-o)  —  36 LLM layers",
+                ha="center", va="center", fontsize=8.5)
 
     def draw_v1(ax):
         ax.set_xlim(0, 12); ax.set_ylim(0, 5)
         ax.axis("off")
-        ax.set_title("v1 — Cross-attention into 256-d ring buffer  (failed: KL=0.004 offline, L=225 < F=256 at deployment)",
-                     fontsize=9.5, color=C_BAD, pad=4, loc="left")
-        # Slow box
-        ax.add_patch(FancyBboxPatch((0.2, 1.8), 2.0, 1.4,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#fff0e0", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(1.2, 2.5, "Slow\n(Qwen3-VL-8B)", ha="center", va="center", fontsize=8)
+        ax.set_title("v1 — cross-attention into a 256-d ring buffer (2 of 36 layers)  —  "
+                     "failed at deployment", fontsize=9.5, color=C_BAD, pad=6, loc="left")
+        slow_box(ax)
         # Ring buffer
-        ax.add_patch(FancyBboxPatch((3.3, 1.8), 2.5, 1.4,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#f0e0d0", edgecolor="grey", linewidth=0.8))
-        ax.text(4.55, 2.5, "256-d\nring buffer", ha="center", va="center", fontsize=8)
-        # Fast box — only depths 12 & 24 have cross-attn
-        ax.add_patch(FancyBboxPatch((7.0, 0.3), 4.6, 4.0,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#e0f0ff", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(9.3, 3.9, "Fast (MiniCPM-o)  —  36 LLM layers",
-                ha="center", va="center", fontsize=8.5)
+        ax.add_patch(FancyBboxPatch((3.3, 2.25), 2.5, 1.4, boxstyle="round,pad=0.05",
+                                    facecolor="#f0e0d0", edgecolor="grey", linewidth=0.8))
+        ax.text(4.55, 2.95, "256-d\nring buffer", ha="center", va="center", fontsize=8)
+        fast_box(ax)
         # Cross-attn at 12 & 24 inside the fast box
-        ax.add_patch(FancyBboxPatch((7.2, 2.5), 4.2, 0.5,
-                                     boxstyle="round,pad=0.02",
-                                     facecolor=C_BAD, edgecolor="none", alpha=0.7))
-        ax.text(9.3, 2.75, "cross-attn @ layer 24", ha="center", va="center",
-                fontsize=7.5, color="white", fontweight="bold")
-        ax.add_patch(FancyBboxPatch((7.2, 1.1), 4.2, 0.5,
-                                     boxstyle="round,pad=0.02",
-                                     facecolor=C_BAD, edgecolor="none", alpha=0.7))
-        ax.text(9.3, 1.35, "cross-attn @ layer 12", ha="center", va="center",
-                fontsize=7.5, color="white", fontweight="bold")
+        for yb, lab in [(3.0, "cross-attn @ layer 24"), (2.0, "cross-attn @ layer 12")]:
+            ax.add_patch(FancyBboxPatch((7.2, yb), 4.2, 0.5, boxstyle="round,pad=0.02",
+                                        facecolor=C_BAD, edgecolor="none", alpha=0.7))
+            ax.text(9.3, yb + 0.25, lab, ha="center", va="center",
+                    fontsize=7.5, color="white", fontweight="bold")
         # Arrows
-        ax.annotate("", xy=(3.3, 2.5), xytext=(2.2, 2.5),
+        ax.annotate("", xy=(3.3, 2.95), xytext=(2.2, 2.95),
                     arrowprops=dict(arrowstyle="->", color="grey", lw=1.2))
-        ax.annotate("", xy=(7.2, 2.75), xytext=(5.85, 2.55),
+        ax.annotate("", xy=(7.2, 3.25), xytext=(5.85, 2.95),
                     arrowprops=dict(arrowstyle="->", color="grey", lw=1.2))
-        ax.annotate("", xy=(7.2, 1.35), xytext=(5.85, 2.45),
+        ax.annotate("", xy=(7.2, 2.25), xytext=(5.85, 2.85),
                     arrowprops=dict(arrowstyle="->", color="grey", lw=1.2))
-        # Caption
-        ax.text(0.2, 0.4, "Only 2 of 36 layers see the bridge.  No LLM inductive bias for 256-d vectors.",
+        ax.text(0.2, 0.7, "Only 2 of 36 layers see the bridge; no LLM inductive bias for 256-d vectors.",
                 fontsize=8.5, style="italic", color=C_BAD)
 
     def draw_v2(ax):
         ax.set_xlim(0, 12); ax.set_ylim(0, 5)
         ax.axis("off")
-        ax.set_title("v2 — LLaVA-style token-prepend  (works: L > T by 26–82% on 4 games)",
-                     fontsize=9.5, color=C_GOOD, pad=4, loc="left")
-        # Slow box
-        ax.add_patch(FancyBboxPatch((0.2, 1.8), 2.0, 1.4,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#fff0e0", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(1.2, 2.5, "Slow\n(Qwen3-VL-8B)", ha="center", va="center", fontsize=8)
+        ax.set_title("v2 — LLaVA-style prepend into the 4096-d input space (all 36 layers)  —  "
+                     "works", fontsize=9.5, color=C_GOOD, pad=6, loc="left")
+        slow_box(ax)
         # Projection
-        ax.add_patch(FancyBboxPatch((3.0, 1.8), 1.8, 1.4,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#fff8c0", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(3.9, 2.5, "MLP\n4096→4096\n33M params", ha="center", va="center", fontsize=7.5)
+        ax.add_patch(FancyBboxPatch((3.0, 2.25), 1.8, 1.4, boxstyle="round,pad=0.05",
+                                    facecolor="#fff8c0", edgecolor=C_ACC, linewidth=0.8))
+        ax.text(3.9, 2.95, "MLP\n4096→4096\n33M params", ha="center", va="center", fontsize=7.5)
         # 8 bridge tokens
         for i in range(8):
-            ax.add_patch(FancyBboxPatch((5.2 + i*0.16, 2.0), 0.14, 1.0,
-                                         boxstyle="round,pad=0",
-                                         facecolor=C_L, edgecolor="white", linewidth=0.4, alpha=0.85))
-        ax.text(5.85, 3.25, "N=8 latent tokens (4096-d)", ha="center",
-                fontsize=8, color=C_ACC)
-        # Fast box — entire stack reads bridge via attention
-        ax.add_patch(FancyBboxPatch((7.0, 0.3), 4.6, 4.0,
-                                     boxstyle="round,pad=0.05",
-                                     facecolor="#e0f0ff", edgecolor=C_ACC, linewidth=0.8))
-        ax.text(9.3, 3.9, "Fast (MiniCPM-o)  —  36 LLM layers",
-                ha="center", va="center", fontsize=8.5)
+            ax.add_patch(FancyBboxPatch((5.2 + i*0.16, 2.45), 0.14, 1.0, boxstyle="round,pad=0",
+                                        facecolor=C_L, edgecolor="white", linewidth=0.4, alpha=0.85))
+        ax.text(5.85, 3.72, "8 tokens · 4096-d", ha="center", fontsize=7.8, color=C_ACC)
+        fast_box(ax)
         # Highlight that ALL layers see bridge
-        for y in np.linspace(0.5, 3.3, 13):
-            ax.add_patch(FancyBboxPatch((7.2, y), 4.2, 0.15,
-                                         boxstyle="round,pad=0",
-                                         facecolor=C_GOOD, edgecolor="none", alpha=0.20))
-        ax.text(9.3, 1.9, "all 36 layers attend\nvia standard causal attention",
+        for y in np.linspace(1.95, 3.7, 12):
+            ax.add_patch(FancyBboxPatch((7.2, y), 4.2, 0.13, boxstyle="round,pad=0",
+                                        facecolor=C_GOOD, edgecolor="none", alpha=0.20))
+        ax.text(9.3, 2.85, "all 36 layers attend\nvia standard causal attention",
                 ha="center", va="center", fontsize=8, color=C_GOOD, fontweight="bold")
         # Arrows
-        ax.annotate("", xy=(3.0, 2.5), xytext=(2.2, 2.5),
+        ax.annotate("", xy=(3.0, 2.95), xytext=(2.2, 2.95),
                     arrowprops=dict(arrowstyle="->", color="grey", lw=1.2))
-        ax.annotate("", xy=(5.15, 2.5), xytext=(4.8, 2.5),
+        ax.annotate("", xy=(5.15, 2.95), xytext=(4.8, 2.95),
                     arrowprops=dict(arrowstyle="->", color="grey", lw=1.2))
-        ax.annotate("", xy=(7.0, 2.5), xytext=(6.5, 2.5),
-                    arrowprops=dict(arrowstyle="-|>", color=C_GOOD, lw=2,
-                                    connectionstyle="arc3,rad=0"))
-        ax.text(0.2, 0.4, "Bridge tokens live in the LLM's input embedding space.  Full causal attention from all layers.",
+        ax.annotate("", xy=(7.0, 2.95), xytext=(6.55, 2.95),
+                    arrowprops=dict(arrowstyle="-|>", color=C_GOOD, lw=2))
+        ax.text(0.2, 0.7, "Bridge tokens live in the LLM's input embedding space; full causal attention from all layers.",
                 fontsize=8.5, style="italic", color=C_GOOD)
 
     draw_v1(ax1)
     draw_v2(ax2)
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.03, hspace=0.32)
     fig.savefig(OUT / "fig_architecture.pdf")
     fig.savefig(OUT / "fig_architecture.png", dpi=200)
     plt.close(fig)
