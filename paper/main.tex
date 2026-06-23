@@ -161,16 +161,16 @@ selection ($r=0.93$ on the 8 reported cells, $r=0.96$ on all 16 evaluated cells)
 \section{Architecture: v1 cross-attention failed; v2 LLaVA-style works}
 \label{sec:arch}
 
-We tried two bridge architectures (Figure~\ref{fig:arch}). v1 projected slow-model residuals into a 256-d ring buffer and injected via cross-attention at LLM layers 12 and 24 (2 of 36) of the fast model. \emph{Despite converging to KL=0.004 on offline data}, v1 failed at deployment: the Latent Bridge scored 225 on MsPacman against Fast-Only's 256, bimodal with 4/12 catastrophic episodes. Three v1 variants (ungated, gated, gated+head-tune) all failed.
-
-\paragraph{v2.} We adopt the same pattern LLaVA~\cite{llava}, BLIP-2~\cite{blip2}, Flamingo~\cite{flamingo}, and MiniCPM-o~\cite{minicpmo} use to couple vision and language: project slow residuals into the fast LLM's input embedding space (4096-d) via a 33\,M-parameter 2-layer MLP, and prepend the resulting 8 tokens to the fast model's input sequence. All 36 LLM layers attend over them via standard causal attention. Only the projection trains; both base models are frozen. The one firm methodological lesson is that \emph{offline KL convergence is necessary but not sufficient}---v1 converged and still lost---so adapter-style fast/slow coupling should be validated at deployment, not by offline KL alone.
-
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_architecture.pdf}
 \caption{\textbf{v1 vs v2 bridge architectures.} v1 (top, failed): 256-d cross-attention at 2 of 36 layers. v2 (bottom, working): 4096-d prepend, all 36 layers attend.}
 \label{fig:arch}
 \end{figure}
+
+We tried two bridge architectures (Figure~\ref{fig:arch}). v1 projected slow-model residuals into a 256-d ring buffer and injected via cross-attention at LLM layers 12 and 24 (2 of 36) of the fast model. \emph{Despite converging to KL=0.004 on offline data}, v1 failed at deployment: the Latent Bridge scored 225 on MsPacman against Fast-Only's 256, bimodal with 4/12 catastrophic episodes. Three v1 variants (ungated, gated, gated+head-tune) all failed.
+
+\paragraph{v2.} We adopt the same pattern LLaVA~\cite{llava}, BLIP-2~\cite{blip2}, Flamingo~\cite{flamingo}, and MiniCPM-o~\cite{minicpmo} use to couple vision and language: project slow residuals into the fast LLM's input embedding space (4096-d) via a 33\,M-parameter 2-layer MLP, and prepend the resulting 8 tokens to the fast model's input sequence. All 36 LLM layers attend over them via standard causal attention. Only the projection trains; both base models are frozen. The one firm methodological lesson is that \emph{offline KL convergence is necessary but not sufficient}---v1 converged and still lost---so adapter-style fast/slow coupling should be validated at deployment, not by offline KL alone.
 
 % --------------------------------------------------------------------------
 \section{Results}
