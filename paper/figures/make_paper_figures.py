@@ -140,7 +140,7 @@ def fig_system():
         ax.add_patch(FancyBboxPatch((lx + i * 0.18, sy), 0.16, sh,
                                     boxstyle="round,pad=0", facecolor=C_L,
                                     edgecolor="white", linewidth=0.4, alpha=0.92))
-    ax.text(lx + 0.72, 4.86, "8 latent\ntokens", fontsize=7.8,
+    ax.text(lx + 0.72, 4.86, "8 latent tokens", fontsize=7.8,
             color=C_L, ha="center", va="top", fontweight="bold")
     box(ax, 5.05, sy, 1.95, sh, "#e4efe4", "0.5", "vision\ntokens", fs=8.0,
         style="round,pad=0.02")
