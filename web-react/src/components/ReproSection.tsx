@@ -5,7 +5,7 @@ const STAGE_A_VAL_ACC = [
   { game: "Seaquest",     acc: 24, random: 5.6, ratio: "4.3×" },
   { game: "SpaceInvaders", acc: 33, random: 17, ratio: "2.0×" },
   { game: "Pong",         acc: 25, random: 17, ratio: "1.5×" },
-  { game: "RoadRunner",   acc: 59, random: 11, ratio: "5.3×" },
+  { game: "RoadRunner",   acc: 59, random: 5.6, ratio: "10.5×" },
 ];
 
 export default function ReproSection() {

@@ -105,7 +105,7 @@ export const GAMES: GameResult[] = [
     L_vs_T_pct: 26,
     pvalue: 0.0004,
     cohensD: 2.04,
-    notes: "Deterministic 8-kill exploit (L std=0) — L locks into a stable surfacing+kill pattern. Effect size large despite small absolute scores.",
+    notes: "Greedy +26% is a decoder artifact: L locks into a deterministic 8-kill exploit (L std=0), but under multinomial sampling L ≈ T (both roughly double off F, p≈0.60). The slow channel clearly helps here (T,L ≫ F), but the latent-over-text edge does not survive a tuned decoder, so Seaquest is a tie in the best-achievable headline.",
     category: "win-L",
     videoF: "demos/seaquest_F.mp4",
     videoT: "demos/seaquest_T.mp4",
@@ -257,11 +257,15 @@ export const BRIDGE_REPLACE: BridgeReplacePoint[] = [
 ];
 
 // Aggregate stats for landing-page numbers.
+// NB: the HEADLINE claim is the best-achievable significance test (see BEST_ACHIEVABLE_SUMMARY:
+// 2 significant latent wins, 5 ties, 0 losses). The L_wins_* fields below are the older
+// fixed-decoder tallies, kept only as secondary context — they are NOT the headline.
 export const SUMMARY = {
   totalGames: 8,         // (Frostbite excluded — Stage A at random)
   evaluable: 7,          // (Pong reported as floor)
-  L_wins_greedy: 4,      // greedy: MsPacman, Seaquest, RoadRunner, RiverRaid-robust
-  L_wins_robust: 3,      // decoder-robust (win under greedy AND sampling): MsPacman, RoadRunner, RiverRaid
+  L_wins_greedy: 4,      // greedy fixed decoder: MsPacman, Seaquest, RoadRunner, RiverRaid-robust
+  L_wins_robust: 3,      // decoder-consistent (win under greedy AND sampling): MsPacman, RoadRunner, RiverRaid
+  L_sig_wins_headline: 2, // HEADLINE: best-achievable, held-out, significant: MsPacman, RoadRunner
   draws_or_partial: 2,   // Enduro-robust (small), SI-robust (partial), Pong (floor)
   largestGapPct: 82,
   largestGapGame: "River Raid (robust SA)",
@@ -338,7 +342,7 @@ export interface PredictorPoint {
 }
 
 export const PREDICTOR: PredictorPoint[] = [
-  { game: "RoadRunner",    domain: "atari",   variant: "bare",   F: 0.0,    T: 608.3, L: 966.7, TmF: 608.3, LmF: 966.7 },
+  { game: "RoadRunner",    domain: "atari",   variant: "bare",   F: 0.0,    T: 475.0, L: 608.3, TmF: 475.0, LmF: 608.3 },
   { game: "MsPacman",      domain: "atari",   variant: "bare",   F: 255.8,  T: 407.5, L: 628.3, TmF: 151.7, LmF: 372.5 },
   { game: "Qbert",         domain: "atari",   variant: "robust", F: 25.0,   T: 125.0, L: 50.0,  TmF: 100.0, LmF: 25.0  },
   { game: "Seaquest",      domain: "atari",   variant: "bare",   F: 41.7,   T: 63.3,  L: 80.0,  TmF: 21.7,  LmF: 38.3  },
@@ -358,7 +362,7 @@ export const METADRIVE = {
   reactive: { F: 71.2, T: 69.5, L: 69.5 },        // greedy, default lane-keeping map (matched teacher)
   planningGreedy: { F: 87.8, T: 85.1, L: 85.1 },  // SXSXSX map, greedy
   planningSample: { F: 123.2, T: 43.5, L: 36.7 }, // SXSXSX map, sample τ=1
-  control: { L: 85.1, Lzero: 89.5, Lrandom: 97.2 }, // planning greedy bridge-replace
+  control: { L: 85.1, Lzero: 89.5, Lrandom: 97.1 }, // planning greedy bridge-replace
   expertReward: 211, randomReward: 8,
 } as const;
 
@@ -376,7 +380,7 @@ export interface EmissionStats {
 }
 
 export const EMISSION_STATS: EmissionStats[] = [
-  { game: "RoadRunner",    n_emissions: 8,  char_median: 302, unique_per_emission: 12.75, gzip_ratio: 0.240, numbers_per_emission: 9.4,  delta_LT_pct:  59, variant: "bare"   },
+  { game: "RoadRunner",    n_emissions: 8,  char_median: 302, unique_per_emission: 12.75, gzip_ratio: 0.240, numbers_per_emission: 9.4,  delta_LT_pct:  28, variant: "bare"   },
   { game: "SpaceInvaders", n_emissions: 19, char_median: 303, unique_per_emission: 11.68, gzip_ratio: 0.205, numbers_per_emission: 11.4, delta_LT_pct: -17, variant: "robust" },
   { game: "Seaquest",      n_emissions: 32, char_median: 335, unique_per_emission: 11.34, gzip_ratio: 0.213, numbers_per_emission: 8.9,  delta_LT_pct:  26, variant: "bare"   },
   { game: "MsPacman",      n_emissions: 35, char_median: 293, unique_per_emission: 10.14, gzip_ratio: 0.203, numbers_per_emission: 8.6,  delta_LT_pct:  54, variant: "bare"   },

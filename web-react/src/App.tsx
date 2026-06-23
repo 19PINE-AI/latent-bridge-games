@@ -63,7 +63,7 @@ export default function App() {
 
         <Section id="continuous-vs-categorical"
                  title="A predictor that fails: lexical diversity"
-                 subtitle="We hoped lexical diversity of slow-model emissions would predict the sign of L − T a priori. It does not (Pearson r ≈ 0.05) — reported as an honest negative; the behavioural T > F predictor above is what holds.">
+                 subtitle="We hoped lexical diversity of slow-model emissions would predict the sign of L − T a priori. It does not (Pearson r ≈ −0.08) — reported as an honest negative; the behavioural T > F predictor above is what holds.">
           <ContinuousVsCategorical />
         </Section>
 

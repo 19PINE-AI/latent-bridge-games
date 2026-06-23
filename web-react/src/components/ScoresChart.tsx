@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
          Legend, LabelList } from "recharts";
 import { GAMES } from "../data/games";
 
-// Show the 7 best-case-per-game rows (one variant per game)
+// Show the reported variant per game (matches the predictor/headline cells)
 const PRIMARY_GAMES = [
   "roadrunner-bare",
   "mspacman",
@@ -10,7 +10,7 @@ const PRIMARY_GAMES = [
   "seaquest",
   "enduro-robust",
   "qbert-robust",
-  "spaceinvaders-bare",
+  "spaceinvaders-robust",
 ];
 
 export default function ScoresChart() {

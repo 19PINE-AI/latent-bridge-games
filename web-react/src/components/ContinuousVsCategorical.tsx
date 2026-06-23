@@ -4,7 +4,7 @@ import { EMISSION_STATS } from "../data/games";
 
 /** Quantitative axis we TESTED AND REJECTED: lexical diversity (unique whitespace tokens
  * per slow emission) vs (L − T)/T. We hypothesised emission statistics would predict the
- * sign of L − T; they do not (Pearson r ≈ +0.05, n.s.). Retained as a negative result. */
+ * sign of L − T; they do not (Pearson r ≈ −0.08, n.s.). Retained as a negative result. */
 export default function ContinuousVsCategorical() {
   const data = EMISSION_STATS
     .filter(d => d.delta_LT_pct !== null)
@@ -25,7 +25,7 @@ export default function ContinuousVsCategorical() {
           Each point is one game. <strong>x</strong> = unique whitespace tokens per slow emission
           (seed-0 trajectory). <strong>y</strong> = (L − T) / T. We hypothesised more
           continuous-rich emissions (higher x) would favour the latent — but the cloud is flat
-          (Pearson r ≈ +0.05). There is no threshold; emission statistics do not forecast the sign.
+          (Pearson r ≈ −0.08). There is no threshold; emission statistics do not forecast the sign.
         </p>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -78,7 +78,7 @@ export default function ContinuousVsCategorical() {
           </ResponsiveContainer>
         </div>
         <p className="text-[11px] text-muted mt-2 leading-snug">
-          n = 7 points (one per evaluable game variant); Pearson r ≈ 0.05 (slope ≈ +0.008 per
+          n = 7 points (one per evaluable game variant); Pearson r ≈ −0.08 (slope ≈ −0.01 per
           diversity unit, not significant). We report this as a <em>negative</em> result: lexical
           diversity does <strong>not</strong> predict the sign of L − T a priori. The predictor
           that <em>does</em> hold is behavioural (next section): L helps iff T &gt; F.

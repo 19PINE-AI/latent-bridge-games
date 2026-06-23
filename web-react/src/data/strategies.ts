@@ -19,22 +19,22 @@ export const STRATEGIES: StrategyRow[] = [
     id: "F",
     name: "F — Fast only (15 Hz)",
     score: 256,
-    latencyDesc: "34 ms / decision",
+    latencyDesc: "33 ms / decision (warm path)",
     comment: "Reactive policy, no strategic context.",
   },
   {
     id: "T",
     name: "T — Text bridge",
     score: 408,
-    latencyDesc: "50 ms fast tick + 1.5 s slow at 1 Hz",
-    comment: "Slow guides fast via a 200-char text suffix.",
+    latencyDesc: "~40 ms fast tick + 1.5 s slow at 1 Hz",
+    comment: "Slow guides fast via a ~300-char text suffix (median 302).",
   },
   {
     id: "L",
     name: "L — Latent bridge",
     score: 628,
-    latencyDesc: "124 ms fast tick + 1.5 s slow at 1 Hz",
-    comment: "Slow guides fast via 8 latent tokens (33 M trainable params).",
+    latencyDesc: "~38 ms fast tick + 1.5 s slow at 1 Hz",
+    comment: "Slow guides fast via 8 latent tokens (33 M trainable params); +5 ms over F on the warm path.",
   },
 ];
 

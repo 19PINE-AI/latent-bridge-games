@@ -63,7 +63,7 @@ export default function DiagnosisSection() {
             <div className="bg-bg/60 rounded-lg p-3 border border-border text-xs text-muted">
               <strong className="text-ink">A rejected predictor:</strong> we tested whether
               slow-emission lexical diversity predicts the sign of L−T — it does not (Pearson
-              r = +0.05 over 7 games, n.s.; six other emission features all |r| ≤ 0.25). The axis
+              r = −0.08 over 7 games, n.s.; six other emission features all |r| ≤ 0.25). The axis
               that <em>does</em> predict is behavioural: does slow reasoning beat fast reaction
               (T &gt; F)? See the predictor section.
             </div>
@@ -199,7 +199,7 @@ export default function DiagnosisSection() {
         <p className="text-sm text-ink/90 leading-relaxed">
           Pong sits at the −21 loss floor under all three policies. Stage A val-accuracy is only
           <strong> 25.1 %</strong> (random = 16.7 % on 6 actions), just 1.5× random — versus
-          MsPacman's 2.9× and RoadRunner's 5.3×. The action head has not learned the basic
+          MsPacman's 2.9× and RoadRunner's 10.5×. The action head has not learned the basic
           paddle-tracking reflex. The slow's strategic guidance (&ldquo;move paddle to match ball y&rdquo;)
           cannot rescue a reactive policy that does not yet exist. Fast/slow coupling presupposes
           a working fast.
