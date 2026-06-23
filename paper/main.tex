@@ -423,6 +423,21 @@ state decoder (speed, lane offset, heading, upcoming-turn cue, neighbours) for t
 This is, to our knowledge, the first non-game test of the Latent Bridge; the integration runs
 end-to-end on one GPU (Appendix~\ref{app:metadrive}).
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_predictor.pdf}
+\caption{\textbf{The Latent Bridge helps if and only if the slow model helps the task.}
+\emph{Left:} per-game Latent benefit $L\!-\!F$ vs.\ Text benefit $T\!-\!F$ across 7 Atari games
+and MetaDrive, on a signed-$\sqrt{\cdot}$ axis. Bold points are the reported-variant cell per game
+(Pearson $r=0.93$, $n=8$); faint grey points are all 16 evaluated cells ($r=0.96$), so the
+relationship is not an artifact of variant selection (robustness stats in
+Appendix~\ref{app:metadrive}). The bridge helps only in the upper-right quadrant ($T\!>\!F$ and
+$L\!>\!F$); MetaDrive (blue diamond) sits at the origin. \emph{Right:} in both MetaDrive
+regimes---reactive lane-keeping and planning-heavy intersections---slow reasoning never exceeds
+Fast-Only, even when the task demands route planning.}
+\label{fig:predictor}
+\end{figure}
+
 \paragraph{The bridge does not transfer to driving---and the controls explain why.}
 On the default lane-keeping map the Latent Bridge ties Fast-Only and the Text Bridge collapses; the
 bridge-replacement control (Appendix~\ref{app:bridge_replace}, method) shows the Latent Bridge is \emph{inert}
@@ -462,21 +477,6 @@ deliberation or perception--action?), not of the channel---and makes MetaDrive a
 controlled negative rather than a failed port. The bridge-replacement control is the diagnostic
 that separates a genuinely informative latent
 (MsPacman: $L_{\text{trained}}\!\gg\!L_{\text{random}}$) from an inert one (MetaDrive).
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_predictor.pdf}
-\caption{\textbf{The Latent Bridge helps if and only if the slow model helps the task.}
-\emph{Left:} per-game Latent benefit $L\!-\!F$ vs.\ Text benefit $T\!-\!F$ across 7 Atari games
-and MetaDrive, on a signed-$\sqrt{\cdot}$ axis. Bold points are the reported-variant cell per game
-(Pearson $r=0.93$, $n=8$); faint grey points are all 16 evaluated cells ($r=0.96$), so the
-relationship is not an artifact of variant selection (robustness stats in
-Appendix~\ref{app:metadrive}). The bridge helps only in the upper-right quadrant ($T\!>\!F$ and
-$L\!>\!F$); MetaDrive (blue diamond) sits at the origin. \emph{Right:} in both MetaDrive
-regimes---reactive lane-keeping and planning-heavy intersections---slow reasoning never exceeds
-Fast-Only, even when the task demands route planning.}
-\label{fig:predictor}
-\end{figure}
 
 \subsection{Corroboration: learned content tracks the predictor}
 \label{sec:learned_content}
@@ -540,28 +540,6 @@ Q*bert is the only $y<0$ point with a large $T$, but Enduro and River Raid (lowe
 % --------------------------------------------------------------------------
 \section{Discussion}
 \label{sec:discussion}
-
-\subsection{Two sharpened claims}
-
-\begin{finding}
-\textbf{Tuned per channel, the Latent Bridge is a safe-or-better drop-in for the Text Bridge.}
-Because the action decoder is a deployment hyperparameter, we give each channel its own best decoder
-on held-out seeds (\S\ref{sec:best_achievable}, Appendix~\ref{app:heldout}): there the Latent Bridge
-is \emph{never significantly worse} than the Text Bridge and significantly \emph{better} on 2 of 7
-games (MsPacman $+57\%$, RoadRunner $+28\%$), with 5 ties. A single fixed greedy decoder would
-inflate this to 4 apparent wins, but that edge is decoder-specific---it vanishes under sampling and
-flips on zero-variance cells (\S\ref{sec:qbert})---so the decoder-robust claim is the honest one.
-\end{finding}
-
-\begin{finding}
-\textbf{The Latent Bridge helps iff the slow model helps the task.} Pooling 7 Atari games and a
-driving domain, $L\!-\!F$ tracks $T\!-\!F$ at Pearson $r=0.93$ ($r=0.96$ over all 16 evaluated cells;
-Figure~\ref{fig:predictor}). Because the bridge is distilled toward the Text Bridge, the Latent Bridge's ceiling is the
-Text Bridge: the bridge is worthwhile exactly when slow reasoning beats reaction ($T\!>\!F$), and
-inert/harmful otherwise. MetaDrive is the controlled negative ($T\!\le\!F$ even in a planning-heavy
-regime, bridge-replacement control confirming an inert Latent Bridge). Whether a bridge pays off is thus a
-property of the task's bottleneck (deliberation vs.\ perception--action), not of the channel.
-\end{finding}
 
 \subsection{Limitations}
 

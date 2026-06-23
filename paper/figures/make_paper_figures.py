@@ -89,11 +89,14 @@ def fig_system():
     # Single-panel runtime architecture, sized close to \textwidth so on-page
     # downscaling is mild and the labels stay legible. The F/T/L strategies and
     # the training pipeline are described in the body text, not here.
-    fig = plt.figure(figsize=(8.6, 5.1))
+    # ylim is set tight to the content band (1.45--9.85); the figure height is
+    # scaled to that band so the boxes keep their aspect and there is no empty
+    # top/bottom margin once the axes is cropped to the artists.
+    fig = plt.figure(figsize=(8.6, 4.12))
     ax = fig.add_subplot(111)
     ax.axis("off")
     ax.set_xlim(0, 16)
-    ax.set_ylim(0, 10.4)
+    ax.set_ylim(1.45, 9.85)
 
     def box(a, x, y, w, h, fc, ec, text, fs=8.5, tc="black", lw=1.0,
             weight="normal", style="round,pad=0.06", va="center"):
@@ -119,12 +122,12 @@ def fig_system():
             fontsize=9.5, color=C_ACC, ha="center", va="center", fontweight="bold")
 
     # Environment (far left, spans both halves)
-    box(ax, 0.15, 5.35, 2.45, 2.1, "#f5f5f5", "0.4",
-        "Environment\n\nAtari @ 15 Hz\nMetaDrive @ 10 Hz", fs=8.5)
+    box(ax, 0.12, 5.35, 2.66, 2.1, "#f5f5f5", "0.4",
+        "Environment\n\nAtari @ 15 Hz\nMetaDrive @ 10 Hz", fs=7.6)
 
     # vision tower
     box(ax, 3.35, 6.95, 2.2, 1.1, "white", C_ACC, "vision\ntower\n(frozen)", fs=8.2)
-    arrow(ax, 2.6, 6.9, 3.3, 7.35, color="0.45", lw=1.2)      # env frame -> vision tower
+    arrow(ax, 2.82, 6.9, 3.3, 7.35, color="0.45", lw=1.2)      # env frame -> vision tower
     ax.text(2.98, 7.5, "frame", fontsize=7.8, color="0.35", ha="center", va="bottom")
 
     # ---- input token strip: [L prefix][vision][state prompt][T suffix] ----
@@ -137,7 +140,7 @@ def fig_system():
         ax.add_patch(FancyBboxPatch((lx + i * 0.18, sy), 0.16, sh,
                                     boxstyle="round,pad=0", facecolor=C_L,
                                     edgecolor="white", linewidth=0.4, alpha=0.92))
-    ax.text(lx + 0.72, sy - 0.20, "8 latent\ntokens", fontsize=7.8,
+    ax.text(lx + 0.72, 4.86, "8 latent\ntokens", fontsize=7.8,
             color=C_L, ha="center", va="top", fontweight="bold")
     box(ax, 5.05, sy, 1.95, sh, "#e4efe4", "0.5", "vision\ntokens", fs=8.0,
         style="round,pad=0.02")
@@ -162,10 +165,10 @@ def fig_system():
 
     # ============== async divider ==============
     ax.plot([0.15, 15.8], [4.2, 4.2], ls=(0, (4, 3)), color="0.6", lw=1.0)
-    ax.text(15.78, 4.34, "synchronous  $\\sim$15 Hz", fontsize=7.8, color="0.4",
-            ha="right", va="bottom", style="italic")
-    ax.text(15.78, 4.06, "asynchronous  $\\sim$1 Hz", fontsize=7.8, color="0.4",
-            ha="right", va="top", style="italic")
+    ax.text(15.68, 4.80, "synchronous  $\\sim$15 Hz", fontsize=7.8, color="0.4",
+            ha="right", va="center", style="italic")
+    ax.text(15.68, 3.92, "asynchronous  $\\sim$1 Hz", fontsize=7.8, color="0.4",
+            ha="right", va="center", style="italic")
 
     # ============== SLOW MODEL (bottom) ==============
     box(ax, 0.15, 2.0, 2.45, 1.55, "#f5f5f5", "0.4",
@@ -189,11 +192,15 @@ def fig_system():
     box(ax, 10.3, 1.55, 3.05, 0.9, "#fff8c0", C_ACC,
         "bridge MLP\n(33 M params,\nonly trained part)", fs=7.9)
     arrow(ax, 9.6, 2.0, 10.25, 2.0, color="0.5", lw=1.2)
-    # MLP up to L prefix in the strip
-    arrow(ax, 11.3, 2.45, lx + 0.72, sy - 0.06, color=C_L, lw=2.0, rad=0.16)
+    # MLP -> latent prefix: clean right-angle route (rise, traverse below the
+    # strip, then up into the tokens) so it never grazes the lower-row boxes.
+    rx = 11.15
+    ax.plot([rx, rx], [2.45, 5.05], color=C_L, lw=2.0, solid_capstyle="round", zorder=3)
+    ax.plot([rx, lx + 0.72], [5.05, 5.05], color=C_L, lw=2.0, solid_capstyle="round", zorder=3)
+    arrow(ax, lx + 0.72, 5.05, lx + 0.72, sy - 0.03, color=C_L, lw=2.0)
 
-    fig.savefig(OUT / "fig_system.pdf")
-    fig.savefig(OUT / "fig_system.png", dpi=200)
+    fig.savefig(OUT / "fig_system.pdf", pad_inches=0.01)
+    fig.savefig(OUT / "fig_system.png", dpi=200, pad_inches=0.01)
     plt.close(fig)
     print("wrote fig_system.{pdf,png}")
 
