@@ -31,7 +31,7 @@ export default function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-3 text-sm">
-          <a href="paper/main.pdf" target="_blank" rel="noreferrer"
+          <a href="https://arxiv.org/abs/2606.24470" target="_blank" rel="noreferrer"
              className="text-muted hover:text-ink flex items-center gap-1.5 transition">
             <FileText size={14} /> Paper
           </a>

@@ -6,7 +6,7 @@
 > [`docs/06_results.md`](docs/06_results.md) ground the demo's claims (roadmap:
 > [`docs/07_next_steps.md`](docs/07_next_steps.md)).
 >
-> **Paper:** [`paper/main.pdf`](paper/main.pdf) · **Website:** <https://01.me/research/latent-bridge-games>
+> **Paper:** [arXiv:2606.24470](https://arxiv.org/abs/2606.24470) · **Website:** <https://01.me/research/latent-bridge-games>
 
 We want agents that operate a computer like a person — read the screen, issue inputs, close
 the loop — and **real-time games are the hardest case**: the agent must act every few tens of
@@ -27,7 +27,7 @@ load-bearing variable. The 33 M-param bridge is the only trained component.
 significantly worse than the text bridge and significantly better on **2 of 7** games; combining
 both channels *interferes*, so couple via exactly **one**. Details below.
 
-## 🎯 Per-game scores — 9 games, 12 episodes per cell (fixed-greedy view)
+## 🎯 Per-game scores — 8 Atari games, 12 episodes per cell (fixed-greedy view)
 
 The best L vs T result per game (using whichever Stage A — bare or robust —
 gave the higher L score):
@@ -48,7 +48,7 @@ gave the higher L score):
 > vanishes at every fixed sampling temperature. The honest comparison tunes the
 > action decoder per channel on held-out seeds (*best-achievable*): there the latent
 > is **never significantly worse than text and significantly better on 2 of 7**
-> (MsPacman, RoadRunner); the other 5 are ties. See the paper (`paper/main.pdf`)
+> (MsPacman, RoadRunner); the other 5 are ties. See the [paper](https://arxiv.org/abs/2606.24470)
 > for the decoder-robust tables. The continuous-vs-categorical hypothesis these
 > per-game scores once motivated is **retired** — emission statistics do not predict
 > sign(L−T) (lexical-diversity r=+0.05, n.s.).
@@ -261,4 +261,7 @@ A single scaling ablation with Qwen3-30B-A3B-Thinking (~60GB) fits at inference 
 - [ ] Stage D PPO (online RL; will it recover SpaceInvaders?)
 - [ ] Slow-only S + Oracle O baselines tabulated for all games
 - [ ] Scale to the motivating target: real-time computer-use / game agents on phone & desktop
-```
+
+## License
+
+MIT License — see [`LICENSE`](LICENSE). Copyright (c) 2026 Pine AI.

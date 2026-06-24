@@ -3,7 +3,7 @@
 # budget (256 tokens; 1024 OOM'd at 60+ GB user load + 35 GB joint models).
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }

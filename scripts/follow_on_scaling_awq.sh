@@ -4,7 +4,7 @@
 # alongside user's other workloads.)
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -17,7 +17,7 @@ kill_vllm() {
     fi
 }
 
-DL_DIR=/home/ubuntu/.cache/huggingface/hub/models--QuantTrio--Qwen3-VL-30B-A3B-Thinking-AWQ
+DL_DIR=${HOME}/.cache/huggingface/hub/models--QuantTrio--Qwen3-VL-30B-A3B-Thinking-AWQ
 echo "[$(ts)] scaling-awq: waiting for AWQ download (~15-18GB)"
 while pgrep -f "huggingface-cli download.*Qwen3-VL-30B-A3B-Thinking-AWQ" >/dev/null; do
     sleep 30

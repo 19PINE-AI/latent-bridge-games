@@ -3,12 +3,12 @@
 # finish, then run the scaling ablation with the bf16 30B (FP8 didn't load).
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
 
-DL_DIR=/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-VL-30B-A3B-Thinking
+DL_DIR=${HOME}/.cache/huggingface/hub/models--Qwen--Qwen3-VL-30B-A3B-Thinking
 
 echo "[$(ts)] scaling-bf16: waiting for bf16 download to finish (~60GB)"
 # Heuristic: download is done when ALL .safetensors are present AND the

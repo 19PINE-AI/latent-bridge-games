@@ -11,7 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-REPO = "/home/ubuntu/latent-bridge-games"
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEMOS = os.path.join(REPO, "demos")
 TMP = "/tmp/claude-1000/-home-ubuntu-latent-bridge-games/9190ba6e-7be4-4edc-8655-0c211f5e5c74/scratchpad/frames"
 OUT = os.path.join(REPO, "paper", "figures")

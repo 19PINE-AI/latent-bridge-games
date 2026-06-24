@@ -3,14 +3,15 @@
 # No xvfb, no GL: the wrapper uses TopDownMetaDrive + SDL_VIDEODRIVER=dummy.
 # Resumable: each stage is skipped if its output marker already exists.
 set -u
-cd /home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
 
-export LB_FAST_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/MiniCPM-o-4_5
-export LB_SLOW_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/Qwen3-VL-8B-Thinking
+export LB_FAST_MODEL_PATH=${REPO}/local_models/MiniCPM-o-4_5
+export LB_SLOW_MODEL_PATH=${REPO}/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export SDL_VIDEODRIVER=dummy
-export PYTHONPATH=/home/ubuntu/latent-bridge-games
+export PYTHONPATH=${REPO}
 
 LOG=results/md_pipeline
 mkdir -p "$LOG" checkpoints/stage_a checkpoints/stage_c results/t_trajectories_v2_metadrive

@@ -5,7 +5,7 @@
 
 set +e
 LOG_DIR=/tmp
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -32,7 +32,7 @@ print(p)
 echo "[$(ts)] === Step 1: SB3 expert collection ==="
 CUDA_VISIBLE_DEVICES="" python3 scripts/collect_trajectories.py \
     --game SpaceInvaders --episodes 10 \
-    --expert-policy $(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-SpaceInvadersNoFrameskip-v4/snapshots/*/dqn-SpaceInvadersNoFrameskip-v4.zip 2>/dev/null | head -1) \
+    --expert-policy $(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-SpaceInvadersNoFrameskip-v4/snapshots/*/dqn-SpaceInvadersNoFrameskip-v4.zip 2>/dev/null | head -1) \
     --epsilon 0.1 --max-ticks 600 \
     --out results/trajectories_SpaceInvaders_sb3_dqn.pt \
     > $LOG_DIR/si_sb3_collect.log 2>&1

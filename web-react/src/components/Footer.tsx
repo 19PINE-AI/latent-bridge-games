@@ -17,7 +17,7 @@ export default function Footer() {
         <Col title="Resources">
           <FootLink href="https://github.com/19PINE-AI/latent-bridge-games"
                     icon={<Code2 size={12} />}>GitHub repo</FootLink>
-          <FootLink href="paper/main.pdf" icon={<FileText size={12} />}>Paper (PDF)</FootLink>
+          <FootLink href="https://arxiv.org/abs/2606.24470" icon={<FileText size={12} />}>Paper (arXiv)</FootLink>
           <FootLink href="https://github.com/19PINE-AI/latent-bridge-games/blob/main/docs/06_results.md"
                     icon={<ExternalLink size={12} />}>Full results doc</FootLink>
         </Col>

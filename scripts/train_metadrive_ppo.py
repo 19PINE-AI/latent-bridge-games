@@ -12,7 +12,7 @@ built-in expert (~222) and the BC fast model F (~74).
 from __future__ import annotations
 import os, sys, json, argparse, time
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-sys.path.insert(0, "/home/ubuntu/latent-bridge-games")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 
 

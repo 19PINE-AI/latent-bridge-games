@@ -14,7 +14,7 @@ import os
 import shutil
 import sys
 
-CACHE = "/home/ubuntu/.cache/huggingface/hub"
+CACHE = os.path.expanduser("~/.cache/huggingface/hub")
 
 
 def snapshot_dir(repo_dirname: str) -> str:

@@ -4,9 +4,10 @@
 # shared HF cache. Retries each model-loading stage on transient failure.
 # Writes a final summary + DONE marker. Designed to run unattended.
 
-cd /home/ubuntu/latent-bridge-games
-export LB_FAST_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/MiniCPM-o-4_5
-export LB_SLOW_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/Qwen3-VL-8B-Thinking
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
+export LB_FAST_MODEL_PATH=${REPO}/local_models/MiniCPM-o-4_5
+export LB_SLOW_MODEL_PATH=${REPO}/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 LOG=/tmp/minigrid_auto.log

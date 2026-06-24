@@ -7,7 +7,7 @@
 
 set +e
 LOG_DIR=/tmp
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -20,7 +20,7 @@ kill_vllm() {
     fi
 }
 
-EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-SpaceInvadersNoFrameskip-v4/snapshots/*/dqn-SpaceInvadersNoFrameskip-v4.zip 2>/dev/null | head -1)
+EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-SpaceInvadersNoFrameskip-v4/snapshots/*/dqn-SpaceInvadersNoFrameskip-v4.zip 2>/dev/null | head -1)
 if [ -z "$EXPERT" ]; then
     echo "ERROR: SB3 SpaceInvaders DQN checkpoint not cached. Run the download step first."
     exit 1

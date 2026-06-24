@@ -233,7 +233,7 @@ SEGMENTS = [
         "narration": (
             "In summary: the latent bridge helps if and only if slow reasoning helps the task, "
             "shown across Atari and a driving domain, with a bridge-replacement control and a clean negative. "
-            "Code, paper, and interactive replays at github dot com slash bojieli slash latent dash bridge dash games."
+            "Code, paper, and interactive replays at github dot com slash 19 pine dash a i slash latent dash bridge dash games."
         ),
         "card_duration": 9,
     },

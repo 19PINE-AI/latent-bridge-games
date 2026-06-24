@@ -2,7 +2,7 @@
 # Re-run scaling-AWQ after enduro+qbert finishes (with the device_map fix).
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }

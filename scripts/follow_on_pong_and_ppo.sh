@@ -3,7 +3,7 @@
 # Intended to be backgrounded so the next set of experiments fires automatically.
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }

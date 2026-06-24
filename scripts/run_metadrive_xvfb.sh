@@ -3,15 +3,16 @@
 # (the ONLY verified-working render path). Stages that don't touch MetaDrive
 # (Stage A BC, Stage C bridge) read cached frames and run without xvfb.
 # Self-heals corrupt main Stage A checkpoints from the per-epoch files.
-cd /home/ubuntu/latent-bridge-games
-export LB_FAST_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/MiniCPM-o-4_5
-export LB_SLOW_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/Qwen3-VL-8B-Thinking
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
+export LB_FAST_MODEL_PATH=${REPO}/local_models/MiniCPM-o-4_5
+export LB_SLOW_MODEL_PATH=${REPO}/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 # Hardware GLX under Xvfb (VERIFIED 15.6 steps/sec). NVIDIA GLX libs now installed;
 # this env var makes GLX use them instead of Mesa swrast (which was 38 s/step).
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
-export PYTHONPATH=/home/ubuntu/latent-bridge-games
+export PYTHONPATH=${REPO}
 
 S=/tmp/mdx.status; L=/tmp/mdx.log; : > "$S"; : > "$L"
 say(){ echo "[$(date '+%H:%M:%S')] $*" >> "$S"; }

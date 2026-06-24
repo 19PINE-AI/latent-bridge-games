@@ -1,7 +1,7 @@
 """Extract prompts + real slow emissions + per-game eval cells into one JSON the
 website consumes. Single source of truth: prompts.py and the eval/trajectory JSONs."""
 import sys, os, json, glob
-sys.path.insert(0, "/home/ubuntu/latent-bridge-games")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.training import prompts as P
 
 OUT = "web-react/src/data/research.json"

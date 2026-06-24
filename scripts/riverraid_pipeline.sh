@@ -5,7 +5,7 @@
 # should be at least as large as MsPacman's +54 %.
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -20,13 +20,13 @@ kill_vllm() {
 
 EXPERT_REPO="qgallouedec/ppo-RiverraidNoFrameskip-v4-3987763893"
 EXPERT_FILE="ppo-RiverraidNoFrameskip-v4.zip"
-EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE 2>/dev/null | head -1)
+EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE 2>/dev/null | head -1)
 if [ -z "$EXPERT" ]; then
     echo "[$(ts)] downloading PPO Riverraid expert..."
     python3 -c "from huggingface_hub import hf_hub_download; \
                 p=hf_hub_download('$EXPERT_REPO', '$EXPERT_FILE'); print(p)" \
                 > /tmp/rr_dl.log 2>&1
-    EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE | head -1)
+    EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--qgallouedec--ppo-RiverraidNoFrameskip-v4-3987763893/snapshots/*/$EXPERT_FILE | head -1)
 fi
 echo "[$(ts)] PPO expert: $EXPERT"
 

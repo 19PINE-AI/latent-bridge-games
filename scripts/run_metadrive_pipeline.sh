@@ -2,7 +2,8 @@
 # Full MetaDrive pipeline: persistent Xvfb -> collect expert -> Stage A (bare+robust)
 # -> Stage B (T-traj) -> Stage C (converged) -> F/T/L eval (greedy+sample, bare+robust).
 # Models loaded from local folders (bypass HF cache). Verify via files, retries per stage.
-cd /home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
 
 # --- persistent virtual display for MetaDrive/Panda3D GL ---
 Xvfb :99 -screen 0 256x256x24 >/tmp/xvfb.log 2>&1 &
@@ -10,8 +11,8 @@ XVFB_PID=$!
 export DISPLAY=:99
 sleep 3
 
-export LB_FAST_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/MiniCPM-o-4_5
-export LB_SLOW_MODEL_PATH=/home/ubuntu/latent-bridge-games/local_models/Qwen3-VL-8B-Thinking
+export LB_FAST_MODEL_PATH=${REPO}/local_models/MiniCPM-o-4_5
+export LB_SLOW_MODEL_PATH=${REPO}/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 

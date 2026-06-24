@@ -4,7 +4,8 @@
 # Uses the expert-driven Stage B traces (real driving). Then eval F/T/L on the robust head
 # WITH bridge-replace {zero,random} controls. Gate: L>F AND L(real) >> L(zero/random).
 set -u
-cd /home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
 export LB_FAST_MODEL_PATH=$PWD/local_models/MiniCPM-o-4_5
 export LB_SLOW_MODEL_PATH=$PWD/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 SDL_VIDEODRIVER=dummy

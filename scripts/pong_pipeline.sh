@@ -4,7 +4,7 @@
 # If L >> T even here, H2's "complexity matters" framing needs revision.
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -17,13 +17,13 @@ kill_vllm() {
     fi
 }
 
-EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-PongNoFrameskip-v4/snapshots/*/dqn-PongNoFrameskip-v4.zip 2>/dev/null | head -1)
+EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-PongNoFrameskip-v4/snapshots/*/dqn-PongNoFrameskip-v4.zip 2>/dev/null | head -1)
 if [ -z "$EXPERT" ]; then
     echo "[$(ts)] downloading SB3 DQN Pong expert..."
     python3 -c "from huggingface_hub import hf_hub_download; \
                 p=hf_hub_download('sb3/dqn-PongNoFrameskip-v4', 'dqn-PongNoFrameskip-v4.zip'); \
                 print(p)" > /tmp/pong_dl.log 2>&1
-    EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-PongNoFrameskip-v4/snapshots/*/dqn-PongNoFrameskip-v4.zip | head -1)
+    EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-PongNoFrameskip-v4/snapshots/*/dqn-PongNoFrameskip-v4.zip | head -1)
 fi
 echo "[$(ts)] SB3 expert: $EXPERT"
 

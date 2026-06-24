@@ -51,7 +51,7 @@ class ThoughtProjection(nn.Module):
 
 # Where the fast LLM's embed_tokens lives (split across 4 safetensors files; we
 # need only the first one).
-FAST_MODEL_DIR = "/home/ubuntu/.cache/huggingface/hub/models--openbmb--MiniCPM-o-4_5/snapshots/6e885630cbe907859c441ff915aa789729f3a5c4"
+FAST_MODEL_DIR = os.path.expanduser("~/.cache/huggingface/hub/models--openbmb--MiniCPM-o-4_5/snapshots/6e885630cbe907859c441ff915aa789729f3a5c4")
 EMBED_TENSOR_NAME = "llm.model.embed_tokens.weight"
 EMBED_SAFETENSORS = f"{FAST_MODEL_DIR}/model-00001-of-00004.safetensors"
 

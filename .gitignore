@@ -33,6 +33,9 @@ figs/
 # compiled MP4s which are the actual deliverable)
 traces/
 
+# arXiv submission tarball (regenerable from paper/ source)
+paper/arxiv-submission.tar.gz
+
 # LaTeX build artifacts (keep main.tex, main.pdf, .bib, .sty)
 paper/*.aux
 paper/*.log

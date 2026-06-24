@@ -4,7 +4,7 @@
 # Tests the bandwidth claim with a different game mechanic than RiverRaid.
 
 set +e
-REPO=/home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -19,13 +19,13 @@ kill_vllm() {
 
 EXPERT_REPO="sb3/dqn-RoadRunnerNoFrameskip-v4"
 EXPERT_FILE="dqn-RoadRunnerNoFrameskip-v4.zip"
-EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-RoadRunnerNoFrameskip-v4/snapshots/*/$EXPERT_FILE 2>/dev/null | head -1)
+EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-RoadRunnerNoFrameskip-v4/snapshots/*/$EXPERT_FILE 2>/dev/null | head -1)
 if [ -z "$EXPERT" ]; then
     echo "[$(ts)] downloading SB3 DQN RoadRunner expert..."
     python3 -c "from huggingface_hub import hf_hub_download; \
                 p=hf_hub_download('$EXPERT_REPO', '$EXPERT_FILE'); print(p)" \
                 > /tmp/rr2_dl.log 2>&1
-    EXPERT=$(ls /home/ubuntu/.cache/huggingface/hub/models--sb3--dqn-RoadRunnerNoFrameskip-v4/snapshots/*/$EXPERT_FILE | head -1)
+    EXPERT=$(ls ${HOME}/.cache/huggingface/hub/models--sb3--dqn-RoadRunnerNoFrameskip-v4/snapshots/*/$EXPERT_FILE | head -1)
 fi
 echo "[$(ts)] SB3 expert: $EXPERT"
 

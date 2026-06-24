@@ -3,7 +3,8 @@
 # then render individual F/T/L videos + a 3-way side-by-side. Previous demos had
 # only F and L; this adds the text bridge (T) so the contrast is complete.
 set -u
-cd /home/ubuntu/latent-bridge-games
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+cd "$REPO"
 export LB_FAST_MODEL_PATH=$PWD/local_models/MiniCPM-o-4_5
 export LB_SLOW_MODEL_PATH=$PWD/local_models/Qwen3-VL-8B-Thinking
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
