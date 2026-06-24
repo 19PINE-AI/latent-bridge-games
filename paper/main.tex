@@ -589,7 +589,7 @@ The practical rule is simple: measure the Text Bridge first. If slow reasoning d
 
 \paragraph{Multimodal coupling.} LLaVA~\cite{llava}, BLIP-2~\cite{blip2}, Flamingo~\cite{flamingo}, MiniCPM-o~\cite{minicpmo} couple vision and language by prepending projected visual tokens to an LLM's input. BLIP-2 ablates query-token count, the closest prior analog to our $N$ sweep. Our v2 transfers this pattern to language-language fast/slow coupling.
 
-\paragraph{Continuous chain-of-thought.} COCONUT~\cite{coconut}, Pause Tokens~\cite{pause_tokens}, Implicit CoT~\cite{implicit_cot}, Quiet-STaR~\cite{quiet_star} all reason in latent space within a single model. Our work is the cross-model analog: two frozen models coupled by a learned latent channel.
+\paragraph{Continuous chain-of-thought.} COCONUT~\cite{coconut}, Pause Tokens~\cite{pause_tokens}, Implicit CoT~\cite{implicit_cot}, Quiet-STaR~\cite{quiet_star} all reason in latent space within a single model. Our work is the cross-model analog: two frozen models coupled by a learned latent channel. For a broad survey of latent-space methods across reasoning, planning, and embodiment, see Yu et al.~\cite{latentspacesurvey}.
 
 \paragraph{Hierarchical / cascades.} Speculative decoding~\cite{speculative} couples draft+verifier within one decoding loop; Mixture-of-Depths~\cite{mod} adapts compute per token. These optimize a single forward pass; we decouple two models in wall-clock and pass the slower's deliberation forward as a learned signal.
 
