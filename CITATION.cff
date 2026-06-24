@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software or its findings, please cite the paper below."
+title: "The Latent Bridge: A Continuous Slow–Fast Channel for Real-Time Game Agents"
+authors:
+  - family-names: Li
+    given-names: Bojie
+    affiliation: Pine AI
+  - family-names: Shi
+    given-names: Noah
+    affiliation: University of Washington
+date-released: 2026-06-24
+license: MIT
+url: "https://github.com/19PINE-AI/latent-bridge-games"
+repository-code: "https://github.com/19PINE-AI/latent-bridge-games"
+preferred-citation:
+  type: article
+  title: "The Latent Bridge: A Continuous Slow–Fast Channel for Real-Time Game Agents"
+  authors:
+    - family-names: Li
+      given-names: Bojie
+      affiliation: Pine AI
+    - family-names: Shi
+      given-names: Noah
+      affiliation: University of Washington
+  year: 2026
+  journal: "arXiv preprint arXiv:2606.24470"
+  url: "https://arxiv.org/abs/2606.24470"
+  identifiers:
+    - type: other
+      value: "arXiv:2606.24470"

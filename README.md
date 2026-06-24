@@ -203,12 +203,31 @@ latent-bridge-games/
 │   ├── run_text_bridge_baseline.py   # T-trajectory collection (saves v2 raw residuals)
 │   ├── aggregate_results.py          # multi-eval comparison table
 │   ├── make_figures.py               # paper-quality matplotlib figures
-│   ├── overnight_pipeline.sh         # autonomous overnight orchestration
+│   ├── <game>_pipeline.sh            # per-game A→B→C→eval chains
+│   ├── README.md                     # guide to every script + canonical entry points
 │   └── ...
 ├── tests/                            # 45 unit + integration tests (CPU-runnable)
 ├── results/                          # per-condition raw eval outputs
 └── checkpoints/                      # Stage A + Stage C trained checkpoints
 ```
+
+## Setup
+
+```bash
+git clone https://github.com/19PINE-AI/latent-bridge-games
+cd latent-bridge-games
+python -m venv .venv && source .venv/bin/activate
+pip install -e .                 # core: Atari repro (experts, training, eval, figures)
+# optional extras:
+pip install -e ".[demo]"         # narrated-demo build + Flask/SSE live server
+pip install -e ".[metadrive]"    # driving domain (the controlled negative)
+```
+
+The two frozen base models are **not** in the repo. Point the harness at local
+weights via `LB_FAST_MODEL_PATH` / `LB_SLOW_MODEL_PATH` (or let `transformers`
+pull `openbmb/MiniCPM-o-4_5` and `Qwen/Qwen3-VL-8B-Thinking` from the HF cache);
+set `HF_HUB_OFFLINE=1` to force the local copies. See `scripts/README.md` for a
+guide to every script and the canonical entry points.
 
 ## Reproducing the headline number
 

@@ -16,12 +16,27 @@ dependencies = [
     "wandb",
     "ale-py>=0.10",
     "gymnasium[atari]>=1.0",
+    "stable-baselines3>=2.0",   # SB3/PPO experts for Stage A behavioral cloning
     "opencv-python-headless",
     "pillow",
     "numpy",
     "einops",
+    "matplotlib",               # scripts/make_figures.py, paper/figures
+    "scipy",                    # bootstrap CIs / decoder-selection stats
+    "requests",
     "pytest",
 ]
+
+# Optional extras. The core install above reproduces the Atari headline results;
+# these add the cross-domain experiments and the demo/website tooling.
+#   pip install -e ".[demo]"           # narrated-demo build + live server
+#   pip install -e ".[metadrive]"      # driving domain (controlled negative)
+#   pip install -e ".[minigrid,highway]"
+[project.optional-dependencies]
+demo = ["flask", "gTTS"]
+metadrive = ["metadrive-simulator"]
+minigrid = ["minigrid"]
+highway = ["highway-env"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
