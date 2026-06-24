@@ -178,7 +178,7 @@ latent-bridge-games/
 │   ├── 02_related_work.md       # surveyed prior art
 │   ├── 03_experiment_plan.md    # experiment plan (updated for v2)
 │   ├── 04_architecture.md       # v2 LLaVA-style bridge spec
-│   ├── 05_status.md             # session-by-session findings log
+│   ├── 05_status.md             # what was built + key empirical findings
 │   ├── 06_results.md            # paper-style results summary
 │   └── 07_next_steps.md         # roadmap
 ├── paper/                          # LaTeX source + generated figures (main.pdf)

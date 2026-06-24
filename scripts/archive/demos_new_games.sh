@@ -1,9 +1,9 @@
 #!/bin/bash
-# Generate demo trace + MP4 for one episode of each (game, strategy) on a fixed seed.
-# Produces 6 MP4s + 3 side-by-side comparisons in demos/
+# Generate demo MP4s for the 4 newer games (RoadRunner, RR, Enduro, Qbert) so the
+# website + demos directory matches the result table.
 
 set +e
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -16,24 +16,23 @@ kill_vllm() {
     fi
 }
 
-mkdir -p demos traces
-
-echo "[$(ts)] === DEMO PIPELINE START ==="
-
 # Per-game checkpoints
 declare -A FAST_CKPT=(
-    [MsPacman]=checkpoints/stage_a/mspacman_sb3dqn_v2.pt
-    [Seaquest]=checkpoints/stage_a/seaquest_sb3dqn.pt
-    [SpaceInvaders]=checkpoints/stage_a/spaceinvaders_sb3dqn.pt
+    [RoadRunner]=checkpoints/stage_a/roadrunner_sb3dqn.pt
+    [Riverraid]=checkpoints/stage_a/riverraid_sb3dqn.pt
+    [Enduro]=checkpoints/stage_a/enduro_ppo.pt
+    [Qbert]=checkpoints/stage_a/qbert_sb3dqn.pt
 )
 declare -A BRIDGE_CKPT=(
-    [MsPacman]=checkpoints/stage_c/v2_mspacman.pt
-    [Seaquest]=checkpoints/stage_c/v2_seaquest.pt
-    [SpaceInvaders]=checkpoints/stage_c/v2_spaceinvaders.pt
+    [RoadRunner]=checkpoints/stage_c/v2_roadrunner.pt
+    [Riverraid]=checkpoints/stage_c/v2_riverraid.pt
+    [Enduro]=checkpoints/stage_c/v2_enduro.pt
+    [Qbert]=checkpoints/stage_c/v2_qbert.pt
 )
 
-# Run F + L on each game, one episode each
-for GAME in MsPacman Seaquest SpaceInvaders; do
+echo "[$(ts)] === NEW-GAMES DEMO PIPELINE START ==="
+
+for GAME in RoadRunner Riverraid Enduro Qbert; do
     echo "[$(ts)] === $GAME F + L ==="
     kill_vllm
     HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 python3 -m src.eval.benchmark \
@@ -48,22 +47,22 @@ for GAME in MsPacman Seaquest SpaceInvaders; do
 done
 
 echo "[$(ts)] === Rendering MP4s ==="
-for GAME in MsPacman Seaquest SpaceInvaders; do
-    echo "[$(ts)]   $GAME single panels"
+for GAME in RoadRunner Riverraid Enduro Qbert; do
+    LOWER=${GAME,,}
+    echo "[$(ts)]   $GAME single + side-by-side"
     python3 scripts/render_demo_mp4.py \
         --trace-dir traces/demo/F_${GAME}_seed0 \
         --labels "F (fast only)" \
-        --out demos/${GAME,,}_F.mp4 --fps 15 > /tmp/render_${GAME,,}_F.log 2>&1
+        --out demos/${LOWER}_F.mp4 --fps 15 > /tmp/render_${LOWER}_F.log 2>&1
     python3 scripts/render_demo_mp4.py \
         --trace-dir traces/demo/L_${GAME}_seed0 \
         --labels "L (latent bridge)" \
-        --out demos/${GAME,,}_L.mp4 --fps 15 > /tmp/render_${GAME,,}_L.log 2>&1
-    echo "[$(ts)]   $GAME side-by-side"
+        --out demos/${LOWER}_L.mp4 --fps 15 > /tmp/render_${LOWER}_L.log 2>&1
     python3 scripts/render_demo_mp4.py \
         --trace-dir traces/demo/F_${GAME}_seed0 traces/demo/L_${GAME}_seed0 \
         --labels "F (fast only)" "L (latent bridge)" \
-        --out demos/${GAME,,}_F_vs_L.mp4 --fps 15 > /tmp/render_${GAME,,}_sxs.log 2>&1
+        --out demos/${LOWER}_F_vs_L.mp4 --fps 15 > /tmp/render_${LOWER}_sxs.log 2>&1
 done
 
-echo "[$(ts)] === DEMO PIPELINE COMPLETE ==="
+echo "[$(ts)] === NEW-GAMES DEMO PIPELINE COMPLETE ==="
 ls -la demos/

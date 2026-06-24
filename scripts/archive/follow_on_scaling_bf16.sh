@@ -3,7 +3,7 @@
 # finish, then run the scaling ablation with the bf16 30B (FP8 didn't load).
 
 set +e
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }

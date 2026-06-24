@@ -3,7 +3,7 @@
 # ~16h total of sequential GPU work.
 
 set +e
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -11,7 +11,7 @@ ts() { date '+%Y-%m-%d %H:%M:%S'; }
 echo "[$(ts)] === MASTER TOP-3 CHAIN START ==="
 
 echo "[$(ts)] === A. Demo MP4s for 4 new games (~1h) ==="
-bash scripts/demos_new_games.sh > /tmp/demos_new.out 2>&1
+bash scripts/archive/demos_new_games.sh > /tmp/demos_new.out 2>&1
 echo "[$(ts)] demos returned $?"
 
 echo "[$(ts)] === B. Robust Stage A for 3 collapsed games (~9h) ==="

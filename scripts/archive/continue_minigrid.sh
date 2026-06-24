@@ -1,7 +1,7 @@
 #!/bin/bash
 # Robust continuation: wait for Stage B output -> Stage C -> eval greedy -> eval sample.
 # 5 retries per stage to ride out intermittent file/cache inconsistency.
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 cd "$REPO"
 export LB_FAST_MODEL_PATH=${REPO}/local_models/MiniCPM-o-4_5
 export LB_SLOW_MODEL_PATH=${REPO}/local_models/Qwen3-VL-8B-Thinking

@@ -4,7 +4,7 @@
 # workloads; bf16 30B needs ~60GB more; FP8/AWQ also failed).
 
 set +e
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 cd "$REPO"
 
 ts() { date '+%Y-%m-%d %H:%M:%S'; }

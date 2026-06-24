@@ -66,10 +66,8 @@ the "greedy-artifact" finding), `ppo_si_*.sh` (Stage D PPO retries).
 
 ## One-off / historical (provenance only — not general entry points)
 
-These were session-specific overnight chains that poll for `/tmp/*.out`
-completion markers from a particular run; they will **not** run on a clean
-checkout and are kept only to document how the experiments were sequenced:
-`overnight_pipeline.sh`, `phase2_and_scaling.sh`, `master_top3_chain.sh`,
-`gap_closers_chain.sh`, all `follow_on_*.sh`, `qbert_resume.sh`,
-`continue_minigrid.sh` / `mg_finish_clean.sh` (MiniGrid resumes), and
-`demo_pipeline.sh` / `demos_new_games.sh` (superseded by `record_ftl_demos.sh`).
+Session-specific overnight chains, wait-then-launch follow-ons, resume scripts,
+and superseded demo builders now live in [`archive/`](archive/) (see
+[`archive/README.md`](archive/README.md)). They poll for `/tmp/*.out` completion
+markers from particular runs and will **not** run on a clean checkout; they are
+kept only to document how the experiments were sequenced.
