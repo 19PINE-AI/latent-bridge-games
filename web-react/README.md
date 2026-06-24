@@ -1,19 +1,20 @@
 # Latent Bridge — React static site
 
 Professional Vite + React + TypeScript + Tailwind + Recharts build of the
-demo site. Replaces the earlier minimal `web/index.html` (which stays in the
-repo as a tiny fallback).
+demo site. This is the canonical website (it superseded an earlier minimal
+static page).
 
 ## What it includes
 
 - **Hero** with embedded combined narrated 4-min video and 3 headline stats
-- **Sortable results table** for all 9 game-conditions (click headers)
-- **Interactive Recharts bar charts**: per-game F/T/L scores and bandwidth ablation
+- **Replay theater** — per-game F/T/L side-by-side playthroughs
+- **Best-achievable result** (decoder tuned per channel) and the **behavioral predictor** (L−F vs T−F)
+- **Bridge-replacement control** and **continuous-vs-categorical** charts
+- **Sortable results table** across all game-conditions (click headers)
+- **Interactive Recharts**: per-game F/T/L scores plus the latent-token-count and latency ablations
 - **Stage A OOD diagnosis** section explaining the methodology finding
 - **4-strategy comparison** table (S < F < T < L) plus the vision-cache latency sweep
-- **Architecture** with ASCII diagram and v1-vs-v2 explanation
-- **Paper figures gallery** with click-to-enlarge lightbox
-- **Per-game playthrough grid** (7 side-by-side videos)
+- **Architecture** with whole-system + v1-vs-v2 diagrams, and a **prompt library**
 - Smooth-scroll anchor nav · dark theme · mobile-responsive
 
 ## Build
@@ -34,8 +35,7 @@ both dev and prod builds.
 # Built site
 cd web-dist && python3 -m http.server 8000
 
-# Or via the project's Flask + SSE server (which now prefers web-dist when it
-# exists, falling back to the static web/index.html otherwise)
+# Or via the project's Flask + SSE server (serves web-dist/; build it first)
 python3 scripts/live_demo_server.py --host 0.0.0.0 --port 8000
 ```
 
@@ -68,9 +68,10 @@ web-react/
 │   ├── data/strategies.ts      # 4-strategy + bandwidth + latency rows
 │   └── components/
 │       ├── Header.tsx · Hero.tsx · Footer.tsx
-│       ├── ResultsTable.tsx    # sortable
-│       ├── ScoresChart.tsx · BandwidthChart.tsx  (Recharts)
-│       ├── DiagnosisSection.tsx · ArchitectureSection.tsx
-│       ├── StrategiesTable.tsx · FiguresGallery.tsx · GameGrid.tsx
+│       ├── ReplayTheater.tsx · BestAchievableSection.tsx · PredictorSection.tsx
+│       ├── BridgeReplaceChart.tsx · ContinuousVsCategorical.tsx
+│       ├── ResultsTable.tsx · ScoresChart.tsx · BandwidthChart.tsx  (Recharts)
+│       ├── DiagnosisSection.tsx · ArchitectureSection.tsx · SystemDiagram.tsx
+│       ├── StrategiesTable.tsx · PromptLibrary.tsx · ReproSection.tsx · ArchDiagram.tsx
 └── vite.config.ts              # base="./", outDir="../web-dist"
 ```

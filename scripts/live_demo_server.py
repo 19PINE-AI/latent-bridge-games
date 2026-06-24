@@ -6,7 +6,7 @@ Two modes:
   - LIVE (--live): runs a fresh benchmark episode and streams frames as they're
     produced. Requires the GPU.
 
-The web/ directory's index.html is served at /, and the live-playback UI is at
+The built React site (web-dist/) is served at /, and the live-playback UI is at
 /live. Streams from /stream?game=...&strategy=...&seed=... (REPLAY mode looks for
 traces/demo/<strategy>_<game>_seed<seed>; LIVE mode would launch a benchmark).
 
@@ -35,8 +35,9 @@ except ImportError:
     raise
 
 REPO_ROOT = Path(__file__).parent.parent
-# Prefer the React build (web-dist) when present; fall back to the static HTML.
-WEB_DIR = (REPO_ROOT / "web-dist") if (REPO_ROOT / "web-dist" / "index.html").exists() else (REPO_ROOT / "web")
+# Serve the built React site. Build it with `npm install && npm run build` in
+# web-react/ (output lands in web-dist/, which is gitignored).
+WEB_DIR = REPO_ROOT / "web-dist"
 DEMOS_DIR = REPO_ROOT / "demos"
 TRACES_DIR = REPO_ROOT / "traces" / "demo"
 
@@ -46,6 +47,12 @@ app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="")
 
 @app.route("/")
 def index():
+    if not (WEB_DIR / "index.html").exists():
+        return (
+            "<h1>Site not built</h1><p>Run <code>npm install &amp;&amp; npm run build</code> "
+            "in <code>web-react/</code> to generate <code>web-dist/</code>, then reload.</p>",
+            503,
+        )
     return send_from_directory(str(WEB_DIR), "index.html")
 
 

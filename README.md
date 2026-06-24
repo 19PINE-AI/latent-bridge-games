@@ -212,6 +212,11 @@ latent-bridge-games/
 
 ## Reproducing the headline number
 
+> Trained checkpoints and `results/` are **not shipped** (both are gitignored). Train the
+> Stage A behavioral-cloning policy first (`python -m src.training.stage_a_behavioral ...`;
+> the per-game `scripts/*_pipeline.sh` run the full A→C→eval chain end-to-end). The steps
+> below assume `checkpoints/stage_a/` already exists.
+
 ```bash
 # 1. Collect T-trajectories (45 min on GPU)
 HF_HUB_OFFLINE=1 python scripts/run_text_bridge_baseline.py \

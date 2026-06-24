@@ -115,4 +115,4 @@ The order below balances paper value, user-stated priorities, and dependency str
 - `src/env/atari_wrapper.py` — add Pong/Breakout decoders
 - `src/training/prompts.py` — add Pong/Breakout templates
 - `src/training/stage_d_rl.py` — extend scaffold with rollout + update loop
-- `web/index.html` (Phase 5) — website with demo embed
+- `web-react/` (Phase 5) — interactive demo site (built to `web-dist/`)
